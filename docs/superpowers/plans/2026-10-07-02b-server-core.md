@@ -22,6 +22,7 @@
 - WebSocket: проверка `Origin` по списку (`PUBLIC_URL` + `ALLOWED_ORIGINS`) — защита от cross-site WebSocket hijacking; до 10 соединений с IP; token bucket 40 сообщений, +20/с на сокет, превышение → закрытие 1008.
 - IP берётся из `server.requestIP`; доверие к `X-Forwarded-For` за Caddy — План 6.
 - `guildMember = true` для всех в 2b (проверка гильдии — 2c).
+- Writer-lock (исправлено по ревью Task 2): соединение без `max_lifetime`, heartbeat проверяет в `pg_locks`, что блокировка держится этой сессией; потеря → `onLost` → выход процесса.
 - Исправления рантайма из ревью 2a: `onCommit`, флаг остановки, идемпотентный `addPlayer`, `try` вокруг `takeBatch`, `bootGame`, advisory-lock.
 
 ---
@@ -1849,7 +1850,12 @@ import { bootGame } from "./persistence/boot";
 
 async function main(): Promise<void> {
   const config = loadEnv();
-  const lock = await acquireWriterLock(config.databaseUrl);
+  const lock = await acquireWriterLock(config.databaseUrl, {
+    onLost: () => {
+      console.error("Fatal: lost the single-writer lock");
+      process.exit(1);
+    },
+  });
   const { db, close } = createDb(config.databaseUrl);
   await runMigrations(db);
 
