@@ -37,3 +37,9 @@ test("invalid origins and non-http public urls are rejected", () => {
   expect(() => loadEnv({ ...base, ALLOWED_ORIGINS: "javascript:alert(1)" })).toThrow();
   expect(() => loadEnv({ ...base, PUBLIC_URL: "file:///x" })).toThrow();
 });
+
+test("dev login is refused on non-local public urls", () => {
+  expect(() => loadEnv({ ...base, PUBLIC_URL: "https://rave.example", DEV_LOGIN: "1", NODE_ENV: "development" })).toThrow();
+  expect(loadEnv({ ...base, PUBLIC_URL: "http://127.0.0.1:5173", DEV_LOGIN: "1" }).devLogin).toBe(true);
+  expect(loadEnv({ ...base, PUBLIC_URL: "http://[::1]:5173", DEV_LOGIN: "1" }).devLogin).toBe(true);
+});

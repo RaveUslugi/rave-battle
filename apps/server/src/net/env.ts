@@ -5,6 +5,8 @@ const httpUrl = z.url().refine((value) => ["http:", "https:"].includes(new URL(v
   message: "must be an http(s) URL",
 });
 
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 const envSchema = z
   .object({
     DATABASE_URL: z.url(),
@@ -17,6 +19,10 @@ const envSchema = z
   })
   .refine((env) => !(env.DEV_LOGIN === "1" && env.NODE_ENV === "production"), {
     message: "DEV_LOGIN must be disabled in production",
+    path: ["DEV_LOGIN"],
+  })
+  .refine((env) => !(env.DEV_LOGIN === "1" && !LOCAL_HOSTNAMES.has(new URL(env.PUBLIC_URL).hostname)), {
+    message: "DEV_LOGIN is only allowed when PUBLIC_URL is localhost",
     path: ["DEV_LOGIN"],
   });
 
