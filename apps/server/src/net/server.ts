@@ -15,7 +15,7 @@ import { upsertUser } from "../auth/users";
 import { appRouter } from "../trpc/router";
 import type { AppDeps } from "./deps";
 import type { Hub, SocketData } from "./hub";
-import { UserRateLimiter } from "./rate-limit";
+import { KeyedRateLimiter, UserRateLimiter } from "./rate-limit";
 
 /** Dev accounts look old enough to pass the account-age check. */
 const DEV_ACCOUNT_CREATED_AT = new Date(Date.UTC(2015, 0, 1));
@@ -23,9 +23,10 @@ const CHUNK_PATH = /^\/chunk\/(\d+)\/(\d+)$/;
 
 export function startServer(deps: AppDeps): Server<SocketData> {
   const limiter = deps.limiter ?? new UserRateLimiter(20, 5);
+  const ipLimiter = deps.ipLimiter ?? new KeyedRateLimiter<string>(60, 20);
   const server = Bun.serve({
     port: deps.config.port,
-    fetch: (req, srv) => route(req, srv, deps, limiter),
+    fetch: (req, srv) => route(req, srv, deps, limiter, ipLimiter),
     websocket: deps.hub.websocket,
   });
   deps.hub.attach(server);
@@ -37,6 +38,7 @@ async function route(
   server: Server<SocketData>,
   deps: AppDeps,
   limiter: UserRateLimiter,
+  ipLimiter: KeyedRateLimiter<string>,
 ): Promise<Response | undefined> {
   const url = new URL(req.url);
   if (url.pathname === "/ws") return upgrade(req, server, deps);
@@ -47,7 +49,11 @@ async function route(
   if (req.method === "GET" && url.pathname === "/auth/discord/callback" && deps.config.discord) return finishDiscordLogin(req, deps);
   if (req.method === "GET" && url.pathname === "/auth/dev" && deps.config.devLogin) return devLogin(url, deps);
   if (req.method === "POST" && url.pathname === "/auth/logout") return logout(req, deps);
-  if (url.pathname.startsWith("/trpc/")) return trpc(req, deps, limiter);
+  if (url.pathname.startsWith("/trpc/")) {
+    // Before the session lookup, so anonymous floods never reach the DB.
+    if (!ipLimiter.take(server.requestIP(req)?.address ?? "unknown")) return new Response("Too many requests", { status: 429 });
+    return trpc(req, deps, limiter);
+  }
   return new Response("Not found", { status: 404 });
 }
 

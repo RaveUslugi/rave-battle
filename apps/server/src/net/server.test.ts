@@ -18,6 +18,7 @@ import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
+import { KeyedRateLimiter } from "./rate-limit";
 import { startServer } from "./server";
 import { UserDirectory } from "./user-directory";
 
@@ -31,7 +32,7 @@ let base = "";
 const sockets: WebSocket[] = [];
 
 async function start(
-  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean } = {},
+  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean; ipLimiter?: KeyedRateLimiter<string> } = {},
 ) {
   if (!options.keepDb) await t.reset();
   const users = await UserDirectory.load(t.db);
@@ -49,7 +50,7 @@ async function start(
     sessionTtlMs: 86_400_000,
     discord: options.discord ?? null,
   };
-  server = startServer({ db: t.db, runtime, hub, users, config, fetch: options.fetch });
+  server = startServer({ db: t.db, runtime, hub, users, config, fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
 
@@ -480,6 +481,14 @@ describe("trpc over http", () => {
     const res = await fetch(`${base}/trpc/me`, { headers: { Cookie: cookie } });
     expect(res.status).toBe(200);
     expect((await data(res)).user.name).toBe("alice");
+  });
+
+  test("requests are limited per ip before any session lookup", async () => {
+    await shutdown();
+    await start({ ipLimiter: new KeyedRateLimiter<string>(3, 0.001) });
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await fetch(`${base}/trpc/me`)).status);
+    expect(statuses).toEqual([200, 200, 200, 429]);
   });
 
   test("mutations require an allowed origin", async () => {

@@ -3,7 +3,7 @@ import type { Db } from "../db/client";
 import type { GameRuntime } from "../persistence/runtime";
 import type { ServerConfig } from "./env";
 import type { Hub } from "./hub";
-import type { UserRateLimiter } from "./rate-limit";
+import type { KeyedRateLimiter, UserRateLimiter } from "./rate-limit";
 import type { UserDirectory } from "./user-directory";
 
 export interface AppDeps {
@@ -16,4 +16,6 @@ export interface AppDeps {
   fetch?: FetchFn;
   /** Per-user rate limit for tRPC; the server creates one when absent. */
   limiter?: UserRateLimiter;
+  /** Per-IP rate limit for all /trpc requests; the server creates one when absent. */
+  ipLimiter?: KeyedRateLimiter<string>;
 }

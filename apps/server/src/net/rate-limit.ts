@@ -21,9 +21,9 @@ export class TokenBucket {
   }
 }
 
-/** One token bucket per user id. */
-export class UserRateLimiter {
-  private buckets = new Map<number, TokenBucket>();
+/** One token bucket per key (user id, IP, ...). */
+export class KeyedRateLimiter<K extends string | number> {
+  private buckets = new Map<K, TokenBucket>();
 
   constructor(
     private readonly capacity: number,
@@ -31,12 +31,15 @@ export class UserRateLimiter {
     private readonly now: () => number = Date.now,
   ) {}
 
-  take(userId: number): boolean {
-    let bucket = this.buckets.get(userId);
+  take(key: K): boolean {
+    let bucket = this.buckets.get(key);
     if (!bucket) {
       bucket = new TokenBucket(this.capacity, this.perSecond, this.now());
-      this.buckets.set(userId, bucket);
+      this.buckets.set(key, bucket);
     }
     return bucket.take(this.now());
   }
 }
+
+/** One token bucket per user id. */
+export class UserRateLimiter extends KeyedRateLimiter<number> {}
