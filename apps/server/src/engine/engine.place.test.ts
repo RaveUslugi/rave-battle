@@ -192,4 +192,15 @@ describe("placePixel: bombs", () => {
     expect(rated).toHaveLength(3);
     expect(a.coins).toBe(104 + 4 * 15);
   });
+
+  test("an unknown bomb owner throws before anything changes", () => {
+    const { engine, bombs, addPlayer } = makeEngine();
+    const b = addPlayer(2);
+    bombs.add({ x: 5, y: 5, ownerId: 99, createdAt: T0 });
+    expect(() => engine.placePixel(2, place(5, 5, 9), T0)).toThrow();
+    expect(b.charges).toBe(10);
+    expect(b.frozenUntil).toBe(0);
+    expect(bombs.get(5, 5)?.ownerId).toBe(99);
+    expect(engine.drainEvents()).toEqual([]);
+  });
 });

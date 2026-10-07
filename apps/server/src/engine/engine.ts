@@ -63,11 +63,13 @@ export class GameEngine {
       if (this.bombs.activeCount(userId) >= this.cfg.bombs.maxActivePerPlayer) return reject("bomb_limit");
     }
 
+    const bomb = this.bombs.get(cmd.x, cmd.y);
+    const bombOwner = bomb && bomb.ownerId !== userId ? this.players.get(bomb.ownerId) : undefined;
+
     p.charges -= 1;
     const day = dateKey(now, this.cfg.daily.timezone);
 
-    const bomb = this.bombs.get(cmd.x, cmd.y);
-    if (bomb) return this.explode(p, bomb, day, now);
+    if (bomb) return this.explode(p, bomb, bombOwner, day, now);
 
     const prev = this.canvas.set(cmd.x, cmd.y, cmd.colorId, userId);
     this.emit({ type: "pixel", x: cmd.x, y: cmd.y, userId, colorId: cmd.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
@@ -190,7 +192,7 @@ export class GameEngine {
   }
 
   /** The pixel is not placed; the victim's own bomb (if any) is not spent. */
-  private explode(victim: PlayerState, bomb: Bomb, day: string, now: number): PlaceResult {
+  private explode(victim: PlayerState, bomb: Bomb, owner: PlayerState | undefined, day: string, now: number): PlaceResult {
     const self = bomb.ownerId === victim.userId;
     const ex = this.cfg.explosion;
 
@@ -202,11 +204,10 @@ export class GameEngine {
     victim.coins -= coinsLost;
     this.ledger(victim, "coins", -coinsLost, "explosion", now, { bombOwnerId: bomb.ownerId });
 
-    if (self) {
+    if (!owner) {
       this.stat(victim.userId, day, "selfExplosions", 1);
     } else {
       this.stat(victim.userId, day, "explosionsSuffered", 1);
-      const owner = this.players.get(bomb.ownerId);
       owner.coins += ex.authorBonus;
       this.ledger(owner, "coins", ex.authorBonus, "bomb_bonus", now, { victimId: victim.userId });
       if (this.antiFarm.register(day, owner.userId, victim.userId, this.cfg.antiFarm.maxRatedPerPairPerDay)) {
