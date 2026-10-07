@@ -1,0 +1,64 @@
+import { describe, expect, test } from "bun:test";
+import { createUiStore, DEFAULT_COLOR, type StorageLike } from "./ui-store";
+
+function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
+  const data = { ...initial };
+  return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
+}
+
+describe("ui store", () => {
+  test("the selected color defaults, persists and is restored", () => {
+    const storage = memoryStorage();
+    const first = createUiStore(storage);
+    expect(first.getState().selectedColor).toBe(DEFAULT_COLOR);
+    first.getState().selectColor(12);
+    expect(storage.data["rb:color"]).toBe("12");
+    expect(createUiStore(storage).getState().selectedColor).toBe(12);
+  });
+
+  test("broken or unavailable storage falls back to the default", () => {
+    expect(createUiStore(memoryStorage({ "rb:color": "banana" })).getState().selectedColor).toBe(DEFAULT_COLOR);
+    expect(createUiStore(memoryStorage({ "rb:color": "999" })).getState().selectedColor).toBe(DEFAULT_COLOR);
+    const throwing: StorageLike = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    };
+    const store = createUiStore(throwing);
+    store.getState().selectColor(7);
+    expect(store.getState().selectedColor).toBe(7);
+    expect(createUiStore(null).getState().selectedColor).toBe(DEFAULT_COLOR);
+  });
+
+  test("bomb mode and selection toggle independently", () => {
+    const store = createUiStore(null);
+    store.getState().setBombMode(true);
+    store.getState().select({ x: 3, y: 4 });
+    expect(store.getState()).toMatchObject({ bombMode: true, selection: { x: 3, y: 4 } });
+    store.getState().select(null);
+    expect(store.getState().selection).toBeNull();
+  });
+
+  test("toasts get unique ids, keep the latest four and can be dismissed", () => {
+    const store = createUiStore(null);
+    const ids = ["a", "b", "c", "d", "e"].map((text) => store.getState().pushToast("error", text));
+    expect(new Set(ids).size).toBe(5);
+    expect(store.getState().toasts.map((t) => t.text)).toEqual(["b", "c", "d", "e"]);
+    store.getState().dismissToast(ids[2]!);
+    expect(store.getState().toasts.map((t) => t.text)).toEqual(["b", "d", "e"]);
+  });
+
+  test("an explosion is stored with an id and can be cleared", () => {
+    const store = createUiStore(null);
+    store.getState().setExplosion({ self: false, coinsLost: 10, frozenUntil: 5, bombOwner: "neko", at: 1 });
+    const first = store.getState().explosion!;
+    expect(first).toMatchObject({ coinsLost: 10, bombOwner: "neko" });
+    store.getState().setExplosion({ self: true, coinsLost: 20, frozenUntil: 6, bombOwner: "me", at: 2 });
+    expect(store.getState().explosion!.id).toBeGreaterThan(first.id);
+    store.getState().setExplosion(null);
+    expect(store.getState().explosion).toBeNull();
+  });
+});

@@ -19,22 +19,26 @@ export interface GameState {
   setHover(cell: { x: number; y: number } | null): void;
 }
 
+export function createGameStore() {
+  return createStore<GameState>()((set) => ({
+    status: "connecting",
+    bootId: null,
+    user: null,
+    player: null,
+    config: null,
+    online: 0,
+    hover: null,
+    applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config }),
+    setPlayer: (player) => set({ player }),
+    // The count belongs to a connection: drop it when the connection goes away.
+    setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
+    setOnline: (online) => set({ online }),
+    setHover: (hover) => set({ hover }),
+  }));
+}
+
 /** Vanilla store: readable from the canvas session and socket code outside React. */
-export const gameStore = createStore<GameState>()((set) => ({
-  status: "connecting",
-  bootId: null,
-  user: null,
-  player: null,
-  config: null,
-  online: 0,
-  hover: null,
-  applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config }),
-  setPlayer: (player) => set({ player }),
-  // The count belongs to a connection: drop it when the connection goes away.
-  setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
-  setOnline: (online) => set({ online }),
-  setHover: (hover) => set({ hover }),
-}));
+export const gameStore = createGameStore();
 
 export function useGame<T>(selector: (state: GameState) => T): T {
   return useStore(gameStore, selector);
