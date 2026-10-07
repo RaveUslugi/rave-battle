@@ -233,6 +233,13 @@ describe("websocket", () => {
     expect(await b.closed).toBe(1003);
   });
 
+  test("oversized frames close the socket before they are parsed", async () => {
+    const c = await connect();
+    c.ws.send(new Uint8Array(5000));
+    // Bun 1.3.6 drops the connection (client sees 1006); a parsed frame would give 1003.
+    expect([1006, 1009]).toContain(await c.closed);
+  });
+
   test("flooding closes the socket with 1008", async () => {
     await shutdown();
     await start({ hub: { messageRate: { capacity: 3, perSecond: 0.001 } } });

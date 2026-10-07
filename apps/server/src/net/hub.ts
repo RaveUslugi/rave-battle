@@ -52,6 +52,7 @@ export class Hub {
   private server: Server<SocketData> | null = null;
   private connectionsByIp = new Map<string, number>();
   private onlineTimer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
   private readonly now: () => number;
   private readonly messageRate: { capacity: number; perSecond: number };
   private readonly maxConnectionsPerIp: number;
@@ -69,6 +70,7 @@ export class Hub {
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.onlineTimer) clearTimeout(this.onlineTimer);
     this.onlineTimer = null;
   }
@@ -109,6 +111,8 @@ export class Hub {
 
   readonly websocket: WebSocketHandler<SocketData> = {
     data: {} as SocketData,
+    // The largest valid frame is 259 bytes (SUBSCRIBE with 64 chunks).
+    maxPayloadLength: 4096,
     open: (ws) => this.open(ws),
     message: (ws, message) => this.message(ws, message),
     close: (ws) => this.close(ws),
@@ -219,7 +223,7 @@ export class Hub {
   }
 
   private scheduleOnline(): void {
-    if (this.onlineTimer) return;
+    if (this.stopped || this.onlineTimer) return;
     this.onlineTimer = setTimeout(() => {
       this.onlineTimer = null;
       const server = this.server;
