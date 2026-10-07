@@ -8,6 +8,7 @@ import {
   readSessionToken,
   resolveSession,
   sessionCookie,
+  sessionIdOf,
 } from "../auth/session";
 import { upsertUser } from "../auth/users";
 import type { AppDeps } from "./deps";
@@ -79,8 +80,14 @@ async function devLogin(url: URL, deps: AppDeps): Promise<Response> {
   });
 }
 
+/** Application close code: the session behind this socket ended. */
+const CLOSE_LOGGED_OUT = 4001;
+
 async function logout(req: Request, deps: AppDeps): Promise<Response> {
   const token = readSessionToken(req, deps.config.secureCookies);
-  if (token) await deleteSession(deps.db, token);
+  if (token) {
+    await deleteSession(deps.db, token);
+    deps.hub.disconnectSession(sessionIdOf(token), CLOSE_LOGGED_OUT, "logged out");
+  }
   return new Response(null, { status: 204, headers: { "Set-Cookie": clearSessionCookie(deps.config.secureCookies) } });
 }

@@ -1,4 +1,4 @@
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { sessions, users } from "../db/schema";
 import { banFromDate } from "../persistence/codec";
@@ -58,6 +58,12 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
 
 export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, sessionIdOf(token)));
+}
+
+/** Returns how many sessions were removed. */
+export async function deleteExpiredSessions(db: Db, now: number): Promise<number> {
+  const removed = await db.delete(sessions).where(lt(sessions.expiresAt, new Date(now))).returning({ id: sessions.id });
+  return removed.length;
 }
 
 export function readCookie(req: Request, name: string): string | null {

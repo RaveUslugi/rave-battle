@@ -82,6 +82,11 @@ export class Hub {
     for (const ws of this.sockets) ws.close(code, reason);
   }
 
+  /** Closes every socket authenticated with this session (logout). */
+  disconnectSession(sessionId: string, code: number, reason: string): void {
+    for (const ws of this.sockets) if (ws.data.user?.sessionId === sessionId) ws.close(code, reason);
+  }
+
   /** Synchronously takes a connection slot for `ip`; call before any `await` in the upgrade path. */
   reserveConnection(ip: string): boolean {
     const count = this.connectionsByIp.get(ip) ?? 0;

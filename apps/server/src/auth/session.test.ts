@@ -4,6 +4,7 @@ import { T0 } from "../engine/test-utils";
 import {
   clearSessionCookie,
   createSession,
+  deleteExpiredSessions,
   deleteSession,
   readSessionToken,
   resolveSession,
@@ -39,6 +40,15 @@ describe("upsertUser membership", () => {
 });
 
 describe("sessions", () => {
+  test("deleteExpiredSessions removes only expired sessions", async () => {
+    const id = await alice();
+    const old = await createSession(t.db, id, DAY, T0);
+    const fresh = await createSession(t.db, id, 10 * DAY, T0);
+    expect(await deleteExpiredSessions(t.db, T0 + 2 * DAY)).toBe(1);
+    expect(await resolveSession(t.db, old.token, T0)).toBeNull();
+    expect(await resolveSession(t.db, fresh.token, T0)).not.toBeNull();
+  });
+
   test("a fresh session resolves to its user", async () => {
     const id = await alice();
     const { token, expiresAt } = await createSession(t.db, id, 30 * DAY, T0);

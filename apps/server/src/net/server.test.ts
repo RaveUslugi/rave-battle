@@ -160,6 +160,17 @@ describe("http", () => {
 });
 
 describe("websocket", () => {
+  test("logout closes the sockets of that session only", async () => {
+    const first = await login("alice");
+    const second = await login("alice");
+    const a = await connect(first);
+    const b = await connect(second);
+    await fetch(`${base}/auth/logout`, { method: "POST", headers: { Cookie: first } });
+    expect(await a.closed).toBe(4001);
+    b.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    expect((await placed(b, 1)).result).toEqual({ ok: true, outcome: "placed" });
+  });
+
   test("users outside the guild can watch but not place", async () => {
     const cookie = await login("outsider");
     await t.db.update(usersTable).set({ guildMember: false }).where(eq(usersTable.username, "outsider"));
