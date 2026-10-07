@@ -235,7 +235,7 @@ client ──[PLACE x,y,color,withBomb]──► WS
 - `player_state`: `coins`, `charges`, `charges_updated_at`, `frozen_until`, `charge_cap_bonus`, `daily_step`, `daily_last_claim` (date).
 - `inventory`: `item` (`bomb` | `detector` | `defuser`), `amount` (для детектора/дефьюзера — число использований).
 - `unlocked_colors` (без сезона): `user_id`, `color_id`, `source`, `created_at`.
-- `ledger`: `id`, `user_id`, `season_id`, `item` (`coins` | `bomb` | `detector` | `defuser` | `color`), `delta`, `balance_after`, `reason` (`shop` | `daily` | `explosion` | `bomb_bonus` | `defuse` | `admin` | `start`), `ref jsonb`, `created_at`. Монета за пиксель в ledger построчно не пишется — агрегируется в `stats_daily.coins_from_pixels`.
+- `ledger`: `id`, `user_id`, `season_id`, `item` (`coins` | `bomb` | `detector` | `defuser` | `color`), `delta`, `balance_after`, `reason` (`shop` | `daily` | `explosion` | `bomb_bonus` | `defuse` | `use` | `admin` | `start`), `ref jsonb`, `created_at`. Монета за пиксель в ledger построчно не пишется — агрегируется в `stats_daily.coins_from_pixels`.
 
 ### Холст
 
