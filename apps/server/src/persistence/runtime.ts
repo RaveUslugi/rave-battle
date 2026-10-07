@@ -79,16 +79,15 @@ export class GameRuntime {
     return this.afterCommit().then(() => result);
   }
 
-  /** Returns the existing player, or creates one; always resolves only once the player is persisted. */
+  /**
+   * Returns the existing player, or creates one; always resolves only once the player is persisted.
+   * Access flags of an existing player are not touched; use engine.setAccess.
+   */
   addPlayer(init: Omit<NewPlayer, "now">): Promise<PlayerState> {
     const unavailable = this.unavailableError();
     if (unavailable) return Promise.reject(unavailable);
     if (this.engine.players.has(init.userId)) {
       const existing = this.engine.players.get(init.userId);
-      this.engine.setAccess(init.userId, {
-        guildMember: init.guildMember,
-        ...(init.bannedUntil !== undefined ? { bannedUntil: init.bannedUntil } : {}),
-      });
       const pending = this.newPlayers.some((entry) => entry.player.userId === init.userId);
       return pending ? this.afterCommit().then(() => existing) : Promise.resolve(existing);
     }
