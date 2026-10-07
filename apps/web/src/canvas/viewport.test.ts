@@ -5,6 +5,7 @@ import {
   cellAt,
   clampCenter,
   fitZoom,
+  mergeCameraSearch,
   pan,
   screenToWorld,
   visibleChunks,
@@ -101,5 +102,16 @@ describe("viewport", () => {
     expect(cameraFromSearch("")).toBeNull();
     expect(cameraFromSearch("?x=&y=1&z=2")).toBeNull();
     expect(cameraFromSearch("?x=1&y=1&z=")).toBeNull();
+  });
+
+  test("mergeCameraSearch rewrites only the camera params", () => {
+    expect(mergeCameraSearch("", { x: 1.4, y: 2.6, zoom: 3 })).toBe("?x=1&y=3&z=3");
+    const merged = new URLSearchParams(mergeCameraSearch("?foo=bar&x=9&y=9&z=9", { x: 10, y: 20, zoom: 4 }));
+    expect(Object.fromEntries(merged)).toEqual({ foo: "bar", x: "10", y: "20", z: "4" });
+  });
+
+  test("mergeCameraSearch keeps its output parseable", () => {
+    const search = mergeCameraSearch("?a=1", { x: 12.345, y: 67.8, zoom: 8.123 });
+    expect(cameraFromSearch(search)).toEqual({ x: 12, y: 68, zoom: 8.12 });
   });
 });

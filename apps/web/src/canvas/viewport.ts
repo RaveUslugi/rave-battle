@@ -114,6 +114,14 @@ export function cameraToSearch(cam: Camera): string {
   return `?x=${Math.round(cam.x)}&y=${Math.round(cam.y)}&z=${Number(cam.zoom.toFixed(2))}`;
 }
 
+/** Writes the camera into an existing query string without touching other parameters. */
+export function mergeCameraSearch(search: string, cam: Camera): string {
+  const params = new URLSearchParams(search);
+  const camera = new URLSearchParams(cameraToSearch(cam));
+  for (const [key, value] of camera) params.set(key, value);
+  return `?${params.toString()}`;
+}
+
 /** Parses `?x=&y=&z=`; null when anything is missing, empty or invalid. Clamping is the caller's job. */
 export function cameraFromSearch(search: string): Camera | null {
   const params = new URLSearchParams(search);

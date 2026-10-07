@@ -6,11 +6,11 @@ import { CanvasController } from "./controller";
 import { PixiRenderer } from "./pixi-renderer";
 import {
   cameraFromSearch,
-  cameraToSearch,
   cellAt,
   clampCenter,
   fitZoom,
   MAX_ZOOM,
+  mergeCameraSearch,
   pan,
   visibleChunks,
   zoomAt,
@@ -165,7 +165,9 @@ export class CanvasSession {
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.urlTimer = setTimeout(() => {
       this.urlTimer = null;
-      if (this.camera && !this.disposed) window.history.replaceState(window.history.state, "", cameraToSearch(this.camera));
+      if (this.camera && !this.disposed) {
+        window.history.replaceState(window.history.state, "", mergeCameraSearch(window.location.search, this.camera) + window.location.hash);
+      }
     }, URL_DEBOUNCE_MS);
   }
 
