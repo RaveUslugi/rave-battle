@@ -234,6 +234,31 @@ describe("websocket", () => {
     expect((await placed(alice, 1)).result).toEqual({ ok: false, code: "banned" });
   });
 
+  test("hello is the first message even when a frame arrives before it", async () => {
+    const cookie = await login("alice");
+    const ws = new WebSocket(`${base.replace("http", "ws")}/ws`, { headers: { Origin: ORIGIN, Cookie: cookie } });
+    sockets.push(ws);
+    const types: string[] = [];
+    ws.addEventListener("message", (e) => {
+      if (typeof e.data === "string") types.push((JSON.parse(e.data) as ServerMessage).type);
+    });
+    ws.addEventListener("open", () => ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false })));
+    await waitFor(() => types.includes("placed") && types.includes("online"));
+    expect(types[0]).toBe("hello");
+    expect(types.indexOf("hello")).toBeLessThan(types.indexOf("placed"));
+  });
+
+  test("more than 16 frames before hello close the socket with 1008", async () => {
+    const cookie = await login("alice");
+    const ws = new WebSocket(`${base.replace("http", "ws")}/ws`, { headers: { Origin: ORIGIN, Cookie: cookie } });
+    sockets.push(ws);
+    const closed = new Promise<number>((resolve) => ws.addEventListener("close", (e) => resolve(e.code)));
+    ws.addEventListener("open", () => {
+      for (let i = 0; i < 17; i++) ws.send(encodeSubscribe([]));
+    });
+    expect(await closed).toBe(1008);
+  });
+
   test("logout clears the session", async () => {
     const cookie = await login("alice");
     const res = await fetch(`${base}/auth/logout`, { method: "POST", headers: { Cookie: cookie } });

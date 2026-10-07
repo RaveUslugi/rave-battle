@@ -1,6 +1,7 @@
 import {
   CHUNK_SIZE,
   ClientOp,
+  type ClientMessage,
   decodeClientMessage,
   encodeChunkDelta,
   PROTOCOL_VERSION,
@@ -19,12 +20,17 @@ import { buildChunkDeltas, buildFeed, ChunkVersions, toPlaceResultView, toPlayer
 export const GLOBAL_TOPIC = "global";
 const chunkTopic = (key: string) => `chunk:${key}`;
 const userTopic = (userId: number) => `user:${userId}`;
+/** Frames accepted before `hello` is sent; more than this closes the socket. */
+const MAX_PENDING = 16;
 
 export interface SocketData {
   user: SessionUser | null;
   ip: string;
   chunks: Set<string>;
   bucket: TokenBucket;
+  /** False until `hello` is sent; frames arriving earlier wait in `pending`. */
+  ready: boolean;
+  pending: ClientMessage[];
 }
 
 export interface HubOptions {
@@ -83,7 +89,7 @@ export class Hub {
 
   socketData(user: SessionUser | null, ip: string): SocketData {
     const { capacity, perSecond } = this.messageRate;
-    return { user, ip, chunks: new Set(), bucket: new TokenBucket(capacity, perSecond, this.now()) };
+    return { user, ip, chunks: new Set(), bucket: new TokenBucket(capacity, perSecond, this.now()), ready: false, pending: [] };
   }
 
   /** `GameRuntime` onCommit hook: clients only ever see committed state. */
@@ -115,12 +121,8 @@ export class Hub {
 
   private async open(ws: Socket): Promise<void> {
     const { user } = ws.data;
-    ws.subscribe(GLOBAL_TOPIC);
-    this.scheduleOnline();
-
     let player: PlayerView | null = null;
     if (user) {
-      ws.subscribe(userTopic(user.id));
       try {
         // Guild membership is checked at Discord login (Plan 2c); dev users are always members.
         await this.options.runtime.addPlayer({
@@ -142,6 +144,13 @@ export class Hub {
       config: this.options.runtime.engine.config,
       player,
     });
+    // Topics only after hello, so it is always the first message the client sees.
+    ws.subscribe(GLOBAL_TOPIC);
+    if (user) ws.subscribe(userTopic(user.id));
+    this.scheduleOnline();
+    ws.data.ready = true;
+    // Dispatched synchronously: the engine applies commands in call order.
+    for (const msg of ws.data.pending.splice(0)) void this.dispatch(ws, msg);
   }
 
   private async message(ws: Socket, message: string | Buffer): Promise<void> {
@@ -158,6 +167,14 @@ export class Hub {
       ws.close(1003, "malformed frame");
       return;
     }
+    if (!ws.data.ready) {
+      if (ws.data.pending.push(msg) > MAX_PENDING) ws.close(1008, "too many early frames");
+      return;
+    }
+    await this.dispatch(ws, msg);
+  }
+
+  private async dispatch(ws: Socket, msg: ClientMessage): Promise<void> {
     if (msg.op === ClientOp.Subscribe) this.subscribe(ws, msg.chunks);
     else await this.place(ws, msg);
   }
