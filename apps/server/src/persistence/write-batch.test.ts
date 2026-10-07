@@ -3,6 +3,7 @@ import { asc, eq, ne } from "drizzle-orm";
 import { bombs, chunkSnapshots, inventory, ledger, pixelEvents, playerState, seasons, statsDaily, unlockedColors } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import { makeEngine, T0 } from "../engine/test-utils";
+import type { EngineEvent } from "../engine/types";
 import { snapshotPlayer, type Batch } from "./batch";
 import { bytesToOwners } from "./codec";
 import { writeBatch } from "./write-batch";
@@ -133,5 +134,25 @@ describe("writeBatch", () => {
     expect(snap).toMatchObject({ seasonId, cx: 0, cy: 0, lastEventId: 2 });
     expect(snap!.colors[256 + 2]).toBe(4);
     expect(bytesToOwners(snap!.owners)[256 + 1]).toBe(a);
+  });
+
+  test("removing a bomb that is not active in the database fails the batch", async () => {
+    await setup();
+    const removed: EngineEvent = { type: "bomb_removed", x: 5, y: 5, ownerId: a, reason: "exploded", removedBy: b, at: T0 };
+    await expect(write({ events: [removed] })).rejects.toThrow();
+  });
+
+  test("large batches are written in slices", async () => {
+    await setup();
+    const n = 8000;
+    const events: EngineEvent[] = [];
+    for (let i = 0; i < n; i++) {
+      const at = T0 + i;
+      events.push({ type: "pixel", x: i % 512, y: Math.floor(i / 512), userId: a, colorId: 3, prevColorId: 0, prevUserId: 0, at });
+      events.push({ type: "ledger", userId: a, item: "coins", delta: 1, balanceAfter: 101 + i, reason: "daily", ref: {}, at });
+    }
+    await write({ events });
+    expect(await t.db.$count(pixelEvents)).toBe(n);
+    expect(await t.db.$count(ledger, ne(ledger.reason, "start"))).toBe(n);
   });
 });

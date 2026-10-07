@@ -2,9 +2,12 @@ import { ITEM_KEYS } from "@rave/shared";
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { Tx } from "../db/client";
 import { bombs, chunkSnapshots, inventory, ledger, pixelEvents, playerState, statsDaily, unlockedColors } from "../db/schema";
-import type { EngineEvent, LedgerItem, StatKey } from "../engine/types";
+import type { EngineEvent, StatKey } from "../engine/types";
 import type { Batch, PlayerSnapshot } from "./batch";
 import { ownersToBytes } from "./codec";
+
+/** Max rows per multi-row insert; keeps well under the 65534 bind-parameter limit. */
+const INSERT_SLICE = 1000;
 
 type EventOf<T extends EngineEvent["type"]> = Extract<EngineEvent, { type: T }>;
 
@@ -14,6 +17,7 @@ function ofType<T extends EngineEvent["type"]>(events: EngineEvent[], type: T): 
 
 /** Writes one batch. Must run inside a transaction. Order matters: players first, snapshots last. */
 export async function writeBatch(tx: Tx, batch: Batch): Promise<void> {
+  assertKnownEvents(batch.events);
   for (const { player, at } of batch.newPlayers) await insertNewPlayer(tx, batch.seasonId, player, at);
   await insertPixels(tx, batch);
   await applyBombEvents(tx, batch);
@@ -24,12 +28,32 @@ export async function writeBatch(tx: Tx, batch: Batch): Promise<void> {
   if (batch.chunks.length > 0) await insertChunkSnapshots(tx, batch);
 }
 
+/** Every event type needs a writer below (`player` is covered by `batch.players`); a new type fails typecheck here. */
+function assertKnownEvents(events: EngineEvent[]): void {
+  for (const e of events) {
+    switch (e.type) {
+      case "pixel":
+      case "bomb_added":
+      case "bomb_removed":
+      case "ledger":
+      case "stat":
+      case "color_unlocked":
+      case "player":
+        break;
+      default: {
+        const unknown: never = e;
+        throw new Error(`Unknown engine event: ${JSON.stringify(unknown)}`);
+      }
+    }
+  }
+}
+
 async function insertNewPlayer(tx: Tx, seasonId: number, p: PlayerSnapshot, at: number): Promise<void> {
   await upsertPlayer(tx, seasonId, p);
   const start = [
-    { item: "coins", amount: p.coins },
+    { item: "coins" as const, amount: p.coins },
     ...ITEM_KEYS.map((item) => ({ item, amount: p.inventory[item] })),
-  ].filter((s): s is { item: LedgerItem; amount: number } => s.amount > 0);
+  ].filter((s) => s.amount > 0);
   if (start.length === 0) return;
   await tx.insert(ledger).values(
     start.map((s) => ({
@@ -69,20 +93,21 @@ async function upsertPlayer(tx: Tx, seasonId: number, p: PlayerSnapshot): Promis
 
 async function insertPixels(tx: Tx, batch: Batch): Promise<void> {
   const pixels = ofType(batch.events, "pixel");
-  if (pixels.length === 0) return;
-  await tx.insert(pixelEvents).values(
-    pixels.map((e) => ({
-      seasonId: batch.seasonId,
-      x: e.x,
-      y: e.y,
-      userId: e.userId || null,
-      colorId: e.colorId,
-      prevColorId: e.prevColorId,
-      prevUserId: e.prevUserId || null,
-      kind: "place" as const,
-      createdAt: new Date(e.at),
-    })),
-  );
+  for (let i = 0; i < pixels.length; i += INSERT_SLICE) {
+    await tx.insert(pixelEvents).values(
+      pixels.slice(i, i + INSERT_SLICE).map((e) => ({
+        seasonId: batch.seasonId,
+        x: e.x,
+        y: e.y,
+        userId: e.userId || null,
+        colorId: e.colorId,
+        prevColorId: e.prevColorId,
+        prevUserId: e.prevUserId || null,
+        kind: "place" as const,
+        createdAt: new Date(e.at),
+      })),
+    );
+  }
 }
 
 /** Sequential on purpose: a batch may add and then remove a bomb on the same cell. */
@@ -91,29 +116,34 @@ async function applyBombEvents(tx: Tx, batch: Batch): Promise<void> {
     if (e.type === "bomb_added") {
       await tx.insert(bombs).values({ seasonId: batch.seasonId, x: e.x, y: e.y, ownerId: e.ownerId, createdAt: new Date(e.at) });
     } else if (e.type === "bomb_removed") {
-      await tx
+      const updated = await tx
         .update(bombs)
         .set({ removedAt: new Date(e.at), removedReason: e.reason, removedBy: e.removedBy })
-        .where(and(eq(bombs.seasonId, batch.seasonId), eq(bombs.x, e.x), eq(bombs.y, e.y), isNull(bombs.removedAt)));
+        .where(and(eq(bombs.seasonId, batch.seasonId), eq(bombs.x, e.x), eq(bombs.y, e.y), isNull(bombs.removedAt)))
+        .returning({ id: bombs.id });
+      if (updated.length !== 1) {
+        throw new Error(`bomb_removed at ${e.x},${e.y} matched ${updated.length} active bombs, expected 1`);
+      }
     }
   }
 }
 
 async function insertLedger(tx: Tx, batch: Batch): Promise<void> {
   const rows = ofType(batch.events, "ledger");
-  if (rows.length === 0) return;
-  await tx.insert(ledger).values(
-    rows.map((e) => ({
-      userId: e.userId,
-      seasonId: batch.seasonId,
-      item: e.item,
-      delta: e.delta,
-      balanceAfter: e.balanceAfter,
-      reason: e.reason,
-      ref: e.ref,
-      createdAt: new Date(e.at),
-    })),
-  );
+  for (let i = 0; i < rows.length; i += INSERT_SLICE) {
+    await tx.insert(ledger).values(
+      rows.slice(i, i + INSERT_SLICE).map((e) => ({
+        userId: e.userId,
+        seasonId: batch.seasonId,
+        item: e.item,
+        delta: e.delta,
+        balanceAfter: e.balanceAfter,
+        reason: e.reason,
+        ref: e.ref,
+        createdAt: new Date(e.at),
+      })),
+    );
+  }
 }
 
 async function addStats(tx: Tx, batch: Batch): Promise<void> {
