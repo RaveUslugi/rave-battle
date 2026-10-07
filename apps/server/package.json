@@ -1,0 +1,9 @@
+{
+  "name": "@rave/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@rave/shared": "workspace:*"
+  }
+}
