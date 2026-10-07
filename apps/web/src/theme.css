@@ -1,0 +1,31 @@
+:root {
+  --bg: #07020f;
+  --board-edge: #1a0b33;
+  --panel: rgba(16, 6, 32, 0.78);
+  --panel-border: rgba(255, 43, 214, 0.35);
+  --neon-pink: #ff2bd6;
+  --neon-cyan: #22f3ff;
+  --neon-lime: #b6ff3b;
+  --text: #f2e9ff;
+  --muted: #9b8cb8;
+  --radius: 12px;
+  --glow-pink: 0 0 8px rgba(255, 43, 214, 0.7), 0 0 24px rgba(255, 43, 214, 0.35);
+  --glow-cyan: 0 0 8px rgba(34, 243, 255, 0.7), 0 0 24px rgba(34, 243, 255, 0.3);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
