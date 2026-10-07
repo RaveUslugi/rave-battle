@@ -6,6 +6,8 @@ import type { CanvasStore } from "./canvas-store";
 import { settleCharges } from "./charges";
 import type { PlayerRegistry } from "./player";
 import type {
+  DefuseResult,
+  DetectResult,
   EngineEvent,
   LedgerItem,
   LedgerReason,
@@ -80,6 +82,42 @@ export class GameEngine {
 
     this.emit({ type: "player", userId });
     return { ok: true, outcome: "placed" };
+  }
+
+  detect(userId: UserId, cell: { x: number; y: number }, now: number): DetectResult {
+    const p = this.players.get(userId);
+    const denied = this.actionError(p, now);
+    if (denied) return reject(denied);
+    if (!this.canvas.inBounds(cell.x, cell.y)) return reject("out_of_bounds");
+    if (p.inventory.detector < 1) return reject("no_detector");
+
+    p.inventory.detector -= 1;
+    this.ledger(p, "detector", -1, "use", now);
+    this.emit({ type: "player", userId });
+    return { ok: true, count: this.bombs.countAround(cell.x, cell.y) };
+  }
+
+  defuse(userId: UserId, cell: { x: number; y: number }, now: number): DefuseResult {
+    const p = this.players.get(userId);
+    const denied = this.actionError(p, now);
+    if (denied) return reject(denied);
+    if (!this.canvas.inBounds(cell.x, cell.y)) return reject("out_of_bounds");
+    if (p.inventory.defuser < 1) return reject("no_defuser");
+
+    p.inventory.defuser -= 1;
+    this.ledger(p, "defuser", -1, "use", now);
+    this.emit({ type: "player", userId });
+
+    const bomb = this.bombs.remove(cell.x, cell.y);
+    if (!bomb) return { ok: true, found: false, reward: 0 };
+    this.emit({ type: "bomb_removed", x: bomb.x, y: bomb.y, ownerId: bomb.ownerId, reason: "defused", removedBy: userId, at: now });
+    if (bomb.ownerId === userId) return { ok: true, found: true, reward: 0 };
+
+    const reward = this.cfg.defuse.reward;
+    p.coins += reward;
+    this.ledger(p, "coins", reward, "defuse", now, { bombOwnerId: bomb.ownerId });
+    this.stat(userId, dateKey(now, this.cfg.daily.timezone), "defused", 1);
+    return { ok: true, found: true, reward };
   }
 
   /** The pixel is not placed; the victim's own bomb (if any) is not spent. */
