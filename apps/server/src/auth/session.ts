@@ -3,7 +3,8 @@ import type { Db } from "../db/client";
 import { sessions, users } from "../db/schema";
 import { banFromDate } from "../persistence/codec";
 
-export const SESSION_COOKIE = "rb_session";
+/** The `__Host-` prefix makes browsers require Secure, Path=/ and no Domain, so sibling subdomains cannot plant it. */
+export const sessionCookieName = (secure: boolean) => (secure ? "__Host-rb_session" : "rb_session");
 
 export interface SessionUser {
   id: number;
@@ -52,24 +53,25 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, hashToken(token)));
 }
 
-export function readSessionToken(req: Request): string | null {
+export function readSessionToken(req: Request, secure: boolean): string | null {
   const header = req.headers.get("cookie");
   if (!header) return null;
+  const cookieName = sessionCookieName(secure);
   for (const part of header.split(";")) {
     const [name, ...rest] = part.trim().split("=");
-    if (name === SESSION_COOKIE) return rest.join("=") || null;
+    if (name === cookieName) return rest.join("=") || null;
   }
   return null;
 }
 
 export function sessionCookie(token: string, expiresAt: Date, secure: boolean): string {
-  return [`${SESSION_COOKIE}=${token}`, "Path=/", "HttpOnly", "SameSite=Lax", `Expires=${expiresAt.toUTCString()}`]
+  return [`${sessionCookieName(secure)}=${token}`, "Path=/", "HttpOnly", "SameSite=Lax", `Expires=${expiresAt.toUTCString()}`]
     .concat(secure ? ["Secure"] : [])
     .join("; ");
 }
 
 export function clearSessionCookie(secure: boolean): string {
-  return [`${SESSION_COOKIE}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"]
+  return [`${sessionCookieName(secure)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"]
     .concat(secure ? ["Secure"] : [])
     .join("; ");
 }

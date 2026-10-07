@@ -7,8 +7,8 @@ import {
   deleteSession,
   readSessionToken,
   resolveSession,
-  SESSION_COOKIE,
   sessionCookie,
+  sessionCookieName,
 } from "./session";
 import { upsertUser } from "./users";
 
@@ -63,14 +63,24 @@ describe("sessions", () => {
 
 describe("cookies", () => {
   test("reads the session token from the Cookie header", () => {
-    const req = new Request("http://x/", { headers: { cookie: `a=1; ${SESSION_COOKIE}=tok-en; b=2` } });
-    expect(readSessionToken(req)).toBe("tok-en");
-    expect(readSessionToken(new Request("http://x/"))).toBeNull();
+    const req = new Request("http://x/", { headers: { cookie: `a=1; ${sessionCookieName(false)}=tok-en; b=2` } });
+    expect(readSessionToken(req, false)).toBe("tok-en");
+    expect(readSessionToken(new Request("http://x/"), false)).toBeNull();
+  });
+
+  test("reads only the cookie name of the given mode", () => {
+    const plain = new Request("http://x/", { headers: { cookie: "rb_session=evil" } });
+    expect(readSessionToken(plain, true)).toBeNull();
+    const host = new Request("http://x/", { headers: { cookie: "rb_session=evil; __Host-rb_session=good" } });
+    expect(readSessionToken(host, true)).toBe("good");
+    expect(readSessionToken(host, false)).toBe("evil");
   });
 
   test("builds hardened Set-Cookie values", () => {
     const value = sessionCookie("tok", new Date(T0), true);
-    expect(value).toStartWith(`${SESSION_COOKIE}=tok; `);
+    expect(value).toStartWith("__Host-rb_session=tok; ");
+    expect(sessionCookie("tok", new Date(T0), false)).toStartWith("rb_session=tok; ");
+    expect(clearSessionCookie(true)).toStartWith("__Host-rb_session=; ");
     for (const part of ["Path=/", "HttpOnly", "SameSite=Lax", "Secure"]) expect(value).toContain(part);
     expect(sessionCookie("tok", new Date(T0), false)).not.toContain("Secure");
     expect(clearSessionCookie(false)).toContain("Max-Age=0");
