@@ -25,6 +25,7 @@ export interface ZoomLimits {
 export const MAX_ZOOM = 64;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const finite = (...values: number[]) => values.every(Number.isFinite);
 
 export function screenToWorld(cam: Camera, size: ScreenSize, sx: number, sy: number): { x: number; y: number } {
   return { x: cam.x + (sx - size.w / 2) / cam.zoom, y: cam.y + (sy - size.h / 2) / cam.zoom };
@@ -36,18 +37,28 @@ export function worldToScreen(cam: Camera, size: ScreenSize, wx: number, wy: num
 
 /** Zooms by `factor` keeping the canvas point under (sx, sy) in place. */
 export function zoomAt(cam: Camera, size: ScreenSize, sx: number, sy: number, factor: number, limits: ZoomLimits): Camera {
+  // Non-finite input or result (NaN from a broken event, zero-size screen) keeps the camera as is.
+  if (!finite(cam.x, cam.y, cam.zoom, size.w, size.h, sx, sy, factor)) return cam;
   const anchor = screenToWorld(cam, size, sx, sy);
   const zoom = clamp(cam.zoom * factor, limits.min, limits.max);
-  return { x: anchor.x - (sx - size.w / 2) / zoom, y: anchor.y - (sy - size.h / 2) / zoom, zoom };
+  const next = { x: anchor.x - (sx - size.w / 2) / zoom, y: anchor.y - (sy - size.h / 2) / zoom, zoom };
+  return finite(next.x, next.y, next.zoom) ? next : cam;
 }
 
 /** Drag by (dx, dy) screen pixels. */
 export function pan(cam: Camera, dx: number, dy: number): Camera {
-  return { x: cam.x - dx / cam.zoom, y: cam.y - dy / cam.zoom, zoom: cam.zoom };
+  // Non-finite input or result keeps the camera as is.
+  const next = { x: cam.x - dx / cam.zoom, y: cam.y - dy / cam.zoom, zoom: cam.zoom };
+  return finite(cam.x, cam.y, cam.zoom, dx, dy, next.x, next.y) ? next : cam;
 }
 
+/** A non-finite center coordinate falls back to the middle of the canvas. */
 export function clampCenter(cam: Camera, canvas: CanvasSize): Camera {
-  return { x: clamp(cam.x, 0, canvas.width), y: clamp(cam.y, 0, canvas.height), zoom: cam.zoom };
+  return {
+    x: Number.isFinite(cam.x) ? clamp(cam.x, 0, canvas.width) : canvas.width / 2,
+    y: Number.isFinite(cam.y) ? clamp(cam.y, 0, canvas.height) : canvas.height / 2,
+    zoom: cam.zoom,
+  };
 }
 
 /** Zoom that shows the whole canvas with a 10% margin. */
@@ -103,10 +114,11 @@ export function cameraToSearch(cam: Camera): string {
   return `?x=${Math.round(cam.x)}&y=${Math.round(cam.y)}&z=${Number(cam.zoom.toFixed(2))}`;
 }
 
-/** Parses `?x=&y=&z=`; null when anything is missing or invalid. Clamping is the caller's job. */
+/** Parses `?x=&y=&z=`; null when anything is missing, empty or invalid. Clamping is the caller's job. */
 export function cameraFromSearch(search: string): Camera | null {
   const params = new URLSearchParams(search);
-  const values = ["x", "y", "z"].map((key) => (params.has(key) ? Number(params.get(key)) : Number.NaN));
+  // Number("") is 0, so an empty value must be rejected before conversion.
+  const values = ["x", "y", "z"].map((key) => (params.get(key)?.trim() ? Number(params.get(key)) : Number.NaN));
   const [x, y, zoom] = values as [number, number, number];
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(zoom) || zoom <= 0) return null;
   return { x, y, zoom };

@@ -40,6 +40,14 @@ describe("viewport", () => {
     expect(clampCenter({ x: -5, y: 900, zoom: 1 }, { width: 512, height: 512 })).toEqual({ x: 0, y: 512, zoom: 1 });
   });
 
+  test("non-finite input leaves the camera unchanged", () => {
+    const cam = { x: 100, y: 100, zoom: 2 };
+    expect(zoomAt(cam, size, 0, 0, Number.NaN, limits)).toBe(cam);
+    expect(zoomAt(cam, size, Number.POSITIVE_INFINITY, 0, 2, limits)).toBe(cam);
+    expect(pan(cam, Number.NaN, 1)).toBe(cam);
+    expect(clampCenter({ x: Number.NaN, y: 900, zoom: 1 }, { width: 512, height: 512 })).toEqual({ x: 256, y: 512, zoom: 1 });
+  });
+
   test("fitZoom fits the whole canvas with a margin", () => {
     expect(fitZoom({ width: 512, height: 512 }, size)).toBeCloseTo((600 / 512) * 0.9);
   });
@@ -91,5 +99,7 @@ describe("viewport", () => {
     expect(cameraFromSearch("?x=abc&y=1&z=2")).toBeNull();
     expect(cameraFromSearch("?x=1&y=1&z=0")).toBeNull();
     expect(cameraFromSearch("")).toBeNull();
+    expect(cameraFromSearch("?x=&y=1&z=2")).toBeNull();
+    expect(cameraFromSearch("?x=1&y=1&z=")).toBeNull();
   });
 });
