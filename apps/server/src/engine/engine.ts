@@ -171,6 +171,13 @@ export class GameEngine {
     return { ok: true };
   }
 
+  /** Login and moderation update access flags. They live in `users`, so no events are emitted. */
+  setAccess(userId: UserId, access: { guildMember?: boolean; bannedUntil?: number | null }): void {
+    const p = this.players.get(userId);
+    if (access.guildMember !== undefined) p.guildMember = access.guildMember;
+    if (access.bannedUntil !== undefined) p.bannedUntil = access.bannedUntil;
+  }
+
   claimDaily(userId: UserId, now: number): DailyResult {
     const p = this.players.get(userId);
     const denied = accessError(p, this.cfg, now);
