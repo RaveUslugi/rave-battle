@@ -149,6 +149,19 @@ describe("GameClient", () => {
     expect(t.ui.getState().toasts).toHaveLength(0);
   });
 
+  test("a refused confirm keeps the selection so the user can retry", () => {
+    t.game.setState({ player: player({ charges: 0 }) });
+    t.client.onCellTap({ x: 3, y: 4 }, "touch");
+    t.client.confirmSelection();
+    expect(toastTexts(t.ui)).toEqual(["Нет зарядов"]);
+    expect(t.ui.getState().selection).toEqual({ x: 3, y: 4 });
+    expect(t.sent).toHaveLength(0);
+    t.game.setState({ player: player({ charges: 1 }) });
+    t.client.confirmSelection();
+    expect(t.sent).toHaveLength(1);
+    expect(t.ui.getState().selection).toBeNull();
+  });
+
   test("detach cancels expiry timers, and a late fire does nothing", () => {
     t.client.onCellTap({ x: 1, y: 1 }, "mouse");
     const callsBefore = t.pendingCalls.length;

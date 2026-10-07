@@ -86,8 +86,7 @@ export class GameClient {
   readonly confirmSelection = (): void => {
     const selection = this.deps.ui.getState().selection;
     if (!selection) return;
-    this.deps.ui.getState().select(null);
-    this.place(selection);
+    if (this.place(selection)) this.deps.ui.getState().select(null);
   };
 
   readonly cancelSelection = (): void => {
@@ -118,10 +117,11 @@ export class GameClient {
     this.deps.ui.getState().pushToast("error", text);
   };
 
-  private place(cell: Cell): void {
+  /** True when the placement was sent. */
+  private place(cell: Cell): boolean {
     const game = this.deps.game.getState();
     const ui = this.deps.ui.getState();
-    if (!game.config) return;
+    if (!game.config) return false;
     const now = this.now();
     const plan = planPlacement({
       user: game.user,
@@ -135,7 +135,7 @@ export class GameClient {
     });
     if (!plan.ok) {
       this.toast(plan.code);
-      return;
+      return false;
     }
     const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, now);
     const sent = this.port?.sendPlace({
@@ -148,7 +148,7 @@ export class GameClient {
     if (!sent) {
       this.pending.resolve(placement.reqId);
       this.toast("unavailable");
-      return;
+      return false;
     }
     this.port?.setPending(this.pending.list());
     const handle = this.timers.set(() => {
@@ -156,6 +156,7 @@ export class GameClient {
       this.expire();
     }, this.ttlMs + 50);
     this.expiryTimers.add(handle);
+    return true;
   }
 
   private expire(): void {
