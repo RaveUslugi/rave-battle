@@ -1,4 +1,5 @@
 import { CHUNK_SIZE, encodeChunkBody } from "@rave/shared";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { Server } from "bun";
 import { finishDiscordLogin, startDiscordLogin } from "../auth/discord-routes";
 import {
@@ -11,24 +12,32 @@ import {
   sessionIdOf,
 } from "../auth/session";
 import { upsertUser } from "../auth/users";
+import { appRouter } from "../trpc/router";
 import type { AppDeps } from "./deps";
 import type { Hub, SocketData } from "./hub";
+import { UserRateLimiter } from "./rate-limit";
 
 /** Dev accounts look old enough to pass the account-age check. */
 const DEV_ACCOUNT_CREATED_AT = new Date(Date.UTC(2015, 0, 1));
 const CHUNK_PATH = /^\/chunk\/(\d+)\/(\d+)$/;
 
 export function startServer(deps: AppDeps): Server<SocketData> {
+  const limiter = deps.limiter ?? new UserRateLimiter(20, 5);
   const server = Bun.serve({
     port: deps.config.port,
-    fetch: (req, srv) => route(req, srv, deps),
+    fetch: (req, srv) => route(req, srv, deps, limiter),
     websocket: deps.hub.websocket,
   });
   deps.hub.attach(server);
   return server;
 }
 
-async function route(req: Request, server: Server<SocketData>, deps: AppDeps): Promise<Response | undefined> {
+async function route(
+  req: Request,
+  server: Server<SocketData>,
+  deps: AppDeps,
+  limiter: UserRateLimiter,
+): Promise<Response | undefined> {
   const url = new URL(req.url);
   if (url.pathname === "/ws") return upgrade(req, server, deps);
   if (req.method === "GET" && url.pathname === "/health") return new Response("ok");
@@ -38,6 +47,7 @@ async function route(req: Request, server: Server<SocketData>, deps: AppDeps): P
   if (req.method === "GET" && url.pathname === "/auth/discord/callback" && deps.config.discord) return finishDiscordLogin(req, deps);
   if (req.method === "GET" && url.pathname === "/auth/dev" && deps.config.devLogin) return devLogin(url, deps);
   if (req.method === "POST" && url.pathname === "/auth/logout") return logout(req, deps);
+  if (url.pathname.startsWith("/trpc/")) return trpc(req, deps, limiter);
   return new Response("Not found", { status: 404 });
 }
 
@@ -95,4 +105,12 @@ async function logout(req: Request, deps: AppDeps): Promise<Response> {
     deps.hub.disconnectSession(sessionIdOf(token), CLOSE_LOGGED_OUT, "logged out");
   }
   return new Response(null, { status: 204, headers: { "Set-Cookie": clearSessionCookie(deps.config.secureCookies) } });
+}
+
+async function trpc(req: Request, deps: AppDeps, limiter: UserRateLimiter): Promise<Response> {
+  // Cookie auth: state-changing calls must come from our own pages, like the WebSocket.
+  if (req.method !== "GET" && !originAllowed(req, deps)) return new Response("Forbidden origin", { status: 403 });
+  const token = readSessionToken(req, deps.config.secureCookies);
+  const user = token ? await resolveSession(deps.db, token, Date.now()) : null;
+  return fetchRequestHandler({ endpoint: "/trpc", req, router: appRouter, createContext: () => ({ deps, user, limiter }) });
 }

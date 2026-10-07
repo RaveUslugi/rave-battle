@@ -467,3 +467,45 @@ describe("discord login", () => {
     expect(cookie).toBeNull();
   });
 });
+
+describe("trpc over http", () => {
+  const post = (path: string, body: unknown, headers: Record<string, string>) =>
+    fetch(`${base}/trpc/${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+
+  // Response.json() is `unknown` under this TS version.
+  const data = async (res: Response) => ((await res.json()) as { result: { data: any } }).result.data;
+
+  test("queries work with the session cookie", async () => {
+    const cookie = await login("alice");
+    const res = await fetch(`${base}/trpc/me`, { headers: { Cookie: cookie } });
+    expect(res.status).toBe(200);
+    expect((await data(res)).user.name).toBe("alice");
+  });
+
+  test("mutations require an allowed origin", async () => {
+    const cookie = await login("alice");
+    expect((await post("tools.detect", { x: 1, y: 1 }, { Cookie: cookie })).status).toBe(403);
+    expect((await post("tools.detect", { x: 1, y: 1 }, { Cookie: cookie, Origin: "http://evil.test" })).status).toBe(403);
+    const ok = await post("tools.detect", { x: 1, y: 1 }, { Cookie: cookie, Origin: ORIGIN });
+    expect(ok.status).toBe(200);
+    expect(await data(ok)).toEqual({ ok: true, count: 0 });
+  });
+
+  test("a defuse through trpc reaches websocket clients as a feed entry", async () => {
+    const bobCookie = await login("bob");
+    const bob = await connect(bobCookie);
+    bob.ws.send(encodePlace({ reqId: 1, x: 5, y: 5, colorId: 3, withBomb: true }));
+    await placed(bob, 1);
+    const aliceCookie = await login("alice");
+    const viewer = await connect();
+    const aliceId = (await data(await fetch(`${base}/trpc/me`, { headers: { Cookie: aliceCookie } }))).user.id;
+    await runtime.addPlayer({ userId: aliceId, accountCreatedAt: Date.UTC(2015, 0, 1), guildMember: true });
+    await runtime.run((engine) => {
+      engine.players.get(aliceId).inventory.defuser = 1;
+    });
+    const res = await post("tools.defuse", { x: 5, y: 5 }, { Cookie: aliceCookie, Origin: ORIGIN });
+    expect(await data(res)).toEqual({ ok: true, found: true, reward: 20 });
+    const feed = await waitFor(() => viewer.json.find((m) => m.type === "feed"));
+    expect(feed).toMatchObject({ kind: "defused", actor: { name: "alice" }, owner: { name: "bob" } });
+  });
+});
