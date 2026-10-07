@@ -86,4 +86,46 @@ describe("discord", () => {
     expect(await isGuildMember(fn, "tok", "99")).toBe(false);
     expect(calls[0]?.url).toBe("https://discord.com/api/v10/users/@me/guilds?limit=200");
   });
+
+  test("rejects malformed Discord ids", async () => {
+    for (const id of ["1234567890123456789012345", "0123", "18446744073709551616"]) {
+      const { fn } = fakeFetch(() => json({ id, username: "neko" }));
+      await expect(fetchProfile(fn, "tok")).rejects.toBeInstanceOf(DiscordError);
+    }
+    const max = fakeFetch(() => json({ id: "18446744073709551615", username: "neko" }));
+    expect((await fetchProfile(max.fn, "tok")).id).toBe("18446744073709551615");
+  });
+
+  test("display name falls back to username and is length-bounded", async () => {
+    const empty = fakeFetch(() => json({ id: "1", username: "neko", global_name: "" }));
+    expect((await fetchProfile(empty.fn, "tok")).username).toBe("neko");
+    for (const body of [
+      { id: "1", username: "" },
+      { id: "1", username: "x".repeat(33) },
+      { id: "1", username: "neko", global_name: "y".repeat(33) },
+    ]) {
+      await expect(fetchProfile(fakeFetch(() => json(body)).fn, "tok")).rejects.toBeInstanceOf(DiscordError);
+    }
+  });
+
+  test("requests carry a timeout signal and keep the caller's init", async () => {
+    const { fn, calls } = fakeFetch(() => json({ access_token: "tok" }));
+    await exchangeCode(fn, cfg, "c");
+    expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(new Headers(calls[0]?.init?.headers).get("content-type")).toBe("application/x-www-form-urlencoded");
+    const profile = fakeFetch(() => json({ id: "1", username: "neko" }));
+    await fetchProfile(profile.fn, "tok");
+    expect(profile.calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+    expect(new Headers(profile.calls[0]?.init?.headers).get("authorization")).toBe("Bearer tok");
+  });
+
+  test("a timed-out or aborted request becomes DiscordError", async () => {
+    for (const name of ["TimeoutError", "AbortError"]) {
+      const aborted: FetchFn = async () => {
+        throw new DOMException("The operation timed out", name);
+      };
+      await expect(fetchProfile(aborted, "tok")).rejects.toBeInstanceOf(DiscordError);
+    }
+  });
 });

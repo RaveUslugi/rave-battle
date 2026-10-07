@@ -3,6 +3,7 @@ import { z } from "zod";
 export const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize";
 export const DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token";
 export const DISCORD_API = "https://discord.com/api/v10";
+const REQUEST_TIMEOUT_MS = 10_000;
 const DISCORD_EPOCH = 1_420_070_400_000n;
 
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
@@ -35,9 +36,12 @@ export class DiscordError extends Error {
 
 const tokenSchema = z.object({ access_token: z.string().min(1) });
 const userSchema = z.object({
-  id: z.string().regex(/^\d+$/),
-  username: z.string(),
-  global_name: z.string().nullish(),
+  id: z
+    .string()
+    .regex(/^[1-9]\d{0,19}$/)
+    .refine((id) => BigInt(id) < 2n ** 64n),
+  username: z.string().min(1).max(32),
+  global_name: z.string().max(32).nullish(),
   avatar: z.string().nullish(),
 });
 const guildsSchema = z.array(z.object({ id: z.string() }));
@@ -61,7 +65,7 @@ export function authorizeUrl(cfg: DiscordConfig, state: string): string {
 async function request<T>(fetchFn: FetchFn, url: string, init: RequestInit, schema: z.ZodType<T>): Promise<T> {
   let res: Response;
   try {
-    res = await fetchFn(url, init);
+    res = await fetchFn(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   } catch (error) {
     throw new DiscordError(`Discord request failed: ${String(error)}`, 0);
   }
@@ -98,7 +102,7 @@ export async function fetchProfile(fetchFn: FetchFn, accessToken: string): Promi
   const user = await request(fetchFn, `${DISCORD_API}/users/@me`, { headers: { Authorization: `Bearer ${accessToken}` } }, userSchema);
   return {
     id: user.id,
-    username: user.global_name ?? user.username,
+    username: user.global_name || user.username,
     avatar: user.avatar ?? null,
     createdAt: snowflakeCreatedAt(user.id),
   };
