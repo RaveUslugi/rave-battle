@@ -52,10 +52,16 @@ async function upgrade(req: Request, server: Server<SocketData>, deps: AppDeps):
   const origin = req.headers.get("origin");
   if (!origin || !deps.config.allowedOrigins.has(origin)) return new Response("Forbidden origin", { status: 403 });
   const ip = server.requestIP(req)?.address ?? "unknown";
-  if (!deps.hub.canConnect(ip)) return new Response("Too many connections", { status: 429 });
-  const token = readSessionToken(req, deps.config.secureCookies);
-  const user = token ? await resolveSession(deps.db, token, Date.now()) : null;
-  if (server.upgrade(req, { data: deps.hub.socketData(user, ip) })) return undefined;
+  if (!deps.hub.reserveConnection(ip)) return new Response("Too many connections", { status: 429 });
+  try {
+    const token = readSessionToken(req, deps.config.secureCookies);
+    const user = token ? await resolveSession(deps.db, token, Date.now()) : null;
+    if (server.upgrade(req, { data: deps.hub.socketData(user, ip) })) return undefined;
+  } catch (error) {
+    deps.hub.releaseConnection(ip);
+    throw error;
+  }
+  deps.hub.releaseConnection(ip);
   return new Response("WebSocket upgrade required", { status: 426 });
 }
 

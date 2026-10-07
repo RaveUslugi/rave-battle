@@ -67,8 +67,18 @@ export class Hub {
     this.onlineTimer = null;
   }
 
-  canConnect(ip: string): boolean {
-    return (this.connectionsByIp.get(ip) ?? 0) < this.maxConnectionsPerIp;
+  /** Synchronously takes a connection slot for `ip`; call before any `await` in the upgrade path. */
+  reserveConnection(ip: string): boolean {
+    const count = this.connectionsByIp.get(ip) ?? 0;
+    if (count >= this.maxConnectionsPerIp) return false;
+    this.connectionsByIp.set(ip, count + 1);
+    return true;
+  }
+
+  releaseConnection(ip: string): void {
+    const left = (this.connectionsByIp.get(ip) ?? 1) - 1;
+    if (left <= 0) this.connectionsByIp.delete(ip);
+    else this.connectionsByIp.set(ip, left);
   }
 
   socketData(user: SessionUser | null, ip: string): SocketData {
@@ -104,8 +114,7 @@ export class Hub {
   }
 
   private async open(ws: Socket): Promise<void> {
-    const { user, ip } = ws.data;
-    this.connectionsByIp.set(ip, (this.connectionsByIp.get(ip) ?? 0) + 1);
+    const { user } = ws.data;
     ws.subscribe(GLOBAL_TOPIC);
     this.scheduleOnline();
 
@@ -177,9 +186,7 @@ export class Hub {
   }
 
   private close(ws: Socket): void {
-    const left = (this.connectionsByIp.get(ws.data.ip) ?? 1) - 1;
-    if (left <= 0) this.connectionsByIp.delete(ws.data.ip);
-    else this.connectionsByIp.set(ws.data.ip, left);
+    this.releaseConnection(ws.data.ip);
     this.scheduleOnline();
   }
 

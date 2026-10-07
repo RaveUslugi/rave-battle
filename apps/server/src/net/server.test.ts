@@ -88,6 +88,25 @@ function connect(cookie?: string): Promise<Client> {
   return waitFor(() => client.json.find((m) => m.type === "hello")).then(() => client);
 }
 
+/** Resolves with the client once `hello` arrives, or with null if the connection fails or closes first. */
+function tryConnect(cookie?: string): Promise<Client | null> {
+  const ws = new WebSocket(`${base.replace("http", "ws")}/ws`, {
+    headers: { Origin: ORIGIN, ...(cookie ? { Cookie: cookie } : {}) },
+  });
+  ws.binaryType = "arraybuffer";
+  sockets.push(ws);
+  const client: Client = { ws, json: [], deltas: [], closed: new Promise((resolve) => ws.addEventListener("close", (e) => resolve(e.code))) };
+  return new Promise((resolve) => {
+    ws.addEventListener("message", (e) => {
+      if (typeof e.data !== "string") return;
+      client.json.push(JSON.parse(e.data));
+      if (client.json.some((m) => m.type === "hello")) resolve(client);
+    });
+    ws.addEventListener("error", () => resolve(null));
+    ws.addEventListener("close", () => resolve(null));
+  });
+}
+
 async function waitFor<T>(probe: () => T | undefined | false, timeoutMs = 2000): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -210,6 +229,18 @@ describe("websocket", () => {
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
     const after = await connect(cookie);
     expect(hello(after).user).toBeNull();
+  });
+
+  test("the per-ip limit holds for parallel upgrades and is released on close", async () => {
+    await shutdown();
+    await start({ hub: { maxConnectionsPerIp: 3 } });
+    const results = await Promise.all(Array.from({ length: 6 }, () => tryConnect("rb_session=garbage")));
+    const accepted = results.filter((c): c is Client => c !== null);
+    expect(accepted).toHaveLength(3);
+    accepted[0]!.ws.close();
+    await accepted[0]!.closed;
+    await Bun.sleep(20);
+    expect(await tryConnect()).not.toBeNull();
   });
 
   test("online count is broadcast", async () => {
