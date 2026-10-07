@@ -54,7 +54,9 @@ export class GameClient {
     this.unsubscribe = [
       this.deps.game.subscribe((state, prev) => {
         // Answers sent before a disconnect will never arrive.
-        if (prev.status === "open" && state.status !== "open") this.dropPending();
+        const disconnected = prev.status === "open" && state.status !== "open";
+        if (disconnected) this.dropPending();
+        if (disconnected || (prev.user && !state.user)) this.deps.ui.getState().select(null);
       }),
       this.deps.ui.subscribe((state, prev) => {
         if (state.selection !== prev.selection) this.port?.setSelection(state.selection);

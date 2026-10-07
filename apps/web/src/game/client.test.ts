@@ -162,6 +162,17 @@ describe("GameClient", () => {
     expect(t.ui.getState().selection).toBeNull();
   });
 
+  test("the selection is dropped on disconnect and on logout", () => {
+    t.client.onCellTap({ x: 3, y: 4 }, "touch");
+    t.game.getState().setStatus("reconnecting");
+    expect(t.ui.getState().selection).toBeNull();
+    t.game.getState().setStatus("open");
+    t.client.onCellTap({ x: 5, y: 6 }, "touch");
+    expect(t.ui.getState().selection).toEqual({ x: 5, y: 6 });
+    t.game.setState({ user: null });
+    expect(t.ui.getState().selection).toBeNull();
+  });
+
   test("detach cancels expiry timers, and a late fire does nothing", () => {
     t.client.onCellTap({ x: 1, y: 1 }, "mouse");
     const callsBefore = t.pendingCalls.length;
