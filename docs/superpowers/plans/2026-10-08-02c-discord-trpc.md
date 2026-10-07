@@ -1377,6 +1377,6 @@ git commit -m "feat(server): purge expired sessions and document discord env"
 
 ### Task 9: Финальная проверка
 
-- [ ] **Step 1:** `bun test` — 0 fail, **190** pass (158 + 3 + 2 + 6 + 8 + 2 + 1 + 7 + 3).
+- [ ] **Step 1:** `bun test` — 0 fail, **201** pass (158 + 3 + 2 + 6 + 8 + 2 + 1 + 7 + 3 = 190 по плану + 11 тестов исправлений по ревью).
 - [ ] **Step 2:** `bun run typecheck` — exit 0.
 - [ ] **Step 3:** `git status --short` — пусто; на порту 3000 ничего не слушает.
