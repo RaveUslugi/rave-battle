@@ -13,8 +13,8 @@ export class TokenBucket {
   }
 
   take(now: number): boolean {
-    this.tokens = Math.min(this.capacity, this.tokens + ((now - this.updatedAt) / 1000) * this.refillPerSecond);
-    this.updatedAt = now;
+    this.tokens = Math.min(this.capacity, this.tokens + (Math.max(0, now - this.updatedAt) / 1000) * this.refillPerSecond);
+    this.updatedAt = Math.max(this.updatedAt, now);
     if (this.tokens < 1) return false;
     this.tokens -= 1;
     return true;

@@ -12,3 +12,9 @@ test("never stores more than capacity", () => {
   const bucket = new TokenBucket(2, 10, 0);
   expect([bucket.take(60_000), bucket.take(60_000), bucket.take(60_000)]).toEqual([true, true, false]);
 });
+
+test("a backward clock step does not drain the bucket", () => {
+  const bucket = new TokenBucket(3, 2, 10_000);
+  expect(bucket.take(10_000)).toBe(true);
+  expect(bucket.take(0)).toBe(true);
+});
