@@ -7,8 +7,9 @@ export function ownersToBytes(owners: Int32Array): Uint8Array {
 }
 
 export function bytesToOwners(bytes: Uint8Array): Int32Array {
+  if (bytes.byteLength % 4 !== 0) throw new Error(`Owners byte length ${bytes.byteLength} is not a multiple of 4`);
   const copy = bytes.slice();
-  return new Int32Array(copy.buffer, 0, copy.byteLength / 4);
+  return new Int32Array(copy.buffer, copy.byteOffset, copy.byteLength / 4);
 }
 
 export function banToDate(bannedUntil: number | null): Date | null {

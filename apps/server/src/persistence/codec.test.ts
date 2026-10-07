@@ -15,6 +15,16 @@ describe("owners codec", () => {
     bytes[0] = 9;
     expect(owners[0]).toBe(5);
   });
+
+  test("decoding rejects a length that is not a multiple of 4", () => {
+    expect(() => bytesToOwners(new Uint8Array(6))).toThrow();
+  });
+
+  test("decodes a view that starts mid-buffer", () => {
+    const backing = new Uint8Array(12);
+    backing.set(ownersToBytes(new Int32Array([7, 8])), 4);
+    expect(Array.from(bytesToOwners(backing.subarray(4)))).toEqual([7, 8]);
+  });
 });
 
 describe("ban codec", () => {

@@ -8,6 +8,8 @@ export const TEST_DATABASE_URL =
 
 /** Test database handle. `reset()` recreates the schema from migrations (serial ids restart at 1). */
 export function createTestDb() {
+  const dbName = new URL(TEST_DATABASE_URL).pathname.slice(1);
+  if (!dbName.endsWith("_test")) throw new Error(`Refusing to use "${dbName}" as the test database: name must end with _test`);
   const { db, close } = createDb(TEST_DATABASE_URL);
   const reset = async () => {
     await db.execute(sql`drop schema if exists drizzle cascade`);
