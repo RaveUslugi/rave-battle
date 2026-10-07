@@ -1,7 +1,7 @@
 import { dateKey, type GameConfig } from "@rave/shared";
 import { accessError } from "./access";
 import type { AntiFarm } from "./anti-farm";
-import type { BombStore } from "./bomb-store";
+import type { Bomb, BombStore } from "./bomb-store";
 import type { CanvasStore } from "./canvas-store";
 import { settleCharges } from "./charges";
 import type { PlayerRegistry } from "./player";
@@ -54,17 +54,62 @@ export class GameEngine {
     if (colorDenied) return reject(colorDenied);
     settleCharges(p, this.cfg, now);
     if (p.charges < 1) return reject("no_charges");
+    if (cmd.withBomb) {
+      if (p.inventory.bomb < 1) return reject("no_bombs");
+      if (this.bombs.activeCount(userId) >= this.cfg.bombs.maxActivePerPlayer) return reject("bomb_limit");
+    }
 
     p.charges -= 1;
     const day = dateKey(now, this.cfg.daily.timezone);
+
+    const bomb = this.bombs.get(cmd.x, cmd.y);
+    if (bomb) return this.explode(p, bomb, day, now);
 
     const prev = this.canvas.set(cmd.x, cmd.y, cmd.colorId, userId);
     this.emit({ type: "pixel", x: cmd.x, y: cmd.y, userId, colorId: cmd.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
     p.coins += this.cfg.coinsPerPixel;
     this.stat(userId, day, "pixels", 1);
     this.stat(userId, day, "coinsFromPixels", this.cfg.coinsPerPixel);
+
+    if (cmd.withBomb) {
+      p.inventory.bomb -= 1;
+      this.bombs.add({ x: cmd.x, y: cmd.y, ownerId: userId, createdAt: now });
+      this.emit({ type: "bomb_added", x: cmd.x, y: cmd.y, ownerId: userId, at: now });
+      this.ledger(p, "bomb", -1, "use", now);
+    }
+
     this.emit({ type: "player", userId });
     return { ok: true, outcome: "placed" };
+  }
+
+  /** The pixel is not placed; the victim's own bomb (if any) is not spent. */
+  private explode(victim: PlayerState, bomb: Bomb, day: string, now: number): PlaceResult {
+    const self = bomb.ownerId === victim.userId;
+    const ex = this.cfg.explosion;
+
+    this.bombs.remove(bomb.x, bomb.y);
+    this.emit({ type: "bomb_removed", x: bomb.x, y: bomb.y, ownerId: bomb.ownerId, reason: "exploded", removedBy: victim.userId, at: now });
+
+    victim.frozenUntil = now + (self ? ex.selfFreezeMs : ex.freezeMs);
+    const coinsLost = Math.min(victim.coins, self ? ex.selfCoinPenalty : ex.coinPenalty);
+    victim.coins -= coinsLost;
+    this.ledger(victim, "coins", -coinsLost, "explosion", now, { bombOwnerId: bomb.ownerId });
+
+    if (self) {
+      this.stat(victim.userId, day, "selfExplosions", 1);
+    } else {
+      this.stat(victim.userId, day, "explosionsSuffered", 1);
+      const owner = this.players.get(bomb.ownerId);
+      owner.coins += ex.authorBonus;
+      this.ledger(owner, "coins", ex.authorBonus, "bomb_bonus", now, { victimId: victim.userId });
+      if (this.antiFarm.register(day, owner.userId, victim.userId, this.cfg.antiFarm.maxRatedPerPairPerDay)) {
+        this.stat(owner.userId, day, "bombsTriggered", 1);
+      }
+      this.emit({ type: "player", userId: owner.userId });
+    }
+
+    this.emit({ type: "player", userId: victim.userId });
+    return { ok: true, outcome: "exploded", self, frozenUntil: victim.frozenUntil, coinsLost, bombOwnerId: bomb.ownerId };
   }
 
   /** Access problems plus freeze: blocks pixels and sapper tools. */
