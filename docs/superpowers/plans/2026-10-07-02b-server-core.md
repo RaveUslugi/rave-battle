@@ -18,7 +18,7 @@
 - `CHUNK_DELTA` несёт абсолютные значения клеток и пару версий `from → to` (версия чанка = число разосланных по нему дельт с запуска сервера). Клиент при `from ≠ локальная версия` перезагружает чанк по HTTP. Версии в памяти; после рестарта клиент переподключается и перезагружает чанки.
 - `GET /chunk/:cx/:cy` отдаёт цвета из памяти движка (могут включать ещё не закоммиченные пиксели — безопасно: дельты абсолютны и идемпотентны) + текущую версию; тело `u32 version + 65536 байт`, gzip.
 - Владельцы клеток и бомбы клиенту не отправляются никогда.
-- Сессия: случайный 32-байтный токен (base64url) в cookie `rb_session` (`HttpOnly`, `SameSite=Lax`, `Secure` при https), в БД хранится SHA-256 токена. TTL 30 дней.
+- Сессия: случайный 32-байтный токен (base64url) в cookie `rb_session` (на https — `__Host-rb_session`, исправлено по ревью) (`HttpOnly`, `SameSite=Lax`, `Secure` при https), в БД хранится SHA-256 токена. TTL 30 дней.
 - WebSocket: проверка `Origin` по списку (`PUBLIC_URL` + `ALLOWED_ORIGINS`) — защита от cross-site WebSocket hijacking; до 10 соединений с IP; token bucket 40 сообщений, +20/с на сокет, превышение → закрытие 1008.
 - IP берётся из `server.requestIP`; доверие к `X-Forwarded-For` за Caddy — План 6.
 - `guildMember = true` для всех в 2b (проверка гильдии — 2c).
@@ -1774,7 +1774,7 @@ async function upgrade(req: Request, server: Server<SocketData>, deps: AppDeps):
   if (!origin || !deps.config.allowedOrigins.has(origin)) return new Response("Forbidden origin", { status: 403 });
   const ip = server.requestIP(req)?.address ?? "unknown";
   if (!deps.hub.canConnect(ip)) return new Response("Too many connections", { status: 429 });
-  const token = readSessionToken(req);
+  const token = readSessionToken(req, deps.config.secureCookies);
   const user = token ? await resolveSession(deps.db, token, Date.now()) : null;
   if (server.upgrade(req, { data: deps.hub.socketData(user, ip) })) return undefined;
   return new Response("WebSocket upgrade required", { status: 426 });
@@ -1803,7 +1803,7 @@ async function devLogin(url: URL, deps: AppDeps): Promise<Response> {
 }
 
 async function logout(req: Request, deps: AppDeps): Promise<Response> {
-  const token = readSessionToken(req);
+  const token = readSessionToken(req, deps.config.secureCookies);
   if (token) await deleteSession(deps.db, token);
   return new Response(null, { status: 204, headers: { "Set-Cookie": clearSessionCookie(deps.config.secureCookies) } });
 }
@@ -1876,7 +1876,7 @@ async function main(): Promise<void> {
     hub?.stop();
     await server.stop(true);
     await close();
-    await lock.release();
+    await lock.release().catch((error) => console.error("Lock release failed", error));
     process.exit(0);
   };
   process.on("SIGINT", () => void shutdown("SIGINT"));
@@ -1941,7 +1941,7 @@ git commit -m "feat(server): add entry point with graceful shutdown"
 - [ ] **Step 1: Все тесты**
 
 Run: `bun test`
-Expected: 0 fail, **142** теста: 101 + runtime 4 + lock 1 + boot 1 + protocol 7 + session 6 + rate-limit 2 + env 4 + views 5 + server 11.
+Expected: 0 fail, **150** тестов: 101 + runtime 5 + lock 2 + boot 1 + protocol 7 + session 7 + rate-limit 3 + env 6 + views 5 + schema 1 + server 11 (включая тесты исправлений по ревью Task 2 и Task 3–6).
 
 - [ ] **Step 2: Typecheck**
 
