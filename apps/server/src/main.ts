@@ -1,3 +1,4 @@
+import { deleteExpiredSessions } from "./auth/session";
 import { createDb } from "./db/client";
 import { runMigrations } from "./db/migrate";
 import { acquireWriterLock } from "./db/writer-lock";
@@ -17,6 +18,10 @@ async function main(): Promise<void> {
   });
   const { db, close } = createDb(config.databaseUrl);
   await runMigrations(db);
+  const purgeSessions = () =>
+    deleteExpiredSessions(db, Date.now()).catch((error) => console.error("Session cleanup failed", error));
+  await purgeSessions();
+  setInterval(purgeSessions, 60 * 60 * 1000).unref();
 
   const users = await UserDirectory.load(db);
   let hub: Hub | undefined;
