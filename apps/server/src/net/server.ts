@@ -112,5 +112,13 @@ async function trpc(req: Request, deps: AppDeps, limiter: UserRateLimiter): Prom
   if (req.method !== "GET" && !originAllowed(req, deps)) return new Response("Forbidden origin", { status: 403 });
   const token = readSessionToken(req, deps.config.secureCookies);
   const user = token ? await resolveSession(deps.db, token, Date.now()) : null;
-  return fetchRequestHandler({ endpoint: "/trpc", req, router: appRouter, createContext: () => ({ deps, user, limiter }) });
+  return fetchRequestHandler({
+    endpoint: "/trpc",
+    req,
+    router: appRouter,
+    createContext: () => ({ deps, user, limiter }),
+    onError: ({ error, path }) => {
+      if (error.code === "INTERNAL_SERVER_ERROR") console.error("tRPC error", path, error);
+    },
+  });
 }

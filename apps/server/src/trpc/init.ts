@@ -16,6 +16,7 @@ export const publicProcedure = t.procedure;
 export const createCallerFactory = t.createCallerFactory;
 
 /** Logged-in, rate-limited, and guaranteed to have a player in the engine. */
+// Mutations only: queries are served over GET without the Origin check, so a playerProcedure.query would let cross-site GETs create players.
 export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
   const user = ctx.user;
   if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
