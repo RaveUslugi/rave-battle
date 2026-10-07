@@ -3,12 +3,16 @@ import { authorizeUrl, DiscordError, exchangeCode, fetchProfile, isGuildMember, 
 import { createSession, readCookie, sessionCookie } from "./session";
 import { upsertUser } from "./users";
 
-const STATE_COOKIE = "rb_oauth_state";
-const STATE_PATH = "/auth/discord";
 const STATE_TTL_SECONDS = 600;
 
-function stateCookie(value: string, maxAge: number, secure: boolean): string {
-  return [`${STATE_COOKIE}=${value}`, `Path=${STATE_PATH}`, "HttpOnly", "SameSite=Lax", `Max-Age=${maxAge}`]
+/** On https the `__Host-` prefix pins the cookie to this host (it requires Secure and Path=/). */
+export function stateCookieName(secure: boolean): string {
+  return secure ? "__Host-rb_oauth_state" : "rb_oauth_state";
+}
+
+export function stateCookie(value: string, maxAge: number, secure: boolean): string {
+  const path = secure ? "/" : "/auth/discord";
+  return [`${stateCookieName(secure)}=${value}`, `Path=${path}`, "HttpOnly", "SameSite=Lax", `Max-Age=${maxAge}`]
     .concat(secure ? ["Secure"] : [])
     .join("; ");
 }
@@ -30,11 +34,16 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const expected = readCookie(req, STATE_COOKIE);
-  if (!code || !state || !expected || state !== expected) return new Response("Invalid OAuth state", { status: 400 });
+  const expected = readCookie(req, stateCookieName(deps.config.secureCookies));
+  if (!state || !expected || state !== expected) return new Response("Invalid OAuth state", { status: 400 });
 
   const headers = new Headers({ Location: "/" });
   headers.append("Set-Cookie", stateCookie("", 0, deps.config.secureCookies));
+  if (url.searchParams.has("error")) {
+    headers.set("Location", "/?login_error=denied");
+    return new Response(null, { status: 302, headers });
+  }
+  if (!code) return new Response("Missing authorization code", { status: 400 });
   const fetchFn = deps.fetch ?? fetch;
 
   let profile: DiscordProfile;

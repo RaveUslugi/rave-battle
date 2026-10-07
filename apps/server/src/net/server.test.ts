@@ -422,6 +422,34 @@ describe("discord login", () => {
     expect(res.status).toBe(400);
   });
 
+  test("a cancelled authorization redirects with login_error=denied and no session", async () => {
+    await restartWith(fakeDiscord());
+    const begin = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
+    const stateCookie = begin.headers.get("set-cookie")!.split(";")[0]!;
+    const res = await fetch(`${base}/auth/discord/callback?error=access_denied&state=${state}`, { redirect: "manual", headers: { Cookie: stateCookie } });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?login_error=denied");
+    const cookies = res.headers.getSetCookie();
+    expect(cookies.some((c) => c.startsWith("rb_oauth_state=;") && c.includes("Max-Age=0"))).toBe(true);
+    expect(cookies.some((c) => c.startsWith("rb_session="))).toBe(false);
+  });
+
+  test("a callback without the state cookie is rejected", async () => {
+    await restartWith(fakeDiscord());
+    const res = await fetch(`${base}/auth/discord/callback?code=c0de&state=anything`, { redirect: "manual" });
+    expect(res.status).toBe(400);
+  });
+
+  test("a callback with a valid state but no code and no error is rejected", async () => {
+    await restartWith(fakeDiscord());
+    const begin = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
+    const stateCookie = begin.headers.get("set-cookie")!.split(";")[0]!;
+    const res = await fetch(`${base}/auth/discord/callback?state=${state}`, { redirect: "manual", headers: { Cookie: stateCookie } });
+    expect(res.status).toBe(400);
+  });
+
   test("discord failures redirect with an error and create no session", async () => {
     await restartWith(fakeDiscord({ fail: true }));
     const { res, cookie } = await discordLogin();
