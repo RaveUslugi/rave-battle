@@ -180,4 +180,9 @@ export type ServerMessage =
   | { type: "player"; player: PlayerView }
   | { type: "placed"; reqId: number; result: PlaceResultView }
   | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
-  | { type: "online"; count: number };
+  | { type: "online"; count: number }
+  /**
+   * Answer to SUBSCRIBE listing only newly added chunks with their current version. Deltas for them
+   * follow from that version on, so a client must reload any chunk loaded at a lower version.
+   */
+  | { type: "subscribed"; chunks: Array<{ cx: number; cy: number; version: number }> };

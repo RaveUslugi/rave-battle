@@ -181,14 +181,20 @@ export class Hub {
 
   private subscribe(ws: Socket, chunks: Array<{ cx: number; cy: number }>): void {
     const canvas = this.options.runtime.engine.canvas;
-    const next = new Set(
+    const next = new Map<string, { cx: number; cy: number }>(
       chunks
         .filter((c) => c.cx * CHUNK_SIZE < canvas.width && c.cy * CHUNK_SIZE < canvas.height)
-        .map((c) => `${c.cx}:${c.cy}`),
+        .map((c) => [`${c.cx}:${c.cy}`, c]),
     );
+    const added: Array<{ cx: number; cy: number; version: number }> = [];
     for (const key of ws.data.chunks) if (!next.has(key)) ws.unsubscribe(chunkTopic(key));
-    for (const key of next) if (!ws.data.chunks.has(key)) ws.subscribe(chunkTopic(key));
-    ws.data.chunks = next;
+    for (const [key, { cx, cy }] of next) {
+      if (ws.data.chunks.has(key)) continue;
+      ws.subscribe(chunkTopic(key));
+      added.push({ cx, cy, version: this.versions.get(cx, cy) });
+    }
+    ws.data.chunks = new Set(next.keys());
+    if (added.length > 0) send(ws, { type: "subscribed", chunks: added });
   }
 
   private async place(ws: Socket, msg: PlaceMessage): Promise<void> {

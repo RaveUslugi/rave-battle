@@ -208,6 +208,22 @@ describe("websocket", () => {
     expect(viewer.deltas).toHaveLength(2);
   });
 
+  test("subscriptions are acknowledged with current chunk versions", async () => {
+    type Subscribed = Extract<ServerMessage, { type: "subscribed" }>;
+    const acks = (c: Client) => c.json.filter((m): m is Subscribed => m.type === "subscribed");
+    const alice = await connect(await login("alice"));
+    alice.ws.send(encodeSubscribe([{ cx: 0, cy: 0 }]));
+    expect((await waitFor(() => acks(alice)[0])).chunks).toEqual([{ cx: 0, cy: 0, version: 0 }]);
+
+    alice.ws.send(encodePlace({ reqId: 1, x: 3, y: 4, colorId: 5, withBomb: false }));
+    await placed(alice, 1);
+    alice.ws.send(encodeSubscribe([]));
+    alice.ws.send(encodeSubscribe([{ cx: 0, cy: 0 }, { cx: 0, cy: 0 }]));
+    expect((await waitFor(() => acks(alice)[1])).chunks).toEqual([{ cx: 0, cy: 0, version: 1 }]);
+    await Bun.sleep(20);
+    expect(acks(alice)).toHaveLength(2);
+  });
+
   test("malformed and text frames close the socket with 1003", async () => {
     const a = await connect();
     a.ws.send(new Uint8Array([99]));
