@@ -7,6 +7,7 @@ import { settleCharges } from "./charges";
 import type { PlayerRegistry } from "./player";
 import type {
   BuyResult,
+  DailyResult,
   DefuseResult,
   DetectResult,
   EngineEvent,
@@ -166,6 +167,26 @@ export class GameEngine {
     this.emit({ type: "color_unlocked", userId, colorId, source: "shop", at: now });
     this.emit({ type: "player", userId });
     return { ok: true };
+  }
+
+  claimDaily(userId: UserId, now: number): DailyResult {
+    const p = this.players.get(userId);
+    const denied = accessError(p, this.cfg, now);
+    if (denied) return reject(denied);
+    const day = dateKey(now, this.cfg.daily.timezone);
+    if (p.dailyLastClaim === day) return reject("already_claimed");
+
+    const rewards = this.cfg.daily.rewards;
+    // Config edits may shorten the list; wrap the stored step into range.
+    const reward = rewards[p.dailyStep % rewards.length]!;
+    if (reward.item === "coins") p.coins += reward.amount;
+    else p.inventory[reward.item] += reward.amount;
+    this.ledger(p, reward.item, reward.amount, "daily", now);
+
+    p.dailyStep = (p.dailyStep + 1) % rewards.length;
+    p.dailyLastClaim = day;
+    this.emit({ type: "player", userId });
+    return { ok: true, reward };
   }
 
   /** The pixel is not placed; the victim's own bomb (if any) is not spent. */
