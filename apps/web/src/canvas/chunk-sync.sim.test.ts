@@ -166,7 +166,7 @@ function simulate(seed: number, writeGap: number): string[] {
 describe("ChunkSync simulation", () => {
   test("every chunk converges to the server under reconnects, load failures and churn", () => {
     const bad: string[] = [];
-    for (const writeGap of [10, 40, 200]) for (let seed = 1; seed <= 200; seed++) bad.push(...simulate(seed, writeGap));
+    for (const writeGap of [10, 40, 200]) for (let seed = 1; seed <= 1000; seed++) bad.push(...simulate(seed, writeGap));
     expect(bad).toEqual([]);
   });
 });

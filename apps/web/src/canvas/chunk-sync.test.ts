@@ -70,6 +70,17 @@ describe("ChunkSync", () => {
     expect(sync.onAck(0, 0, 4)).toEqual([{ type: "load", cx: 0, cy: 0, requestId: 2 }]);
   });
 
+  test("an ack on a ready chunk is carried into the reload it starts", () => {
+    const sync = readyAt(3);
+    expect(sync.onAck(0, 0, 5)).toEqual([{ type: "load", cx: 0, cy: 0, requestId: 2 }]);
+    expect(sync.onLoaded(0, 0, 2, 4, colors)).toEqual([
+      { type: "replace", cx: 0, cy: 0, colors },
+      { type: "load", cx: 0, cy: 0, requestId: 3 },
+    ]);
+    expect(sync.onLoaded(0, 0, 3, 5, colors)).toEqual([{ type: "replace", cx: 0, cy: 0, colors }]);
+    expect(sync.onDelta(delta(5, 6))).toHaveLength(1);
+  });
+
   test("an ack above the loaded version reloads once the body arrives", () => {
     const sync = new ChunkSync();
     sync.track(0, 0);

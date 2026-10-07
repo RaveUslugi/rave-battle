@@ -76,7 +76,7 @@ export class ChunkSync {
       return [];
     }
     if (version <= entry.version) return [];
-    return this.startLoad(cx, cy, []);
+    return this.startLoad(cx, cy, [], version);
   }
 
   /** Re-requests a load that failed, unless it was superseded meanwhile. */
