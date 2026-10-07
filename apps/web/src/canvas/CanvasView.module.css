@@ -1,0 +1,11 @@
+.host {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.host canvas {
+  display: block;
+  image-rendering: pixelated;
+}
