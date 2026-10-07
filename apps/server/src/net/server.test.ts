@@ -165,7 +165,7 @@ describe("websocket", () => {
     const second = await login("alice");
     const a = await connect(first);
     const b = await connect(second);
-    await fetch(`${base}/auth/logout`, { method: "POST", headers: { Cookie: first } });
+    await fetch(`${base}/auth/logout`, { method: "POST", headers: { Origin: ORIGIN, Cookie: first } });
     expect(await a.closed).toBe(4001);
     b.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
     expect((await placed(b, 1)).result).toEqual({ ok: true, outcome: "placed" });
@@ -307,11 +307,20 @@ describe("websocket", () => {
 
   test("logout clears the session", async () => {
     const cookie = await login("alice");
-    const res = await fetch(`${base}/auth/logout`, { method: "POST", headers: { Cookie: cookie } });
+    const res = await fetch(`${base}/auth/logout`, { method: "POST", headers: { Origin: ORIGIN, Cookie: cookie } });
     expect(res.status).toBe(204);
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
     const after = await connect(cookie);
     expect(hello(after).user).toBeNull();
+  });
+
+  test("logout without an allowed origin is forbidden and keeps the session", async () => {
+    const cookie = await login("alice");
+    const noOrigin = await fetch(`${base}/auth/logout`, { method: "POST", headers: { Cookie: cookie } });
+    expect(noOrigin.status).toBe(403);
+    const evil = await fetch(`${base}/auth/logout`, { method: "POST", headers: { Origin: "http://evil.test", Cookie: cookie } });
+    expect(evil.status).toBe(403);
+    expect(hello(await connect(cookie)).user).not.toBeNull();
   });
 
   test("the per-ip limit holds for parallel upgrades and is released on close", async () => {

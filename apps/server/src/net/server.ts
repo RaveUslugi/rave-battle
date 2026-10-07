@@ -41,9 +41,13 @@ async function route(req: Request, server: Server<SocketData>, deps: AppDeps): P
   return new Response("Not found", { status: 404 });
 }
 
-async function upgrade(req: Request, server: Server<SocketData>, deps: AppDeps): Promise<Response | undefined> {
+function originAllowed(req: Request, deps: AppDeps): boolean {
   const origin = req.headers.get("origin");
-  if (!origin || !deps.config.allowedOrigins.has(origin)) return new Response("Forbidden origin", { status: 403 });
+  return origin !== null && deps.config.allowedOrigins.has(origin);
+}
+
+async function upgrade(req: Request, server: Server<SocketData>, deps: AppDeps): Promise<Response | undefined> {
+  if (!originAllowed(req, deps)) return new Response("Forbidden origin", { status: 403 });
   const ip = server.requestIP(req)?.address ?? "unknown";
   if (!deps.hub.reserveConnection(ip)) return new Response("Too many connections", { status: 429 });
   try {
@@ -84,6 +88,7 @@ async function devLogin(url: URL, deps: AppDeps): Promise<Response> {
 const CLOSE_LOGGED_OUT = 4001;
 
 async function logout(req: Request, deps: AppDeps): Promise<Response> {
+  if (!originAllowed(req, deps)) return new Response("Forbidden origin", { status: 403 });
   const token = readSessionToken(req, deps.config.secureCookies);
   if (token) {
     await deleteSession(deps.db, token);
