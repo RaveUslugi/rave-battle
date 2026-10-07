@@ -70,6 +70,36 @@ describe("ChunkSync", () => {
     expect(sync.onAck(0, 0, 4)).toEqual([{ type: "load", cx: 0, cy: 0, requestId: 2 }]);
   });
 
+  test("an ack above the loaded version reloads once the body arrives", () => {
+    const sync = new ChunkSync();
+    sync.track(0, 0);
+    expect(sync.onAck(0, 0, 4)).toEqual([]);
+    expect(sync.onLoaded(0, 0, 1, 3, colors)).toEqual([
+      { type: "replace", cx: 0, cy: 0, colors },
+      { type: "load", cx: 0, cy: 0, requestId: 2 },
+    ]);
+    expect(sync.onLoaded(0, 0, 2, 4, colors)).toEqual([{ type: "replace", cx: 0, cy: 0, colors }]);
+    expect(sync.onDelta(delta(4, 5))).toHaveLength(1);
+  });
+
+  test("an ack already covered by the loaded body needs no reload", () => {
+    const sync = new ChunkSync();
+    sync.track(0, 0);
+    sync.onAck(0, 0, 4);
+    expect(sync.onLoaded(0, 0, 1, 4, colors)).toEqual([{ type: "replace", cx: 0, cy: 0, colors }]);
+  });
+
+  test("retry keeps the acknowledged version", () => {
+    const sync = new ChunkSync();
+    sync.track(0, 0);
+    sync.onAck(0, 0, 4);
+    sync.retry(0, 0, 1);
+    expect(sync.onLoaded(0, 0, 2, 3, colors)).toEqual([
+      { type: "replace", cx: 0, cy: 0, colors },
+      { type: "load", cx: 0, cy: 0, requestId: 3 },
+    ]);
+  });
+
   test("results of superseded loads are ignored", () => {
     const sync = new ChunkSync();
     sync.track(0, 0);

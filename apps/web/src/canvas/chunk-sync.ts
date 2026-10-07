@@ -6,7 +6,7 @@ export type SyncAction =
   | { type: "apply"; cx: number; cy: number; cells: ChunkDelta["cells"] };
 
 type Entry =
-  | { status: "loading"; requestId: number; buffered: ChunkDelta[] }
+  | { status: "loading"; requestId: number; buffered: ChunkDelta[]; minVersion: number }
   | { status: "ready"; version: number };
 
 const key = (cx: number, cy: number) => `${cx}:${cy}`;
@@ -40,10 +40,12 @@ export class ChunkSync {
     // Deltas of one chunk arrive in version order on a single socket.
     for (const d of entry.buffered) {
       if (d.toVersion <= current) continue;
-      if (d.fromVersion !== current) return [...actions, ...this.startLoad(cx, cy, [])];
+      if (d.fromVersion !== current) return [...actions, ...this.startLoad(cx, cy, [], entry.minVersion)];
       actions.push({ type: "apply", cx, cy, cells: d.cells });
       current = d.toVersion;
     }
+    // An ack received during the load proves the server is newer than this body.
+    if (current < entry.minVersion) return [...actions, ...this.startLoad(cx, cy, [], entry.minVersion)];
     this.entries.set(key(cx, cy), { status: "ready", version: current });
     return actions;
   }
@@ -67,7 +69,13 @@ export class ChunkSync {
   /** Subscription acknowledgement: the server's current version of a newly subscribed chunk. */
   onAck(cx: number, cy: number, version: number): SyncAction[] {
     const entry = this.entries.get(key(cx, cy));
-    if (!entry || entry.status !== "ready" || version <= entry.version) return [];
+    if (!entry) return [];
+    if (entry.status === "loading") {
+      // The body in flight may predate the ack; checked in onLoaded.
+      entry.minVersion = Math.max(entry.minVersion, version);
+      return [];
+    }
+    if (version <= entry.version) return [];
     return this.startLoad(cx, cy, []);
   }
 
@@ -75,12 +83,12 @@ export class ChunkSync {
   retry(cx: number, cy: number, requestId: number): SyncAction[] {
     const entry = this.entries.get(key(cx, cy));
     if (!entry || entry.status !== "loading" || entry.requestId !== requestId) return [];
-    return this.startLoad(cx, cy, entry.buffered);
+    return this.startLoad(cx, cy, entry.buffered, entry.minVersion);
   }
 
-  private startLoad(cx: number, cy: number, buffered: ChunkDelta[]): SyncAction[] {
+  private startLoad(cx: number, cy: number, buffered: ChunkDelta[], minVersion = 0): SyncAction[] {
     const requestId = this.nextRequestId++;
-    this.entries.set(key(cx, cy), { status: "loading", requestId, buffered });
+    this.entries.set(key(cx, cy), { status: "loading", requestId, buffered, minVersion });
     return [{ type: "load", cx, cy, requestId }];
   }
 }
