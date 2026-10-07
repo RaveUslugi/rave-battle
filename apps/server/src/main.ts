@@ -27,12 +27,20 @@ async function main(): Promise<void> {
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
-    if (shuttingDown) return;
+    if (shuttingDown) {
+      console.error(`${signal}: already shutting down, exiting immediately`);
+      process.exit(1);
+    }
     shuttingDown = true;
+    setTimeout(() => {
+      console.error("Shutdown timed out");
+      process.exit(1);
+    }, 10_000).unref();
     console.log(`${signal}: shutting down`);
     // Stop accepting commands and persist everything before closing connections.
     await runtime.stop().catch((error) => console.error("Final commit failed", error));
-    hub?.stop();
+    hub.closeAll(1012, "server restart");
+    hub.stop();
     // Bun 1.3.6: server.stop() never resolves once the server itself closed a websocket — don't wait forever.
     await Promise.race([server.stop(true), Bun.sleep(2000)]);
     await close();

@@ -316,6 +316,12 @@ describe("websocket", () => {
     expect(hello(c).bootId).not.toBe(bootId);
   });
 
+  test("closeAll closes open sockets with the given code", async () => {
+    const a = await connect();
+    hub.closeAll(1012, "server restart");
+    expect(await a.closed).toBe(1012);
+  });
+
   test("online count is broadcast", async () => {
     const a = await connect();
     await connect();

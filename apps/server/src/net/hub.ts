@@ -52,6 +52,7 @@ export class Hub {
   private readonly bootId = crypto.randomUUID();
   private server: Server<SocketData> | null = null;
   private connectionsByIp = new Map<string, number>();
+  private readonly sockets = new Set<Socket>();
   private onlineTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private readonly now: () => number;
@@ -74,6 +75,11 @@ export class Hub {
     this.stopped = true;
     if (this.onlineTimer) clearTimeout(this.onlineTimer);
     this.onlineTimer = null;
+  }
+
+  /** Closes every open socket; used on shutdown so clients see a clean close code instead of a dropped connection. */
+  closeAll(code: number, reason: string): void {
+    for (const ws of this.sockets) ws.close(code, reason);
   }
 
   /** Synchronously takes a connection slot for `ip`; call before any `await` in the upgrade path. */
@@ -125,6 +131,7 @@ export class Hub {
   }
 
   private async open(ws: Socket): Promise<void> {
+    this.sockets.add(ws);
     const { user } = ws.data;
     let player: PlayerView | null = null;
     if (user) {
@@ -220,6 +227,7 @@ export class Hub {
   }
 
   private close(ws: Socket): void {
+    this.sockets.delete(ws);
     this.releaseConnection(ws.data.ip);
     this.scheduleOnline();
   }
