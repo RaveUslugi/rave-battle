@@ -1,4 +1,4 @@
-import { initTRPC, TRPCError } from "@trpc/server";
+import { initTRPC, TRPCError, type TRPCDefaultErrorShape } from "@trpc/server";
 import type { SessionUser } from "../auth/session";
 import type { AppDeps } from "../net/deps";
 import type { UserRateLimiter } from "../net/rate-limit";
@@ -9,7 +9,21 @@ export interface TrpcContext {
   limiter: UserRateLimiter;
 }
 
-const t = initTRPC.context<TrpcContext>().create({ isDev: process.env.NODE_ENV !== "production" });
+const isDev = process.env.NODE_ENV !== "production";
+
+/** Internal errors may carry DB/driver details; outside dev the client only sees a generic message. */
+export function formatError(
+  { shape, error }: { shape: TRPCDefaultErrorShape; error: TRPCError },
+  dev: boolean,
+): TRPCDefaultErrorShape {
+  if (dev || error.code !== "INTERNAL_SERVER_ERROR") return shape;
+  return { ...shape, message: "Internal server error" };
+}
+
+const t = initTRPC.context<TrpcContext>().create({
+  isDev,
+  errorFormatter: (opts) => formatError(opts, isDev),
+});
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
