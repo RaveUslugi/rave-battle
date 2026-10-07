@@ -303,6 +303,19 @@ describe("websocket", () => {
     expect(await tryConnect()).not.toBeNull();
   });
 
+  test("hello carries a boot id that is stable per server start and changes on restart", async () => {
+    const a = await connect();
+    const b = await connect();
+    const bootId = hello(a).bootId;
+    expect(bootId).not.toBe("");
+    expect(hello(b).bootId).toBe(bootId);
+    await shutdown();
+    await start();
+    const c = await connect();
+    expect(hello(c).bootId).not.toBe("");
+    expect(hello(c).bootId).not.toBe(bootId);
+  });
+
   test("online count is broadcast", async () => {
     const a = await connect();
     await connect();

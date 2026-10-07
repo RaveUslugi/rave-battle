@@ -49,6 +49,7 @@ const send = (ws: Socket, message: ServerMessage) => ws.send(JSON.stringify(mess
 /** WebSocket handling plus broadcasting of committed engine events. */
 export class Hub {
   readonly versions = new ChunkVersions();
+  private readonly bootId = crypto.randomUUID();
   private server: Server<SocketData> | null = null;
   private connectionsByIp = new Map<string, number>();
   private onlineTimer: ReturnType<typeof setTimeout> | null = null;
@@ -144,6 +145,7 @@ export class Hub {
     send(ws, {
       type: "hello",
       protocol: PROTOCOL_VERSION,
+      bootId: this.bootId,
       user: user ? this.options.users.ref(user.id) : null,
       config: this.options.runtime.engine.config,
       player,

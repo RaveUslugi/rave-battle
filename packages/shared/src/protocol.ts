@@ -176,7 +176,18 @@ export type PlaceResultView =
   | { ok: false; code: string };
 
 export type ServerMessage =
-  | { type: "hello"; protocol: number; user: UserRef | null; config: GameConfig; player: PlayerView | null }
+  | {
+      type: "hello";
+      protocol: number;
+      /**
+       * Changes on every server start. When it differs from the previous connection's, the client must
+       * drop all loaded chunks and their versions.
+       */
+      bootId: string;
+      user: UserRef | null;
+      config: GameConfig;
+      player: PlayerView | null;
+    }
   | { type: "player"; player: PlayerView }
   | { type: "placed"; reqId: number; result: PlaceResultView }
   | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
@@ -184,5 +195,6 @@ export type ServerMessage =
   /**
    * Answer to SUBSCRIBE listing only newly added chunks with their current version. Deltas for them
    * follow from that version on, so a client must reload any chunk loaded at a lower version.
+   * Versions are only comparable within one `bootId`.
    */
   | { type: "subscribed"; chunks: Array<{ cx: number; cy: number; version: number }> };
