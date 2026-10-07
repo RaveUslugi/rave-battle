@@ -33,6 +33,8 @@ export interface GameSocketOptions {
   initialBackoffMs?: number;
   maxBackoffMs?: number;
   timers?: Timers;
+  /** Jitter source, 0..1. Injectable for tests. */
+  random?: () => number;
 }
 
 const browserTimers: Timers = {
@@ -64,6 +66,7 @@ export class GameSocket {
   private readonly timers: Timers;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
+  private readonly random: () => number;
 
   constructor(
     private readonly url: string,
@@ -74,6 +77,7 @@ export class GameSocket {
     this.timers = options.timers ?? browserTimers;
     this.initialBackoffMs = options.initialBackoffMs ?? 500;
     this.maxBackoffMs = options.maxBackoffMs ?? 10_000;
+    this.random = options.random ?? Math.random;
   }
 
   connect(): void {
@@ -89,6 +93,13 @@ export class GameSocket {
   subscribe(chunks: Array<{ cx: number; cy: number }>): void {
     this.chunks = chunks;
     if (this.ready) this.transport?.send(encodeSubscribe(chunks));
+  }
+
+  /** Sends a binary frame if the server already said hello; returns false when it cannot be sent now. */
+  send(data: Uint8Array): boolean {
+    if (!this.ready || !this.transport) return false;
+    this.transport.send(data);
+    return true;
   }
 
   close(): void {
@@ -131,7 +142,9 @@ export class GameSocket {
     this.events.closed?.(code);
     if (this.stopped) return;
     this.events.status("reconnecting");
-    const delay = Math.min(this.maxBackoffMs, this.initialBackoffMs * 2 ** this.attempt);
+    const backoff = Math.min(this.maxBackoffMs, this.initialBackoffMs * 2 ** this.attempt);
+    // Jitter spreads reconnects so a restarted server is not hit by every client at once.
+    const delay = Math.round(backoff * (0.5 + 0.5 * this.random()));
     this.attempt++;
     this.timer = this.timers.set(() => {
       this.timer = null;

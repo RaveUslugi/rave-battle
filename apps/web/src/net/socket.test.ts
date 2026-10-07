@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { decodeClientMessage, defaultConfig, encodeChunkDelta, type ChunkDelta, type ServerMessage } from "@rave/shared";
+import { decodeClientMessage, defaultConfig, encodeChunkDelta, encodePlace, type ChunkDelta, type ServerMessage } from "@rave/shared";
 import { GameSocket, type Timers, type TransportFactory, type TransportHandlers } from "./socket";
 
 function harness() {
@@ -30,7 +30,7 @@ function harness() {
       status: (s) => log.push(s),
       closed: (code) => log.push(`closed:${code}`),
     },
-    { initialBackoffMs: 100, maxBackoffMs: 400, timers: fakeTimers },
+    { initialBackoffMs: 100, maxBackoffMs: 400, random: () => 1, timers: fakeTimers },
   );
   return { socket, transports, timers, log, deltas, messages };
 }
@@ -98,5 +98,38 @@ describe("GameSocket", () => {
     h.transports[0]!.handlers.close(1000);
     expect(h.timers).toHaveLength(0);
     expect(h.log).toContain("closed");
+  });
+
+  test("send works only after hello", () => {
+    const h = harness();
+    expect(h.socket.send(new Uint8Array([1]))).toBe(false);
+    h.socket.connect();
+    expect(h.socket.send(new Uint8Array([1]))).toBe(false);
+    h.transports[0]!.handlers.message(hello());
+    const frame = encodePlace({ reqId: 5, x: 1, y: 2, colorId: 3, withBomb: false });
+    expect(h.socket.send(frame)).toBe(true);
+    expect(decodeClientMessage(h.transports[0]!.sent[0]!)).toMatchObject({ reqId: 5, x: 1, y: 2 });
+    h.transports[0]!.handlers.close(1006);
+    expect(h.socket.send(frame)).toBe(false);
+  });
+
+  test("reconnect delays are jittered between half and the full backoff", () => {
+    const delays = [0, 0.5, 1].map((random) => {
+      const timers: number[] = [];
+      const socket = new GameSocket(
+        "ws://test/ws",
+        (_url, handlers) => {
+          queueMicrotask(() => handlers.close(1006));
+          return { send: () => {}, close: () => {} };
+        },
+        { hello: () => {}, message: () => {}, delta: () => {}, status: () => {} },
+        { initialBackoffMs: 1000, maxBackoffMs: 10_000, random: () => random, timers: { set: (_fn, ms) => void timers.push(ms), clear: () => {} } },
+      );
+      socket.connect();
+      return timers;
+    });
+    return Promise.resolve().then(() => {
+      expect(delays).toEqual([[500], [750], [1000]]);
+    });
   });
 });
