@@ -1,4 +1,4 @@
-import { dateKey, type GameConfig } from "@rave/shared";
+import { dateKey, type GameConfig, type ItemKey } from "@rave/shared";
 import { accessError } from "./access";
 import type { AntiFarm } from "./anti-farm";
 import type { Bomb, BombStore } from "./bomb-store";
@@ -6,6 +6,7 @@ import type { CanvasStore } from "./canvas-store";
 import { settleCharges } from "./charges";
 import type { PlayerRegistry } from "./player";
 import type {
+  BuyResult,
   DefuseResult,
   DetectResult,
   EngineEvent,
@@ -120,6 +121,53 @@ export class GameEngine {
     return { ok: true, found: true, reward };
   }
 
+  buyItem(userId: UserId, item: ItemKey, now: number): BuyResult {
+    const p = this.players.get(userId);
+    const denied = accessError(p, this.cfg, now);
+    if (denied) return reject(denied);
+    const offer = this.cfg.shop[item];
+    const short = this.spend(p, offer.price, now, { product: item });
+    if (short) return reject(short);
+
+    p.inventory[item] += offer.amount;
+    this.ledger(p, item, offer.amount, "shop", now);
+    this.emit({ type: "player", userId });
+    return { ok: true };
+  }
+
+  buyChargeBoost(userId: UserId, now: number): BuyResult {
+    const p = this.players.get(userId);
+    const denied = accessError(p, this.cfg, now);
+    if (denied) return reject(denied);
+    const offer = this.cfg.shop.chargeCapBoost;
+    if (p.chargeCapBonus + offer.amount > offer.maxTotal) return reject("boost_limit");
+    const short = this.spend(p, offer.price, now, { product: "chargeCapBoost" });
+    if (short) return reject(short);
+
+    // Settle at the old cap so the regen timer stays consistent.
+    settleCharges(p, this.cfg, now);
+    p.chargeCapBonus += offer.amount;
+    this.emit({ type: "player", userId });
+    return { ok: true };
+  }
+
+  buyColor(userId: UserId, colorId: number, now: number): BuyResult {
+    const p = this.players.get(userId);
+    const denied = accessError(p, this.cfg, now);
+    if (denied) return reject(denied);
+    const entry = this.cfg.palette.find((e) => e.id === colorId);
+    if (!entry) return reject("invalid_color");
+    if (entry.unlock !== "shop" || entry.price === undefined) return reject("not_for_sale");
+    if (p.unlockedColors.has(colorId)) return reject("already_unlocked");
+    const short = this.spend(p, entry.price, now, { product: "color", colorId });
+    if (short) return reject(short);
+
+    p.unlockedColors.add(colorId);
+    this.emit({ type: "color_unlocked", userId, colorId, source: "shop", at: now });
+    this.emit({ type: "player", userId });
+    return { ok: true };
+  }
+
   /** The pixel is not placed; the victim's own bomb (if any) is not spent. */
   private explode(victim: PlayerState, bomb: Bomb, day: string, now: number): PlaceResult {
     const self = bomb.ownerId === victim.userId;
@@ -175,5 +223,13 @@ export class GameEngine {
     if (delta === 0) return;
     const balanceAfter = item === "coins" ? p.coins : p.inventory[item];
     this.emit({ type: "ledger", userId: p.userId, item, delta, balanceAfter, reason, ref, at: now });
+  }
+
+  /** Charges `price` coins; returns a reject code instead if the player cannot afford it. */
+  private spend(p: PlayerState, price: number, now: number, ref: Record<string, unknown>): RejectCode | null {
+    if (p.coins < price) return "insufficient_coins";
+    p.coins -= price;
+    this.ledger(p, "coins", -price, "shop", now, ref);
+    return null;
   }
 }
