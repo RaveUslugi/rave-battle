@@ -22,7 +22,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   ...overrides,
 });
 
-function setup(options: { sendResult?: boolean } = {}) {
+function setup(options: { sendResult?: boolean; throwOnSend?: boolean } = {}) {
   const game = createGameStore();
   const ui = createUiStore(null);
   const sent: Array<{ reqId: number; x: number; y: number; colorId: number; withBomb: boolean }> = [];
@@ -32,6 +32,7 @@ function setup(options: { sendResult?: boolean } = {}) {
   const port: CanvasPort = {
     sendPlace: (msg) => {
       sent.push(msg);
+      if (options.throwOnSend) throw new Error("socket closed");
       return options.sendResult ?? true;
     },
     setPending: (cells) => void pendingCalls.push(cells.length),
@@ -171,6 +172,14 @@ describe("GameClient", () => {
     expect(t.ui.getState().selection).toEqual({ x: 5, y: 6 });
     t.game.setState({ user: null });
     expect(t.ui.getState().selection).toBeNull();
+  });
+
+  test("a throwing send is treated as a failed send", () => {
+    const throwing = setup({ throwOnSend: true });
+    throwing.client.onCellTap({ x: 1, y: 1 }, "mouse");
+    expect(toastTexts(throwing.ui)).toEqual(["Сервер недоступен, попробуйте позже"]);
+    throwing.client.onCellTap({ x: 2, y: 1 }, "mouse");
+    expect(throwing.sent).toHaveLength(2);
   });
 
   test("detach cancels expiry timers, and a late fire does nothing", () => {

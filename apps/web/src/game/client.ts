@@ -140,13 +140,19 @@ export class GameClient {
       return false;
     }
     const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, now);
-    const sent = this.port?.sendPlace({
-      reqId: placement.reqId,
-      x: placement.x,
-      y: placement.y,
-      colorId: placement.colorId,
-      withBomb: placement.withBomb,
-    });
+    let sent = false;
+    try {
+      sent =
+        this.port?.sendPlace({
+          reqId: placement.reqId,
+          x: placement.x,
+          y: placement.y,
+          colorId: placement.colorId,
+          withBomb: placement.withBomb,
+        }) ?? false;
+    } catch {
+      sent = false;
+    }
     if (!sent) {
       this.pending.resolve(placement.reqId);
       this.toast("unavailable");
