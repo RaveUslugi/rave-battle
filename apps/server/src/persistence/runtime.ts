@@ -64,7 +64,12 @@ export class GameRuntime {
   /** Executes `command` right away; resolves with its result once its effects are committed. */
   run<T>(command: (engine: GameEngine, now: number) => T): Promise<T> {
     if (this.failed) return Promise.reject(this.stoppedError());
-    const result = command(this.engine, this.now());
+    let result: T;
+    try {
+      result = command(this.engine, this.now());
+    } catch (error) {
+      return Promise.reject(error);
+    }
     return this.afterCommit().then(() => result);
   }
 
@@ -78,10 +83,14 @@ export class GameRuntime {
     return this.afterCommit().then(() => player);
   }
 
-  /** Commits everything produced so far. `snapshot: true` also snapshots dirty chunks (shutdown, tests). */
+  /**
+   * Commits everything produced so far. `snapshot: true` also snapshots dirty chunks (shutdown, tests).
+   * Rejects if this or an earlier commit failed.
+   */
   flush(options: { snapshot?: boolean } = {}): Promise<void> {
-    this.queue = this.queue.then(() => this.commit(options.snapshot ?? false));
-    return this.queue;
+    const committed = this.queue.then(() => this.commit(options.snapshot ?? false));
+    this.queue = committed.catch(() => {});
+    return committed;
   }
 
   private stoppedError(): Error {
@@ -99,14 +108,18 @@ export class GameRuntime {
     if (this.timer) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.flush();
+      void this.flush().catch(() => {});
     }, this.flushIntervalMs);
   }
 
   private async commit(forceSnapshot: boolean): Promise<void> {
-    if (this.failed) return;
     const waiters = this.waiters;
     this.waiters = [];
+    if (this.failed) {
+      const error = this.stoppedError();
+      for (const w of waiters) w.reject(error);
+      throw error;
+    }
     const batch = this.takeBatch(forceSnapshot);
     if (batch) {
       try {
@@ -115,7 +128,7 @@ export class GameRuntime {
         this.failed = true;
         for (const w of waiters) w.reject(error);
         this.onFatal(error);
-        return;
+        throw error;
       }
     }
     for (const w of waiters) w.resolve();

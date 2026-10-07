@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { createDb } from "../db/client";
+import { createDb, type Db } from "../db/client";
 import { chunkSnapshots, pixelEvents, playerState } from "../db/schema";
 import { createTestDb, insertUser, TEST_DATABASE_URL } from "../db/test-db";
 import { DAY_MS, makeEngine, T0 } from "../engine/test-utils";
@@ -89,5 +89,36 @@ describe("GameRuntime", () => {
     expect(fatal).toHaveLength(1);
     await expect(runtime.run((e, now) => e.placePixel(a, pixel(2, 1), now))).rejects.toThrow("stopped");
     expect(fatal).toHaveLength(1);
+  });
+
+  test("a failed commit also rejects commands queued behind it and later flushes", async () => {
+    const failing = {
+      transaction: () => new Promise((_, reject) => setTimeout(() => reject(new Error("commit failed")), 20)),
+    } as unknown as Db;
+    const { engine, addPlayer } = makeEngine();
+    addPlayer(a);
+    const fatal: unknown[] = [];
+    const runtime = new GameRuntime(engine, failing, { seasonId: 1, now: () => clock, flushIntervalMs: 0, onFatal: (e) => fatal.push(e) });
+
+    const first = runtime.run((e, now) => e.placePixel(a, pixel(1, 1), now));
+    await Bun.sleep(5);
+    const second = runtime.run((e, now) => e.placePixel(a, pixel(2, 1), now));
+
+    const [r1, r2] = await Promise.allSettled([first, second]);
+    expect(r1).toMatchObject({ status: "rejected", reason: new Error("commit failed") });
+    expect(r2.status).toBe("rejected");
+    expect(fatal).toHaveLength(1);
+    await expect(runtime.flush()).rejects.toThrow();
+  });
+
+  test("run rejects instead of throwing when the command throws", async () => {
+    const { runtime } = await boot();
+    let result: Promise<unknown> | undefined;
+    expect(() => {
+      result = runtime.run(() => {
+        throw new Error("bad command");
+      });
+    }).not.toThrow();
+    await expect(result).rejects.toThrow("bad command");
   });
 });
