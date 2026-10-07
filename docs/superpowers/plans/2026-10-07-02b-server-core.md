@@ -1932,7 +1932,7 @@ cat tmp/server1.log; tail -1 tmp/server2.log
 ```
 Expected (если порт 3000 занят — выставить другой `PORT` в `.env` и в `curl`):
 - `ok`
-- `second exit: 1`, последняя строка `tmp/server2.log` содержит `Another server instance is already running`
+- `second exit: 1`, `tmp/server2.log` содержит `Another server instance is already running`
 - `first exit: 0`, лог первого содержит `listening on :3000` и `SIGINT: shutting down`
 
 - [ ] **Step 5: Commit**
@@ -1949,7 +1949,7 @@ git commit -m "feat(server): add entry point with graceful shutdown"
 - [ ] **Step 1: Все тесты**
 
 Run: `bun test`
-Expected: 0 fail, **150** тестов: 101 + runtime 5 + lock 2 + boot 1 + protocol 7 + session 7 + rate-limit 3 + env 6 + views 5 + schema 1 + server 11 (включая тесты исправлений по ревью Task 2 и Task 3–6).
+Expected: 0 fail, **156** тестов: 101 + runtime 5 + lock 2 + boot 1 + protocol 7 + session 7 + rate-limit 3 + env 6 + views 5 + schema 1 + server 17 (включая тесты исправлений по ревью Task 2, 3–6 и 7).
 
 - [ ] **Step 2: Typecheck**
 
