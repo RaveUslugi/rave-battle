@@ -1874,7 +1874,8 @@ async function main(): Promise<void> {
     // Stop accepting commands and persist everything before closing connections.
     await runtime.stop().catch((error) => console.error("Final commit failed", error));
     hub?.stop();
-    await server.stop(true);
+    // Bun 1.3.6: server.stop() never resolves once the server itself closed a websocket — don't wait forever.
+    await Promise.race([server.stop(true), Bun.sleep(2000)]);
     await close();
     await lock.release().catch((error) => console.error("Lock release failed", error));
     process.exit(0);
