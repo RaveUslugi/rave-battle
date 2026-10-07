@@ -85,6 +85,10 @@ export class GameRuntime {
     if (unavailable) return Promise.reject(unavailable);
     if (this.engine.players.has(init.userId)) {
       const existing = this.engine.players.get(init.userId);
+      this.engine.setAccess(init.userId, {
+        guildMember: init.guildMember,
+        ...(init.bannedUntil !== undefined ? { bannedUntil: init.bannedUntil } : {}),
+      });
       const pending = this.newPlayers.some((entry) => entry.player.userId === init.userId);
       return pending ? this.afterCommit().then(() => existing) : Promise.resolve(existing);
     }

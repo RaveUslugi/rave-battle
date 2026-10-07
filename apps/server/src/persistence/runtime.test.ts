@@ -179,6 +179,15 @@ describe("GameRuntime hooks and lifecycle", () => {
     expect(start).toHaveLength(3);
   });
 
+  test("addPlayer syncs access when an existing player reconnects", async () => {
+    const runtime = await bootWith();
+    const first = await join(runtime);
+    const second = await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: false });
+    expect(second).toBe(first);
+    expect(second.guildMember).toBe(false);
+    expect(await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now))).toEqual({ ok: false, code: "not_guild_member" });
+  });
+
   test("concurrent addPlayer for the same new user resolves after the row exists", async () => {
     const runtime = await bootWith();
     const init = { userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true };
