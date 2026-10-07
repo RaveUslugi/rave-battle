@@ -14,6 +14,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@rave/shared": "workspace:*",
+        "@trpc/server": "11.19.0",
         "drizzle-orm": "0.45.3",
         "postgres": "3.4.9",
         "zod": "4.6.5",
@@ -92,6 +93,8 @@
     "@rave/server": ["@rave/server@workspace:apps/server"],
 
     "@rave/shared": ["@rave/shared@workspace:packages/shared"],
+
+    "@trpc/server": ["@trpc/server@11.19.0", "", { "peerDependencies": { "typescript": ">=5.7.2" }, "bin": { "intent": "bin/intent.js" } }, "sha512-7C1goiDurz82yFKtZUbEzjXd0Rg/jyisaIZQhdvus+1l7E6mwcEYZXjZ1US/HF8kOyz1LERL8UN3bcboJtjcyQ=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
