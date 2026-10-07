@@ -26,6 +26,14 @@ describe("gameConfigSchema", () => {
     expect(issuePaths(cfg)).toContain("canvas.width");
   });
 
+  test("bounds the canvas size", () => {
+    const cfg = clone();
+    cfg.canvas.width = 16_640;
+    expect(issuePaths(cfg)).toContain("canvas.width");
+    cfg.canvas.width = 16_384;
+    expect(issuePaths(cfg)).not.toContain("canvas.width");
+  });
+
   test("rejects duplicate palette ids", () => {
     const cfg = clone();
     cfg.palette.push({ id: 5, type: "solid", base: "#123456", params: {}, unlock: "daily" });

@@ -3,6 +3,8 @@ import { BASE_COLOR_COUNT, CHUNK_SIZE, MAX_PALETTE_SIZE } from "../constants";
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 const positiveInt = z.number().int().positive();
+/** 64 chunks per side: chunk coordinates are u16 on the wire, this keeps memory bounded. */
+const MAX_CANVAS_SIZE = 16_384;
 const nonNegativeInt = z.number().int().nonnegative();
 
 export const ITEM_KEYS = ["bomb", "detector", "defuser"] as const;
@@ -45,8 +47,8 @@ function isValidTimeZone(timeZone: string): boolean {
 export const gameConfigSchema = z
   .object({
     canvas: z.object({
-      width: positiveInt.multipleOf(CHUNK_SIZE),
-      height: positiveInt.multipleOf(CHUNK_SIZE),
+      width: positiveInt.multipleOf(CHUNK_SIZE).max(MAX_CANVAS_SIZE),
+      height: positiveInt.multipleOf(CHUNK_SIZE).max(MAX_CANVAS_SIZE),
     }),
     palette: z.array(paletteEntrySchema).min(BASE_COLOR_COUNT).max(MAX_PALETTE_SIZE),
     charges: z.object({ max: positiveInt, regenMs: positiveInt }),
