@@ -67,6 +67,18 @@ describe("viewport", () => {
     expect(chunks).toContainEqual({ cx: 32, cy: 32 });
   });
 
+  test("visibleChunks keeps every on-screen chunk when the margin exceeds the limit", () => {
+    const cam = { x: 8192, y: 8192, zoom: 1 };
+    const screen = { w: 2560, h: 1440 };
+    const canvas = { width: 16_384, height: 16_384 };
+    const onScreen = visibleChunks(cam, screen, canvas, 0);
+    expect(onScreen).toHaveLength(60);
+    const chunks = visibleChunks(cam, screen, canvas, 1);
+    expect(chunks.length).toBeLessThanOrEqual(64);
+    for (const chunk of onScreen) expect(chunks).toContainEqual(chunk);
+    expect(chunks).toEqual([...chunks].sort((a, b) => a.cy - b.cy || a.cx - b.cx));
+  });
+
   test("cellAt returns the integer cell or null outside the canvas", () => {
     const cam = { x: 10, y: 10, zoom: 10 };
     expect(cellAt(cam, size, 400, 300, { width: 512, height: 512 })).toEqual({ x: 10, y: 10 });

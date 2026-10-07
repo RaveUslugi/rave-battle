@@ -57,9 +57,26 @@ export function fitZoom(canvas: CanvasSize, size: ScreenSize): number {
 
 /**
  * Chunks intersecting the view, expanded by `margin` chunks, clipped to the canvas, row-major.
- * Capped at the server's subscription limit by keeping the chunks nearest to the view center.
+ * Capped at the server's subscription limit: on-screen chunks first, then margin chunks, each group
+ * nearest to the view center first; the kept chunks are returned row-major.
  */
 export function visibleChunks(cam: Camera, size: ScreenSize, canvas: CanvasSize, margin: number): Array<{ cx: number; cy: number }> {
+  const chunks = chunkRange(cam, size, canvas, margin);
+  if (chunks.length <= MAX_SUBSCRIBED_CHUNKS) return chunks;
+
+  const centerCx = cam.x / CHUNK_SIZE - 0.5;
+  const centerCy = cam.y / CHUNK_SIZE - 0.5;
+  const distance = (c: { cx: number; cy: number }) => (c.cx - centerCx) ** 2 + (c.cy - centerCy) ** 2;
+  const byDistance = (a: { cx: number; cy: number }, b: { cx: number; cy: number }) => distance(a) - distance(b);
+  const onScreen = chunkRange(cam, size, canvas, 0);
+  const onScreenKeys = new Set(onScreen.map((c) => `${c.cx}:${c.cy}`));
+  const rest = chunks.filter((c) => !onScreenKeys.has(`${c.cx}:${c.cy}`));
+  return [...onScreen.sort(byDistance), ...rest.sort(byDistance)]
+    .slice(0, MAX_SUBSCRIBED_CHUNKS)
+    .sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+}
+
+function chunkRange(cam: Camera, size: ScreenSize, canvas: CanvasSize, margin: number): Array<{ cx: number; cy: number }> {
   const topLeft = screenToWorld(cam, size, 0, 0);
   const bottomRight = screenToWorld(cam, size, size.w, size.h);
   const maxCx = canvas.width / CHUNK_SIZE - 1;
@@ -71,12 +88,7 @@ export function visibleChunks(cam: Camera, size: ScreenSize, canvas: CanvasSize,
 
   const chunks: Array<{ cx: number; cy: number }> = [];
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) chunks.push({ cx, cy });
-  if (chunks.length <= MAX_SUBSCRIBED_CHUNKS) return chunks;
-
-  const centerCx = cam.x / CHUNK_SIZE - 0.5;
-  const centerCy = cam.y / CHUNK_SIZE - 0.5;
-  const distance = (c: { cx: number; cy: number }) => (c.cx - centerCx) ** 2 + (c.cy - centerCy) ** 2;
-  return chunks.sort((a, b) => distance(a) - distance(b)).slice(0, MAX_SUBSCRIBED_CHUNKS);
+  return chunks;
 }
 
 export function cellAt(cam: Camera, size: ScreenSize, sx: number, sy: number, canvas: CanvasSize): { x: number; y: number } | null {
