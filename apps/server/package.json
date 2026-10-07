@@ -3,7 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "db:generate": "drizzle-kit generate"
+  },
   "dependencies": {
-    "@rave/shared": "workspace:*"
+    "@rave/shared": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.11"
   }
 }
