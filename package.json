@@ -5,6 +5,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json",
+    "dev:server": "bun --watch apps/server/src/main.ts",
+    "start:server": "bun apps/server/src/main.ts",
     "db:up": "docker compose -f compose.dev.yml up -d --wait",
     "db:down": "docker compose -f compose.dev.yml down"
   },
