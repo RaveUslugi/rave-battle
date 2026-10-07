@@ -9,8 +9,11 @@ import {
   type ServerMessage,
 } from "@rave/shared";
 import type { Server } from "bun";
+import { eq } from "drizzle-orm";
+import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
+import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
@@ -220,6 +223,15 @@ describe("websocket", () => {
     const c = await connect();
     for (let i = 0; i < 5; i++) c.ws.send(encodeSubscribe([]));
     expect(await c.closed).toBe(1008);
+  });
+
+  test("a ban stored in users applies to a newly created player", async () => {
+    const cookie = await login("alice");
+    await t.db.update(usersTable).set({ bannedUntil: PERMANENT_BAN_DATE }).where(eq(usersTable.username, "alice"));
+    const alice = await connect(cookie);
+    expect(hello(alice).player?.bannedUntil).toBe("permanent");
+    alice.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    expect((await placed(alice, 1)).result).toEqual({ ok: false, code: "banned" });
   });
 
   test("logout clears the session", async () => {

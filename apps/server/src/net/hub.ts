@@ -123,7 +123,12 @@ export class Hub {
       ws.subscribe(userTopic(user.id));
       try {
         // Guild membership is checked at Discord login (Plan 2c); dev users are always members.
-        await this.options.runtime.addPlayer({ userId: user.id, accountCreatedAt: user.discordCreatedAt, guildMember: true });
+        await this.options.runtime.addPlayer({
+          userId: user.id,
+          accountCreatedAt: user.discordCreatedAt,
+          guildMember: true,
+          bannedUntil: user.bannedUntil,
+        });
         player = this.playerView(user.id);
       } catch {
         ws.close(1011, "unavailable");

@@ -5,6 +5,8 @@ export interface NewPlayer {
   userId: UserId;
   accountCreatedAt: number;
   guildMember: boolean;
+  /** Ban already stored for the user; defaults to null. */
+  bannedUntil?: number | null;
   now: number;
 }
 
@@ -24,7 +26,7 @@ export function createPlayer(init: NewPlayer, cfg: GameConfig): PlayerState {
     unlockedColors: new Set(),
     dailyStep: 0,
     dailyLastClaim: null,
-    bannedUntil: null,
+    bannedUntil: init.bannedUntil ?? null,
     accountCreatedAt: init.accountCreatedAt,
     guildMember: init.guildMember,
   };
