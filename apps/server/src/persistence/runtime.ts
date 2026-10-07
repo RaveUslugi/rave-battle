@@ -79,11 +79,15 @@ export class GameRuntime {
     return this.afterCommit().then(() => result);
   }
 
-  /** Returns the existing player, or creates one and resolves once it is persisted. */
+  /** Returns the existing player, or creates one; always resolves only once the player is persisted. */
   addPlayer(init: Omit<NewPlayer, "now">): Promise<PlayerState> {
     const unavailable = this.unavailableError();
     if (unavailable) return Promise.reject(unavailable);
-    if (this.engine.players.has(init.userId)) return Promise.resolve(this.engine.players.get(init.userId));
+    if (this.engine.players.has(init.userId)) {
+      const existing = this.engine.players.get(init.userId);
+      const pending = this.newPlayers.some((entry) => entry.player.userId === init.userId);
+      return pending ? this.afterCommit().then(() => existing) : Promise.resolve(existing);
+    }
     const now = this.now();
     const player = createPlayer({ ...init, now }, this.engine.config);
     this.engine.players.add(player);

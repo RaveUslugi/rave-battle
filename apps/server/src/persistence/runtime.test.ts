@@ -179,6 +179,20 @@ describe("GameRuntime hooks and lifecycle", () => {
     expect(start).toHaveLength(3);
   });
 
+  test("concurrent addPlayer for the same new user resolves after the row exists", async () => {
+    const runtime = await bootWith();
+    const init = { userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true };
+    const rowCount = async () => (await t.db.select().from(playerState).where(eq(playerState.userId, a))).length;
+    const [first, second] = await Promise.all([
+      runtime.addPlayer(init),
+      runtime.addPlayer(init).then(async (player) => {
+        expect(await rowCount()).toBe(1);
+        return player;
+      }),
+    ]);
+    expect(second).toBe(first);
+  });
+
   test("after stop() new commands and players are rejected", async () => {
     const runtime = await bootWith();
     await join(runtime);
