@@ -66,6 +66,19 @@ export class CanvasStore {
     return this.chunks.get(chunkKey(cx, cy));
   }
 
+  /** Replaces a whole chunk (recovery) and rebuilds territory for its cells. */
+  loadChunk(cx: number, cy: number, chunk: Chunk): void {
+    const cells = CHUNK_SIZE * CHUNK_SIZE;
+    if (chunk.colors.length !== cells || chunk.owners.length !== cells) {
+      throw new Error(`Chunk ${cx}:${cy} must have ${cells} cells`);
+    }
+    const key = chunkKey(cx, cy);
+    const old = this.chunks.get(key);
+    if (old) for (const owner of old.owners) this.addTerritory(owner, -1);
+    for (const owner of chunk.owners) this.addTerritory(owner, 1);
+    this.chunks.set(key, chunk);
+  }
+
   territoryOf(userId: UserId): number {
     return this.territory.get(userId) ?? 0;
   }

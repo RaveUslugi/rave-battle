@@ -54,4 +54,27 @@ describe("CanvasStore", () => {
     expect(canvas.inBounds(700, 0)).toBe(true);
     expect(() => canvas.resize(512, 512)).toThrow();
   });
+
+  test("loadChunk replaces a chunk and rebuilds territory", () => {
+    const canvas = new CanvasStore(512, 512);
+    canvas.set(0, 0, 1, 9);
+    const colors = new Uint8Array(256 * 256);
+    const owners = new Int32Array(256 * 256);
+    colors[0] = 5;
+    owners[0] = 7;
+    owners[1] = 7;
+    owners[256] = 8;
+    canvas.loadChunk(0, 0, { colors, owners });
+
+    expect(canvas.get(0, 0)).toEqual({ colorId: 5, ownerId: 7 });
+    expect(canvas.get(0, 1)).toEqual({ colorId: 0, ownerId: 8 });
+    expect(canvas.territoryOf(7)).toBe(2);
+    expect(canvas.territoryOf(8)).toBe(1);
+    expect(canvas.territoryOf(9)).toBe(0);
+  });
+
+  test("loadChunk rejects wrongly sized buffers", () => {
+    const canvas = new CanvasStore(512, 512);
+    expect(() => canvas.loadChunk(0, 0, { colors: new Uint8Array(10), owners: new Int32Array(10) })).toThrow();
+  });
 });
