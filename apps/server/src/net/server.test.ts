@@ -156,6 +156,14 @@ describe("http", () => {
 });
 
 describe("websocket", () => {
+  test("users outside the guild can watch but not place", async () => {
+    const cookie = await login("outsider");
+    await t.db.update(usersTable).set({ guildMember: false }).where(eq(usersTable.username, "outsider"));
+    const c = await connect(cookie);
+    c.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    expect((await placed(c, 1)).result).toEqual({ ok: false, code: "not_guild_member" });
+  });
+
   test("anonymous viewers get config but cannot place", async () => {
     const viewer = await connect();
     expect(hello(viewer).user).toBeNull();

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   bigserial,
   date,
   index,
@@ -29,6 +30,8 @@ export const users = pgTable("users", {
   /** 9999-12-31 = permanent ban. */
   bannedUntil: ts("banned_until"),
   banReason: text("ban_reason"),
+  /** Refreshed on every Discord login; dev users are always members. */
+  guildMember: boolean("guild_member").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
   lastSeenAt: ts("last_seen_at"),
 });

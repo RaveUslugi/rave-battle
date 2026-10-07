@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "guild_member" boolean DEFAULT true NOT NULL;

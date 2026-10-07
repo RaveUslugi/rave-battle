@@ -27,6 +27,17 @@ describe("upsertUser", () => {
   });
 });
 
+describe("upsertUser membership", () => {
+  test("stores guild membership and refreshes it on the next login", async () => {
+    const profile = { discordId: "123", username: "bob", avatar: null, discordCreatedAt: new Date(Date.UTC(2016, 0, 1)) };
+    const id = await upsertUser(t.db, { ...profile, guildMember: false });
+    const { token } = await createSession(t.db, id, DAY, T0);
+    expect((await resolveSession(t.db, token, T0))?.guildMember).toBe(false);
+    await upsertUser(t.db, { ...profile, guildMember: true });
+    expect((await resolveSession(t.db, token, T0))?.guildMember).toBe(true);
+  });
+});
+
 describe("sessions", () => {
   test("a fresh session resolves to its user", async () => {
     const id = await alice();
@@ -37,6 +48,8 @@ describe("sessions", () => {
       username: "alice",
       discordCreatedAt: Date.UTC(2015, 0, 1),
       bannedUntil: null,
+      guildMember: true,
+      sessionId: expect.any(String),
     });
   });
 

@@ -136,11 +136,10 @@ export class Hub {
     let player: PlayerView | null = null;
     if (user) {
       try {
-        // Guild membership is checked at Discord login (Plan 2c); dev users are always members.
         await this.options.runtime.addPlayer({
           userId: user.id,
           accountCreatedAt: user.discordCreatedAt,
-          guildMember: true,
+          guildMember: user.guildMember,
           bannedUntil: user.bannedUntil,
         });
         player = this.playerView(user.id);

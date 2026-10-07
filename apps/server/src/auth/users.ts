@@ -6,16 +6,19 @@ export interface UserProfile {
   username: string;
   avatar: string | null;
   discordCreatedAt: Date;
+  /** Defaults to true (no guild configured, dev users). */
+  guildMember?: boolean;
 }
 
 /** Creates or refreshes a user by Discord id; returns the internal id. */
 export async function upsertUser(db: Db, profile: UserProfile): Promise<number> {
+  const guildMember = profile.guildMember ?? true;
   const [row] = await db
     .insert(users)
-    .values(profile)
+    .values({ ...profile, guildMember })
     .onConflictDoUpdate({
       target: users.discordId,
-      set: { username: profile.username, avatar: profile.avatar, lastSeenAt: new Date() },
+      set: { username: profile.username, avatar: profile.avatar, guildMember, lastSeenAt: new Date() },
     })
     .returning({ id: users.id });
   return row!.id;

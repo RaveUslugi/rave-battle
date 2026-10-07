@@ -19,6 +19,18 @@ const count = async (table: "seasons" | "game_config") => {
 };
 
 describe("loadGame", () => {
+  test("guild membership is loaded from users", async () => {
+    const a = await insertUser(t.db, "a");
+    const { seasonId } = await loadGame(t.db, T0);
+    const { addPlayer } = makeEngine();
+    const pa = addPlayer(a);
+    await t.db.transaction((tx) =>
+      writeBatch(tx, { seasonId, events: [], players: [], newPlayers: [{ player: snapshotPlayer(pa), at: T0 }], chunks: [] }),
+    );
+    await t.db.update(users).set({ guildMember: false }).where(sql`${users.id} = ${a}`);
+    expect((await loadGame(t.db, T0)).engine.players.get(a).guildMember).toBe(false);
+  });
+
   test("first start creates a season and the default config", async () => {
     const { engine, seasonId } = await loadGame(t.db, T0);
     expect(seasonId).toBe(1);

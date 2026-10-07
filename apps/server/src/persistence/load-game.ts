@@ -87,7 +87,7 @@ async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promis
 
 async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): Promise<void> {
   const rows = await db
-    .select({ state: playerState, discordCreatedAt: users.discordCreatedAt, bannedUntil: users.bannedUntil })
+    .select({ state: playerState, discordCreatedAt: users.discordCreatedAt, bannedUntil: users.bannedUntil, guildMember: users.guildMember })
     .from(playerState)
     .innerJoin(users, eq(users.id, playerState.userId))
     .where(eq(playerState.seasonId, seasonId));
@@ -106,7 +106,7 @@ async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): 
     unlocked.set(row.userId, set);
   }
 
-  for (const { state, discordCreatedAt, bannedUntil } of rows) {
+  for (const { state, discordCreatedAt, bannedUntil, guildMember } of rows) {
     registry.add({
       userId: state.userId,
       coins: state.coins,
@@ -120,8 +120,7 @@ async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): 
       dailyLastClaim: state.dailyLastClaim,
       bannedUntil: banFromDate(bannedUntil),
       accountCreatedAt: discordCreatedAt.getTime(),
-      // Re-checked at login (Plan 2b); offline players cannot act anyway.
-      guildMember: true,
+      guildMember,
     });
   }
 }
