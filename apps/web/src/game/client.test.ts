@@ -39,12 +39,13 @@ function setup(options: { sendResult?: boolean } = {}) {
     flash: (cell) => void flashes.push(cell),
   };
   const timeouts: Array<() => void> = [];
-  const timers: Timers = { set: (fn) => void timeouts.push(fn), clear: () => {} };
+  const cleared: unknown[] = [];
+  const timers: Timers = { set: (fn) => timeouts.push(fn) - 1, clear: (handle) => void cleared.push(handle) };
   let now = NOW;
   const client = new GameClient({ game, ui, now: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
-  return { game, ui, client, sent, pendingCalls, selections, flashes, timeouts, advance: (ms: number) => void (now += ms) };
+  return { game, ui, client, sent, pendingCalls, selections, flashes, timeouts, cleared, advance: (ms: number) => void (now += ms) };
 }
 
 const placed = (reqId: number, result: Placed["result"]): Placed => ({ type: "placed", reqId, result });
@@ -146,6 +147,17 @@ describe("GameClient", () => {
     expect(t.pendingCalls.at(-1)).toBe(0);
     t.client.onPlaced(placed(1, { ok: false, code: "frozen" }));
     expect(t.ui.getState().toasts).toHaveLength(0);
+  });
+
+  test("detach cancels expiry timers, and a late fire does nothing", () => {
+    t.client.onCellTap({ x: 1, y: 1 }, "mouse");
+    const callsBefore = t.pendingCalls.length;
+    t.client.detach();
+    expect(t.cleared).toEqual([0]);
+    t.advance(10_001);
+    t.timeouts[0]!();
+    expect(t.ui.getState().toasts).toHaveLength(0);
+    expect(t.pendingCalls).toHaveLength(callsBefore);
   });
 
   test("detach stops listening to the stores", () => {

@@ -36,6 +36,7 @@ const defaultTimers: Timers = {
 export class GameClient {
   private port: CanvasPort | null = null;
   private readonly pending = new PendingPlacements();
+  private readonly expiryTimers = new Set<unknown>();
   private unsubscribe: Array<() => void> = [];
   private readonly now: () => number;
   private readonly timers: Timers;
@@ -64,6 +65,8 @@ export class GameClient {
   detach(): void {
     for (const off of this.unsubscribe) off();
     this.unsubscribe = [];
+    for (const handle of this.expiryTimers) this.timers.clear(handle);
+    this.expiryTimers.clear();
     this.pending.clear();
     this.port = null;
   }
@@ -148,7 +151,11 @@ export class GameClient {
       return;
     }
     this.port?.setPending(this.pending.list());
-    this.timers.set(() => this.expire(), this.ttlMs + 50);
+    const handle = this.timers.set(() => {
+      this.expiryTimers.delete(handle);
+      this.expire();
+    }, this.ttlMs + 50);
+    this.expiryTimers.add(handle);
   }
 
   private expire(): void {
