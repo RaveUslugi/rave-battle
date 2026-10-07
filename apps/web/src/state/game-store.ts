@@ -30,7 +30,8 @@ export const gameStore = createStore<GameState>()((set) => ({
   hover: null,
   applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config }),
   setPlayer: (player) => set({ player }),
-  setStatus: (status) => set({ status }),
+  // The count belongs to a connection: drop it when the connection goes away.
+  setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
   setOnline: (online) => set({ online }),
   setHover: (hover) => set({ hover }),
 }));

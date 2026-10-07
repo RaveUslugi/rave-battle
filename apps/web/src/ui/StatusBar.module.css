@@ -37,3 +37,9 @@
   color: var(--neon-cyan);
   font-variant-numeric: tabular-nums;
 }
+
+.connection {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}

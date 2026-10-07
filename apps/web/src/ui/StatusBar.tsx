@@ -9,11 +9,13 @@ export function StatusBar() {
   const hover = useGame((s) => s.hover);
   const dotClass = status === "open" ? styles.open : status === "reconnecting" ? styles.reconnecting : "";
   return (
-    <div className={styles.bar} role="status">
-      <span className={`${styles.dot} ${dotClass}`} />
-      <span>{status === "open" && online > 0 ? `${online} онлайн` : LABELS[status]}</span>
+    <div className={styles.bar}>
+      <span role="status" className={styles.connection}>
+        <span className={`${styles.dot} ${dotClass}`} />
+        <span>{status === "open" && online > 0 ? `${online} онлайн` : LABELS[status]}</span>
+      </span>
       {hover && (
-        <span className={styles.coords}>
+        <span className={styles.coords} aria-hidden="true">
           {hover.x}, {hover.y}
         </span>
       )}
