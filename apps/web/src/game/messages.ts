@@ -1,0 +1,20 @@
+const REJECT_TEXT: Record<string, string> = {
+  unauthorized: "Войдите, чтобы рисовать",
+  unavailable: "Сервер недоступен, попробуйте позже",
+  timeout: "Нет ответа от сервера",
+  banned: "Вы заблокированы",
+  not_guild_member: "Играть могут только участники сообщества",
+  account_too_new: "Аккаунт Discord слишком новый для игры",
+  frozen: "Вы заморожены",
+  out_of_bounds: "Клетка за пределами холста",
+  invalid_color: "Неизвестный цвет",
+  color_locked: "Этот цвет ещё не открыт",
+  no_charges: "Нет зарядов",
+  no_bombs: "Бомбы закончились",
+  bomb_limit: "Достигнут лимит активных бомб",
+};
+
+/** Human text for a reject code from the server or from the client-side pre-check. */
+export function rejectText(code: string): string {
+  return REJECT_TEXT[code] ?? "Не получилось поставить пиксель";
+}
