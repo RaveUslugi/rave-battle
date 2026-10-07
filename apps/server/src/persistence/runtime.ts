@@ -13,6 +13,8 @@ export interface RuntimeOptions {
   /** How often dirty chunks are snapshotted. Default 5 min. */
   snapshotIntervalMs?: number;
   now?: () => number;
+  /** Chunks to treat as dirty from the start (`LoadedGame.replayedChunks`). */
+  dirtyChunks?: Iterable<string>;
   /** Called once when a commit fails. Default: log and exit (fail-fast, Docker restarts us). */
   onFatal?: (error: unknown) => void;
 }
@@ -34,7 +36,7 @@ function exitProcess(error: unknown): void {
 export class GameRuntime {
   private waiters: Waiter[] = [];
   private newPlayers: Batch["newPlayers"] = [];
-  private dirtyChunks = new Set<string>();
+  private dirtyChunks: Set<string>;
   private queue: Promise<void> = Promise.resolve();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private failed = false;
@@ -56,6 +58,7 @@ export class GameRuntime {
     this.now = options.now ?? Date.now;
     this.onFatal = options.onFatal ?? exitProcess;
     this.lastSnapshotAt = this.now();
+    this.dirtyChunks = new Set(options.dirtyChunks);
   }
 
   /** Executes `command` right away; resolves with its result once its effects are committed. */

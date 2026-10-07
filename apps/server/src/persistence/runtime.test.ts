@@ -18,13 +18,14 @@ beforeEach(async () => {
 afterAll(() => t.close());
 
 async function boot(options: { snapshotIntervalMs?: number } = {}) {
-  const { engine, seasonId } = await loadGame(t.db, clock);
+  const { engine, seasonId, replayedChunks } = await loadGame(t.db, clock);
   const fatal: unknown[] = [];
   const runtime = new GameRuntime(engine, t.db, {
     seasonId,
     now: () => clock,
     flushIntervalMs: 0,
     snapshotIntervalMs: options.snapshotIntervalMs ?? 60_000,
+    dirtyChunks: replayedChunks,
     onFatal: (error) => fatal.push(error),
   });
   return { engine, runtime, fatal };

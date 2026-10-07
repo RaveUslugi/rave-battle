@@ -13,6 +13,8 @@ import { banFromDate, bytesToOwners } from "./codec";
 export interface LoadedGame {
   engine: GameEngine;
   seasonId: number;
+  /** Chunks changed by log replay; the runtime must treat them as dirty. */
+  replayedChunks: string[];
 }
 
 /** Builds the engine from the database. `now` decides "today" for the anti-farm counters. */
@@ -20,14 +22,14 @@ export async function loadGame(db: Db, now: number): Promise<LoadedGame> {
   const seasonId = await ensureSeason(db);
   const cfg = await loadConfig(db);
   const canvas = new CanvasStore(cfg.canvas.width, cfg.canvas.height);
-  await loadCanvas(db, seasonId, canvas);
+  const replayedChunks = await loadCanvas(db, seasonId, canvas);
   const players = new PlayerRegistry();
   await loadPlayers(db, seasonId, players);
   const bombStore = new BombStore();
   await loadBombs(db, seasonId, bombStore);
   const antiFarm = new AntiFarm();
   await seedAntiFarm(db, seasonId, cfg, antiFarm, now);
-  return { engine: new GameEngine(cfg, canvas, bombStore, players, antiFarm), seasonId };
+  return { engine: new GameEngine(cfg, canvas, bombStore, players, antiFarm), seasonId, replayedChunks };
 }
 
 export async function ensureSeason(db: Db): Promise<number> {
@@ -50,10 +52,11 @@ export async function loadConfig(db: Db): Promise<GameConfig> {
 }
 
 /**
- * Latest snapshot per chunk, then the pixel log after it. Every snapshot round saves all dirty
- * chunks, so a chunk without a snapshot only has events newer than the oldest snapshot.
+ * Latest snapshot per chunk, then the pixel log after the newest one. Every snapshot round saves all
+ * dirty chunks (replayed ones included), so events up to the newest last_event_id are in snapshots.
+ * Returns the keys of chunks that got replayed events.
  */
-async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promise<void> {
+async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promise<string[]> {
   const snapshots = await db
     .selectDistinctOn([chunkSnapshots.cx, chunkSnapshots.cy])
     .from(chunkSnapshots)
@@ -66,16 +69,20 @@ async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promis
     lastIdByChunk.set(`${s.cx}:${s.cy}`, s.lastEventId);
   }
 
-  const fromId = snapshots.length > 0 ? Math.min(...lastIdByChunk.values()) : 0;
+  const fromId = snapshots.length > 0 ? Math.max(...lastIdByChunk.values()) : 0;
   const events = await db
     .select({ id: pixelEvents.id, x: pixelEvents.x, y: pixelEvents.y, userId: pixelEvents.userId, colorId: pixelEvents.colorId })
     .from(pixelEvents)
     .where(and(eq(pixelEvents.seasonId, seasonId), gt(pixelEvents.id, fromId)))
     .orderBy(asc(pixelEvents.id));
+  const replayed = new Set<string>();
   for (const e of events) {
-    const chunkLastId = lastIdByChunk.get(`${Math.floor(e.x / CHUNK_SIZE)}:${Math.floor(e.y / CHUNK_SIZE)}`) ?? 0;
-    if (e.id > chunkLastId) canvas.set(e.x, e.y, e.colorId, e.userId ?? 0);
+    const key = `${Math.floor(e.x / CHUNK_SIZE)}:${Math.floor(e.y / CHUNK_SIZE)}`;
+    if (e.id <= (lastIdByChunk.get(key) ?? 0)) continue;
+    canvas.set(e.x, e.y, e.colorId, e.userId ?? 0);
+    replayed.add(key);
   }
+  return [...replayed];
 }
 
 async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): Promise<void> {
