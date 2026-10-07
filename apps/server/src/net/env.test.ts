@@ -26,3 +26,14 @@ test("dev login is refused in production", () => {
 test("missing required variables fail fast", () => {
   expect(() => loadEnv({ PUBLIC_URL: base.PUBLIC_URL })).toThrow();
 });
+
+test("allowed origins are normalised to bare origins", () => {
+  const cfg = loadEnv({ ...base, ALLOWED_ORIGINS: "HTTP://LocalHost:5173/" });
+  expect([...cfg.allowedOrigins]).toEqual(["http://localhost:5173"]);
+});
+
+test("invalid origins and non-http public urls are rejected", () => {
+  expect(() => loadEnv({ ...base, ALLOWED_ORIGINS: "null" })).toThrow();
+  expect(() => loadEnv({ ...base, ALLOWED_ORIGINS: "javascript:alert(1)" })).toThrow();
+  expect(() => loadEnv({ ...base, PUBLIC_URL: "file:///x" })).toThrow();
+});

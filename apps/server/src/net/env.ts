@@ -1,10 +1,14 @@
 import { DAY_MS } from "@rave/shared";
 import { z } from "zod";
 
+const httpUrl = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+  message: "must be an http(s) URL",
+});
+
 const envSchema = z
   .object({
     DATABASE_URL: z.url(),
-    PUBLIC_URL: z.url(),
+    PUBLIC_URL: httpUrl,
     PORT: z.coerce.number().int().min(0).max(65_535).default(3000),
     ALLOWED_ORIGINS: z.string().default(""),
     DEV_LOGIN: z.enum(["0", "1"]).default("0"),
@@ -27,10 +31,21 @@ export interface ServerConfig {
   sessionTtlMs: number;
 }
 
+function normaliseOrigin(entry: string): string {
+  let url: URL;
+  try {
+    url = new URL(entry);
+  } catch {
+    throw new Error(`Invalid ALLOWED_ORIGINS entry: ${entry}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error(`Invalid ALLOWED_ORIGINS entry: ${entry}`);
+  return url.origin;
+}
+
 export function loadEnv(source: Record<string, string | undefined> = process.env): ServerConfig {
   const env = envSchema.parse(source);
   const publicUrl = new URL(env.PUBLIC_URL);
-  const extra = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean);
+  const extra = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean).map(normaliseOrigin);
   return {
     databaseUrl: env.DATABASE_URL,
     port: env.PORT,
