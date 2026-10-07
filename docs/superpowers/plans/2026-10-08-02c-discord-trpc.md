@@ -25,6 +25,7 @@
 - Rate limit tRPC: на пользователя 20 запросов, +5/с.
 - Выход (`/auth/logout`) закрывает сокеты **этой сессии** кодом `4001`; другие сессии пользователя не трогаются. Бан/кик в реальном времени — План 5 (есть `setAccess` и топик `user:<id>`).
 - Просроченные сессии удаляются при старте и раз в час.
+- Исправлено по ревью Task 1–3: Discord id — `^[1-9]\d{0,19}$` и меньше 2^64; имя 1–32 символа (`global_name || username`); таймаут запросов к Discord 10 с; `GameRuntime.addPlayer` для **существующего** игрока применяет переданные `guildMember`/`bannedUntil` через `setAccess` — каждое подключение синхронизирует доступ со свежей сессией.
 - Координаты в tRPC-входах валидируются как неотрицательные целые; границы холста проверяет движок.
 
 ---
@@ -823,9 +824,10 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
     guildMember,
   });
   deps.users.set(id, profile.username);
-  if (deps.runtime.engine.players.has(id)) {
-    await deps.runtime.run((engine) => engine.setAccess(id, { guildMember }));
-  }
+  // Checked inside the command: the player may be created concurrently by another socket.
+  await deps.runtime.run((engine) => {
+    if (engine.players.has(id)) engine.setAccess(id, { guildMember });
+  });
   const { token, expiresAt } = await createSession(deps.db, id, deps.config.sessionTtlMs, Date.now());
   headers.append("Set-Cookie", sessionCookie(token, expiresAt, deps.config.secureCookies));
   return new Response(null, { status: 302, headers });
