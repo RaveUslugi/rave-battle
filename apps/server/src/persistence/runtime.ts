@@ -93,6 +93,15 @@ export class GameRuntime {
     return committed;
   }
 
+  /** Graceful shutdown: commits everything pending and snapshots dirty chunks. */
+  stop(): Promise<void> {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    return this.flush({ snapshot: true });
+  }
+
   private stoppedError(): Error {
     return new Error("Game runtime stopped after a persistence failure");
   }

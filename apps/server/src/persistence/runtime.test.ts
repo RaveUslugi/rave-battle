@@ -67,6 +67,15 @@ describe("GameRuntime", () => {
     expect(snaps.map((s) => `${s.cx}:${s.cy}`).sort()).toEqual(["0:0", "1:1"]);
   });
 
+  test("stop commits pending work with a chunk snapshot", async () => {
+    const { runtime } = await boot();
+    await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+    await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
+    await runtime.stop();
+    const snaps = await t.db.select().from(chunkSnapshots);
+    expect(snaps.map((s) => `${s.cx}:${s.cy}`)).toEqual(["0:0"]);
+  });
+
   test("snapshots are taken automatically after the interval", async () => {
     const { runtime } = await boot({ snapshotIntervalMs: 1000 });
     await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
