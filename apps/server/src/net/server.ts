@@ -1,5 +1,6 @@
 import { CHUNK_SIZE, encodeChunkBody } from "@rave/shared";
 import type { Server } from "bun";
+import { finishDiscordLogin, startDiscordLogin } from "../auth/discord-routes";
 import {
   clearSessionCookie,
   createSession,
@@ -9,19 +10,8 @@ import {
   sessionCookie,
 } from "../auth/session";
 import { upsertUser } from "../auth/users";
-import type { Db } from "../db/client";
-import type { GameRuntime } from "../persistence/runtime";
-import type { ServerConfig } from "./env";
+import type { AppDeps } from "./deps";
 import type { Hub, SocketData } from "./hub";
-import type { UserDirectory } from "./user-directory";
-
-export interface AppDeps {
-  db: Db;
-  runtime: GameRuntime;
-  hub: Hub;
-  users: UserDirectory;
-  config: ServerConfig;
-}
 
 /** Dev accounts look old enough to pass the account-age check. */
 const DEV_ACCOUNT_CREATED_AT = new Date(Date.UTC(2015, 0, 1));
@@ -43,6 +33,8 @@ async function route(req: Request, server: Server<SocketData>, deps: AppDeps): P
   if (req.method === "GET" && url.pathname === "/health") return new Response("ok");
   const chunk = req.method === "GET" ? CHUNK_PATH.exec(url.pathname) : null;
   if (chunk) return chunkResponse(deps, Number(chunk[1]), Number(chunk[2]));
+  if (req.method === "GET" && url.pathname === "/auth/discord" && deps.config.discord) return startDiscordLogin(deps);
+  if (req.method === "GET" && url.pathname === "/auth/discord/callback" && deps.config.discord) return finishDiscordLogin(req, deps);
   if (req.method === "GET" && url.pathname === "/auth/dev" && deps.config.devLogin) return devLogin(url, deps);
   if (req.method === "POST" && url.pathname === "/auth/logout") return logout(req, deps);
   return new Response("Not found", { status: 404 });

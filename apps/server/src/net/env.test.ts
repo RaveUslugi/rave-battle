@@ -43,3 +43,18 @@ test("dev login is refused on non-local public urls", () => {
   expect(loadEnv({ ...base, PUBLIC_URL: "http://127.0.0.1:5173", DEV_LOGIN: "1" }).devLogin).toBe(true);
   expect(loadEnv({ ...base, PUBLIC_URL: "http://[::1]:5173", DEV_LOGIN: "1" }).devLogin).toBe(true);
 });
+
+test("discord is configured from client id and secret", () => {
+  const cfg = loadEnv({ ...base, DISCORD_CLIENT_ID: "cid", DISCORD_CLIENT_SECRET: "sec", DISCORD_GUILD_ID: "42" });
+  expect(cfg.discord).toEqual({ clientId: "cid", clientSecret: "sec", redirectUri: "http://localhost:5173/auth/discord/callback", guildId: "42" });
+  expect(loadEnv({ ...base, DISCORD_CLIENT_ID: "", DISCORD_CLIENT_SECRET: "" }).discord).toBeNull();
+});
+
+test("half a discord config is rejected", () => {
+  expect(() => loadEnv({ ...base, DISCORD_CLIENT_ID: "cid" })).toThrow();
+});
+
+test("production requires discord", () => {
+  expect(() => loadEnv({ ...base, NODE_ENV: "production" })).toThrow();
+  expect(loadEnv({ ...base, NODE_ENV: "production", DISCORD_CLIENT_ID: "c", DISCORD_CLIENT_SECRET: "s" }).discord?.guildId).toBeNull();
+});

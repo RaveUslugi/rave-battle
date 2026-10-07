@@ -1,0 +1,16 @@
+import type { FetchFn } from "../auth/discord";
+import type { Db } from "../db/client";
+import type { GameRuntime } from "../persistence/runtime";
+import type { ServerConfig } from "./env";
+import type { Hub } from "./hub";
+import type { UserDirectory } from "./user-directory";
+
+export interface AppDeps {
+  db: Db;
+  runtime: GameRuntime;
+  hub: Hub;
+  users: UserDirectory;
+  config: ServerConfig;
+  /** Outbound HTTP (Discord); injectable for tests. Defaults to global fetch. */
+  fetch?: FetchFn;
+}

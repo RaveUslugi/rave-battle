@@ -60,15 +60,18 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, sessionIdOf(token)));
 }
 
-export function readSessionToken(req: Request, secure: boolean): string | null {
+export function readCookie(req: Request, name: string): string | null {
   const header = req.headers.get("cookie");
   if (!header) return null;
-  const cookieName = sessionCookieName(secure);
   for (const part of header.split(";")) {
-    const [name, ...rest] = part.trim().split("=");
-    if (name === cookieName) return rest.join("=") || null;
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=") || null;
   }
   return null;
+}
+
+export function readSessionToken(req: Request, secure: boolean): string | null {
+  return readCookie(req, sessionCookieName(secure));
 }
 
 export function sessionCookie(token: string, expiresAt: Date, secure: boolean): string {

@@ -1,11 +1,15 @@
 import { DAY_MS } from "@rave/shared";
 import { z } from "zod";
+import type { DiscordConfig } from "../auth/discord";
 
 const httpUrl = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
   message: "must be an http(s) URL",
 });
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** `KEY=` in .env means "not set". */
+const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
 
 const envSchema = z
   .object({
@@ -16,6 +20,9 @@ const envSchema = z
     DEV_LOGIN: z.enum(["0", "1"]).default("0"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+    DISCORD_CLIENT_ID: optionalString,
+    DISCORD_CLIENT_SECRET: optionalString,
+    DISCORD_GUILD_ID: z.preprocess((value) => (value === "" ? undefined : value), z.string().regex(/^\d+$/).optional()),
   })
   .refine((env) => !(env.DEV_LOGIN === "1" && env.NODE_ENV === "production"), {
     message: "DEV_LOGIN must be disabled in production",
@@ -24,6 +31,14 @@ const envSchema = z
   .refine((env) => !(env.DEV_LOGIN === "1" && !LOCAL_HOSTNAMES.has(new URL(env.PUBLIC_URL).hostname)), {
     message: "DEV_LOGIN is only allowed when PUBLIC_URL is localhost",
     path: ["DEV_LOGIN"],
+  })
+  .refine((env) => (env.DISCORD_CLIENT_ID === undefined) === (env.DISCORD_CLIENT_SECRET === undefined), {
+    message: "DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET must be set together",
+    path: ["DISCORD_CLIENT_ID"],
+  })
+  .refine((env) => env.NODE_ENV !== "production" || env.DISCORD_CLIENT_ID !== undefined, {
+    message: "Discord login must be configured in production",
+    path: ["DISCORD_CLIENT_ID"],
   });
 
 export interface ServerConfig {
@@ -35,6 +50,8 @@ export interface ServerConfig {
   devLogin: boolean;
   secureCookies: boolean;
   sessionTtlMs: number;
+  /** null when Discord login is not configured (development). */
+  discord: DiscordConfig | null;
 }
 
 function normaliseOrigin(entry: string): string {
@@ -60,5 +77,14 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     devLogin: env.DEV_LOGIN === "1",
     secureCookies: publicUrl.protocol === "https:",
     sessionTtlMs: env.SESSION_TTL_DAYS * DAY_MS,
+    discord:
+      env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
+        ? {
+            clientId: env.DISCORD_CLIENT_ID,
+            clientSecret: env.DISCORD_CLIENT_SECRET,
+            redirectUri: `${publicUrl.origin}/auth/discord/callback`,
+            guildId: env.DISCORD_GUILD_ID ?? null,
+          }
+        : null,
   };
 }

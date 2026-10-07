@@ -10,6 +10,7 @@ import {
 } from "@rave/shared";
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
+import type { DiscordConfig, FetchFn } from "../auth/discord";
 import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
@@ -29,8 +30,10 @@ let server: Server<SocketData>;
 let base = "";
 const sockets: WebSocket[] = [];
 
-async function start(options: { devLogin?: boolean; hub?: Partial<HubOptions> } = {}) {
-  await t.reset();
+async function start(
+  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean } = {},
+) {
+  if (!options.keepDb) await t.reset();
   const users = await UserDirectory.load(t.db);
   let hubRef: Hub | undefined;
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {}, onCommit: (events) => hubRef?.handleCommit(events) });
@@ -44,8 +47,9 @@ async function start(options: { devLogin?: boolean; hub?: Partial<HubOptions> } 
     devLogin: options.devLogin ?? true,
     secureCookies: false,
     sessionTtlMs: 86_400_000,
+    discord: options.discord ?? null,
   };
-  server = startServer({ db: t.db, runtime, hub, users, config });
+  server = startServer({ db: t.db, runtime, hub, users, config, fetch: options.fetch });
   base = `http://localhost:${server.port}`;
 }
 
@@ -335,5 +339,83 @@ describe("websocket", () => {
     await connect();
     const online = await waitFor(() => a.json.find((m) => m.type === "online" && m.count === 2));
     expect(online).toEqual({ type: "online", count: 2 });
+  });
+});
+
+describe("discord login", () => {
+  const discord: DiscordConfig = { clientId: "cid", clientSecret: "sec", redirectUri: `${ORIGIN}/auth/discord/callback`, guildId: "42" };
+
+  /** Fake Discord: `guilds` decides membership, `fail` breaks the token endpoint. */
+  function fakeDiscord(options: { guilds?: string[]; fail?: boolean; name?: string } = {}): FetchFn {
+    return async (url) => {
+      if (url === "https://discord.com/api/oauth2/token") {
+        return options.fail ? new Response("{}", { status: 400 }) : Response.json({ access_token: "tok" });
+      }
+      if (url.endsWith("/users/@me")) {
+        return Response.json({ id: "175928847299117063", username: "neko", global_name: options.name ?? "Neko", avatar: null });
+      }
+      if (url.includes("/users/@me/guilds")) return Response.json((options.guilds ?? ["42"]).map((id) => ({ id })));
+      return new Response("unexpected", { status: 500 });
+    };
+  }
+
+  async function restartWith(fetchFn: FetchFn) {
+    await shutdown();
+    await start({ discord, fetch: fetchFn });
+  }
+
+  /** Runs the redirect dance and returns the session cookie (or the final response when it fails). */
+  async function discordLogin(): Promise<{ res: Response; cookie: string | null }> {
+    const begin = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    expect(begin.status).toBe(302);
+    const state = new URL(begin.headers.get("location")!).searchParams.get("state")!;
+    const stateCookie = begin.headers.get("set-cookie")!.split(";")[0]!;
+    const res = await fetch(`${base}/auth/discord/callback?code=c0de&state=${state}`, { redirect: "manual", headers: { Cookie: stateCookie } });
+    const session = res.headers.getSetCookie().find((c) => c.startsWith("rb_session="));
+    return { res, cookie: session ? session.split(";")[0]! : null };
+  }
+
+  test("is 404 when discord is not configured", async () => {
+    expect((await fetch(`${base}/auth/discord`, { redirect: "manual" })).status).toBe(404);
+  });
+
+  test("a guild member logs in and can play under their display name", async () => {
+    await restartWith(fakeDiscord({ name: "Neko Raver" }));
+    const { res, cookie } = await discordLogin();
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    const c = await connect(cookie!);
+    expect(hello(c).user?.name).toBe("Neko Raver");
+    c.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    expect((await placed(c, 1)).result).toEqual({ ok: true, outcome: "placed" });
+  });
+
+  test("leaving the guild takes effect on the next login for an existing player", async () => {
+    await restartWith(fakeDiscord());
+    const first = await connect((await discordLogin()).cookie!);
+    first.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    await placed(first, 1);
+
+    // Same database: the player is loaded as a member, the new login must revoke it via setAccess.
+    await shutdown();
+    await start({ discord, fetch: fakeDiscord({ guilds: ["7"] }), keepDb: true });
+    const second = await connect((await discordLogin()).cookie!);
+    second.ws.send(encodePlace({ reqId: 2, x: 2, y: 2, colorId: 3, withBomb: false }));
+    expect((await placed(second, 2)).result).toEqual({ ok: false, code: "not_guild_member" });
+  });
+
+  test("a mismatched state is rejected", async () => {
+    await restartWith(fakeDiscord());
+    await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    const res = await fetch(`${base}/auth/discord/callback?code=c&state=forged`, { redirect: "manual", headers: { Cookie: "rb_oauth_state=real" } });
+    expect(res.status).toBe(400);
+  });
+
+  test("discord failures redirect with an error and create no session", async () => {
+    await restartWith(fakeDiscord({ fail: true }));
+    const { res, cookie } = await discordLogin();
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?login_error=discord");
+    expect(cookie).toBeNull();
   });
 });
