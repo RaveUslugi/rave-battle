@@ -162,7 +162,8 @@ export class Hub {
     if (user) ws.subscribe(userTopic(user.id));
     this.scheduleOnline();
     ws.data.ready = true;
-    // Dispatched synchronously: the engine applies commands in call order.
+    // Dispatched synchronously: the engine applies commands in call order. Frames received before
+    // `hello` still run even if the socket closed meanwhile: the user sent them and the rate limit applied.
     for (const msg of ws.data.pending.splice(0)) void this.dispatch(ws, msg);
   }
 
