@@ -2,7 +2,7 @@ import { CHUNK_SIZE } from "@rave/shared";
 import type { Db } from "../db/client";
 import type { GameEngine } from "../engine/engine";
 import { createPlayer, type NewPlayer } from "../engine/player";
-import type { PlayerState, UserId } from "../engine/types";
+import type { EngineEvent, PlayerState, UserId } from "../engine/types";
 import { snapshotPlayer, type Batch, type ChunkSnapshot } from "./batch";
 import { writeBatch } from "./write-batch";
 
@@ -17,6 +17,8 @@ export interface RuntimeOptions {
   dirtyChunks?: Iterable<string>;
   /** Called once when a commit fails. Default: log and exit (fail-fast, Docker restarts us). */
   onFatal?: (error: unknown) => void;
+  /** Called after each successful commit with its events, before the commands resolve. */
+  onCommit?: (events: EngineEvent[]) => void;
 }
 
 interface Waiter {
@@ -40,12 +42,14 @@ export class GameRuntime {
   private queue: Promise<void> = Promise.resolve();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private failed = false;
+  private stopping = false;
   private lastSnapshotAt: number;
   private readonly seasonId: number;
   private readonly flushIntervalMs: number;
   private readonly snapshotIntervalMs: number;
   private readonly now: () => number;
   private readonly onFatal: (error: unknown) => void;
+  private readonly onCommit: ((events: EngineEvent[]) => void) | undefined;
 
   constructor(
     readonly engine: GameEngine,
@@ -57,13 +61,15 @@ export class GameRuntime {
     this.snapshotIntervalMs = options.snapshotIntervalMs ?? 300_000;
     this.now = options.now ?? Date.now;
     this.onFatal = options.onFatal ?? exitProcess;
+    this.onCommit = options.onCommit;
     this.lastSnapshotAt = this.now();
     this.dirtyChunks = new Set(options.dirtyChunks);
   }
 
   /** Executes `command` right away; resolves with its result once its effects are committed. */
   run<T>(command: (engine: GameEngine, now: number) => T): Promise<T> {
-    if (this.failed) return Promise.reject(this.stoppedError());
+    const unavailable = this.unavailableError();
+    if (unavailable) return Promise.reject(unavailable);
     let result: T;
     try {
       result = command(this.engine, this.now());
@@ -73,9 +79,11 @@ export class GameRuntime {
     return this.afterCommit().then(() => result);
   }
 
-  /** Creates a player (caller checks it does not exist yet); resolves once it is persisted. */
+  /** Returns the existing player, or creates one and resolves once it is persisted. */
   addPlayer(init: Omit<NewPlayer, "now">): Promise<PlayerState> {
-    if (this.failed) return Promise.reject(this.stoppedError());
+    const unavailable = this.unavailableError();
+    if (unavailable) return Promise.reject(unavailable);
+    if (this.engine.players.has(init.userId)) return Promise.resolve(this.engine.players.get(init.userId));
     const now = this.now();
     const player = createPlayer({ ...init, now }, this.engine.config);
     this.engine.players.add(player);
@@ -93,8 +101,9 @@ export class GameRuntime {
     return committed;
   }
 
-  /** Graceful shutdown: commits everything pending and snapshots dirty chunks. */
+  /** Graceful shutdown: rejects new commands, commits everything pending and snapshots dirty chunks. */
   stop(): Promise<void> {
+    this.stopping = true;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -104,6 +113,12 @@ export class GameRuntime {
 
   private stoppedError(): Error {
     return new Error("Game runtime stopped after a persistence failure");
+  }
+
+  private unavailableError(): Error | null {
+    if (this.failed) return this.stoppedError();
+    if (this.stopping) return new Error("Game runtime is shutting down");
+    return null;
   }
 
   private afterCommit(): Promise<void> {
@@ -129,18 +144,30 @@ export class GameRuntime {
       for (const w of waiters) w.reject(error);
       throw error;
     }
-    const batch = this.takeBatch(forceSnapshot);
-    if (batch) {
-      try {
+    let events: EngineEvent[] = [];
+    try {
+      const batch = this.takeBatch(forceSnapshot);
+      if (batch) {
+        events = batch.events;
         await this.db.transaction((tx) => writeBatch(tx, batch));
-      } catch (error) {
-        this.failed = true;
-        for (const w of waiters) w.reject(error);
-        this.onFatal(error);
-        throw error;
       }
+    } catch (error) {
+      this.failed = true;
+      for (const w of waiters) w.reject(error);
+      this.onFatal(error);
+      throw error;
     }
+    this.notifyCommitted(events);
     for (const w of waiters) w.resolve();
+  }
+
+  private notifyCommitted(events: EngineEvent[]): void {
+    if (!this.onCommit || events.length === 0) return;
+    try {
+      this.onCommit(events);
+    } catch (error) {
+      console.error("onCommit handler failed", error);
+    }
   }
 
   /** Drains everything synchronously, so events, player snapshots and chunk copies are one consistent cut. */

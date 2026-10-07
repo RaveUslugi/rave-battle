@@ -1,8 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { createDb, type Db } from "../db/client";
-import { chunkSnapshots, pixelEvents, playerState } from "../db/schema";
+import { chunkSnapshots, ledger, pixelEvents, playerState } from "../db/schema";
 import { createTestDb, insertUser, TEST_DATABASE_URL } from "../db/test-db";
 import { DAY_MS, makeEngine, T0 } from "../engine/test-utils";
+import type { EngineEvent } from "../engine/types";
 import { loadGame } from "./load-game";
 import { GameRuntime } from "./runtime";
 
@@ -129,5 +131,59 @@ describe("GameRuntime", () => {
       });
     }).not.toThrow();
     await expect(result).rejects.toThrow("bad command");
+  });
+});
+
+describe("GameRuntime hooks and lifecycle", () => {
+  async function bootWith(options: { onCommit?: (events: EngineEvent[]) => void } = {}) {
+    const { engine, seasonId, replayedChunks } = await loadGame(t.db, clock);
+    return new GameRuntime(engine, t.db, {
+      seasonId,
+      now: () => clock,
+      flushIntervalMs: 0,
+      dirtyChunks: replayedChunks,
+      onFatal: () => {},
+      ...options,
+    });
+  }
+  const join = (runtime: GameRuntime) =>
+    runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+
+  test("onCommit sees committed events before the command resolves", async () => {
+    const seen: string[] = [];
+    const runtime = await bootWith({ onCommit: (events) => seen.push(...events.map((e) => e.type)) });
+    await join(runtime);
+    const result = await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
+    expect(result).toEqual({ ok: true, outcome: "placed" });
+    expect(seen).toContain("pixel");
+  });
+
+  test("a throwing onCommit does not break commands", async () => {
+    const runtime = await bootWith({
+      onCommit: () => {
+        throw new Error("boom");
+      },
+    });
+    await join(runtime);
+    expect(await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now))).toEqual({ ok: true, outcome: "placed" });
+  });
+
+  test("addPlayer returns the existing player instead of recreating it", async () => {
+    const runtime = await bootWith();
+    const first = await join(runtime);
+    await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
+    const second = await join(runtime);
+    expect(second).toBe(first);
+    expect(second.coins).toBe(101);
+    const start = await t.db.select().from(ledger).where(eq(ledger.reason, "start"));
+    expect(start).toHaveLength(3);
+  });
+
+  test("after stop() new commands and players are rejected", async () => {
+    const runtime = await bootWith();
+    await join(runtime);
+    await runtime.stop();
+    await expect(runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now))).rejects.toThrow("shutting down");
+    await expect(runtime.addPlayer({ userId: 999, accountCreatedAt: 0, guildMember: true })).rejects.toThrow("shutting down");
   });
 });
