@@ -20,7 +20,8 @@ test("losing the connection triggers onLost", async () => {
   const admin = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
   try {
     const holders = await admin<Array<{ pid: number }>>`
-      select pid from pg_locks where locktype = 'advisory' and objid::bigint = ${WRITER_LOCK_KEY}`;
+      select pid from pg_locks where locktype = 'advisory' and objid::bigint = ${WRITER_LOCK_KEY}
+        and database = (select oid from pg_database where datname = current_database())`;
     expect(holders).toHaveLength(1);
     await admin`select pg_terminate_backend(${holders[0]!.pid})`;
     const deadline = Date.now() + 2000;
