@@ -1,6 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import styles from "./App.module.css";
-import { CanvasView } from "./canvas/CanvasView";
 import { GameClient } from "./game/client";
 import { toolsApi } from "./net/api";
 import { gameStore } from "./state/game-store";
@@ -10,11 +9,13 @@ import { AuthPanel } from "./ui/AuthPanel";
 import { ConfirmBar } from "./ui/ConfirmBar";
 import { ExplosionFlash } from "./ui/ExplosionFlash";
 import { FreezeBanner } from "./ui/FreezeBanner";
-import Minimap from "./ui/Minimap";
 import { Hud } from "./ui/Hud";
 import { PaletteBar } from "./ui/PaletteBar";
 import { StatusBar } from "./ui/StatusBar";
 import { Toasts } from "./ui/Toasts";
+
+const CanvasView = lazy(() => import("./canvas/CanvasView").then((m) => ({ default: m.CanvasView })));
+const Minimap = lazy(() => import("./ui/Minimap"));
 
 const LOGIN_ERRORS: Record<string, string> = {
   denied: "Вход отменён",
@@ -38,7 +39,9 @@ export function App() {
 
   return (
     <div className={styles.app}>
-      <CanvasView client={client} />
+      <Suspense fallback={null}>
+        <CanvasView client={client} />
+      </Suspense>
       <ExplosionFlash />
       <div className={styles.top}>
         <div className={styles.topLeft}>
@@ -51,7 +54,9 @@ export function App() {
         </div>
         <div className={styles.topRight}>
           <AuthPanel />
-          <Minimap />
+          <Suspense fallback={null}>
+            <Minimap />
+          </Suspense>
         </div>
       </div>
       <div className={styles.bottom}>
