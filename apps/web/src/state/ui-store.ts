@@ -68,7 +68,8 @@ export function createUiStore(storage: StorageLike | null) {
     select: (selection) => set({ selection }),
     pushToast: (kind, text) => {
       const id = nextId++;
-      set((s) => ({ toasts: [...s.toasts, { id, kind, text }].slice(-MAX_TOASTS) }));
+      // Repeated clicks must not stack copies; the new id restarts the dismiss timer.
+      set((s) => ({ toasts: [...s.toasts.filter((t) => t.kind !== kind || t.text !== text), { id, kind, text }].slice(-MAX_TOASTS) }));
       return id;
     },
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),

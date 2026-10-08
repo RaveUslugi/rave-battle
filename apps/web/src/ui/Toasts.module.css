@@ -6,6 +6,13 @@
   pointer-events: none;
 }
 
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
 .error,
 .info {
   max-width: min(92vw, 420px);
