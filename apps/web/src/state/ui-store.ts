@@ -42,6 +42,7 @@ export interface UiState {
   dismissToast(id: number): void;
   setExplosion(info: Omit<ExplosionInfo, "id"> | null): void;
   togglePanel(panel: Panel): void;
+  openPanel(panel: Panel): void;
   closePanel(): void;
 }
 
@@ -91,6 +92,7 @@ export function createUiStore(storage: StorageLike | null) {
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
     setExplosion: (info) => set({ explosion: info ? { ...info, id: nextId++ } : null }),
     togglePanel: (panel) => set((s) => ({ panel: s.panel === panel ? null : panel })),
+    openPanel: (panel) => set({ panel }),
     closePanel: () => set({ panel: null }),
   }));
 }

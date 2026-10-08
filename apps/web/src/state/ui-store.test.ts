@@ -92,4 +92,14 @@ describe("ui store", () => {
     store.getState().closePanel();
     expect(store.getState().panel).toBeNull();
   });
+
+  test("opening a panel never closes it", () => {
+    const store = createUiStore(null);
+    store.getState().openPanel("daily");
+    expect(store.getState().panel).toBe("daily");
+    store.getState().openPanel("daily");
+    expect(store.getState().panel).toBe("daily");
+    store.getState().openPanel("shop");
+    expect(store.getState().panel).toBe("shop");
+  });
 });

@@ -32,6 +32,9 @@
 }
 
 .topCenter {
+  /* Toasts and the freeze banner stay readable over the side panel (z-index 10). */
+  position: relative;
+  z-index: 11;
   align-items: center;
   max-width: 94vw;
 }
