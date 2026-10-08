@@ -4,7 +4,7 @@ import type { Tool } from "../game/tools";
 
 export type ActiveTool = "paint" | Tool;
 
-export type Panel = "shop" | "daily";
+export type Panel = "shop" | "daily" | "leaders" | "profile";
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -34,6 +34,8 @@ export interface UiState {
   tool: ActiveTool;
   /** The side panel tab, or null when closed. */
   panel: Panel | null;
+  /** Whose profile the profile tab shows; null = the logged-in player. */
+  profileUserId: number | null;
   setTool(tool: ActiveTool): void;
   selectColor(id: number): void;
   setBombMode(on: boolean): void;
@@ -44,6 +46,7 @@ export interface UiState {
   togglePanel(panel: Panel): void;
   openPanel(panel: Panel): void;
   closePanel(): void;
+  openProfile(userId: number | null): void;
 }
 
 const COLOR_KEY = "rb:color";
@@ -71,6 +74,7 @@ export function createUiStore(storage: StorageLike | null) {
     explosion: null,
     tool: "paint",
     panel: null,
+    profileUserId: null,
     // The pending selection meant something else under the previous tool.
     setTool: (tool) => set({ tool, selection: null }),
     selectColor: (id) => {
@@ -94,6 +98,7 @@ export function createUiStore(storage: StorageLike | null) {
     togglePanel: (panel) => set((s) => ({ panel: s.panel === panel ? null : panel })),
     openPanel: (panel) => set({ panel }),
     closePanel: () => set({ panel: null }),
+    openProfile: (profileUserId) => set({ panel: "profile", profileUserId }),
   }));
 }
 

@@ -102,4 +102,14 @@ describe("ui store", () => {
     store.getState().openPanel("shop");
     expect(store.getState().panel).toBe("shop");
   });
+
+  test("profiles open on a given player or on yourself", () => {
+    const store = createUiStore(null);
+    store.getState().openProfile(42);
+    expect(store.getState()).toMatchObject({ panel: "profile", profileUserId: 42 });
+    store.getState().openProfile(null);
+    expect(store.getState()).toMatchObject({ panel: "profile", profileUserId: null });
+    store.getState().openPanel("leaders");
+    expect(store.getState().panel).toBe("leaders");
+  });
 });
