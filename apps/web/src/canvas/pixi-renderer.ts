@@ -13,6 +13,12 @@ interface ChunkView {
 
 const GRID_MIN_ZOOM = 12;
 const BOARD_COLOR = 0x000000;
+const FLASH_MS = 700;
+const PENDING_BORDER = 0xff2bd6;
+const SELECTION_BORDER = 0x22f3ff;
+const FLASH_COLOR = 0xff7a2b;
+
+type Cell = { x: number; y: number };
 
 /**
  * Chunk textures, the board background, the cell grid and the camera transform.
@@ -23,6 +29,14 @@ export class PixiRenderer implements Renderer {
   private readonly world = new Container();
   private readonly board = new Graphics();
   private readonly grid = new Graphics();
+  /** Pending pixels and the selection frame (screen space). */
+  private readonly overlay = new Graphics();
+  /** Explosion rings (screen space), animated by the ticker. */
+  private readonly fx = new Graphics();
+  private pendingCells: Array<Cell & { colorId: number }> = [];
+  private selectedCell: Cell | null = null;
+  private flashes: Array<Cell & { start: number; still: boolean }> = [];
+  private fxDrawn = false;
   private readonly chunks = new Map<string, ChunkView>();
   private readonly dirty = new Set<ChunkView>();
   private lut: Uint8Array = new Uint8Array(256 * 4);
@@ -44,8 +58,11 @@ export class PixiRenderer implements Renderer {
     this.state = "ready";
     host.appendChild(this.app.canvas);
     this.world.addChild(this.board);
-    this.app.stage.addChild(this.world, this.grid);
-    this.app.ticker.add(() => this.flush());
+    this.app.stage.addChild(this.world, this.grid, this.overlay, this.fx);
+    this.app.ticker.add(() => {
+      this.flush();
+      this.tickFlashes();
+    });
     // Context loss needs no handling here: on `webglcontextrestored` Pixi drops its GPU textures and
     // re-uploads each source from its CPU buffer (our `rgba`) the next time it is drawn.
   }
@@ -87,6 +104,8 @@ export class PixiRenderer implements Renderer {
       paintRgba(chunk.colors, lut, chunk.rgba);
       this.dirty.add(chunk);
     }
+    // Pending pixels are drawn with palette colors too.
+    this.drawOverlay();
   }
 
   setCanvasSize(width: number, height: number): void {
@@ -137,6 +156,26 @@ export class PixiRenderer implements Renderer {
     this.world.scale.set(camera.zoom);
     this.world.position.set(origin.x, origin.y);
     this.drawGrid();
+    this.drawOverlay();
+  }
+
+  /** Cells placed but not yet answered. Stored before init too, so the first camera shows them. */
+  setPending(cells: Array<Cell & { colorId: number }>): void {
+    this.pendingCells = cells;
+    this.drawOverlay();
+  }
+
+  /** Frame around the cell picked by a touch tap; null hides it. Stored before init too. */
+  setSelection(cell: Cell | null): void {
+    this.selectedCell = cell;
+    this.drawOverlay();
+  }
+
+  /** Expanding ring on a cell, e.g. where a bomb went off (a fading, non-moving ring with reduced motion). */
+  flash(cell: Cell): void {
+    if (this.state !== "ready") return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.flashes.push({ x: cell.x, y: cell.y, start: performance.now(), still });
   }
 
   /** Screen position of canvas point (0, 0), rounded so chunk edges land on whole pixels. */
@@ -157,6 +196,58 @@ export class PixiRenderer implements Renderer {
     const chunk = { colors, rgba, source, sprite };
     this.chunks.set(`${cx}:${cy}`, chunk);
     return chunk;
+  }
+
+  private rgbOf(colorId: number): number {
+    const i = colorId * 4;
+    return ((this.lut[i] ?? 0) << 16) | ((this.lut[i + 1] ?? 0) << 8) | (this.lut[i + 2] ?? 0);
+  }
+
+  /** Pending pixels and the selection frame, in screen space on the same rounded origin as the world. */
+  private drawOverlay(): void {
+    if (this.state !== "ready") return;
+    this.overlay.clear();
+    const zoom = this.camera.zoom;
+    const origin = this.origin();
+    for (const p of this.pendingCells) {
+      this.overlay
+        .rect(origin.x + p.x * zoom, origin.y + p.y * zoom, zoom, zoom)
+        .fill({ color: this.rgbOf(p.colorId), alpha: 0.6 })
+        .stroke({ width: 2, color: PENDING_BORDER, alpha: 0.9 });
+    }
+    const sel = this.selectedCell;
+    if (sel) {
+      // Inset by 1px when zoomed in; at low zoom a minimum-size frame centred on the cell stays visible.
+      const size = Math.max(zoom - 2, 6);
+      const x = origin.x + (sel.x + 0.5) * zoom - size / 2;
+      const y = origin.y + (sel.y + 0.5) * zoom - size / 2;
+      this.overlay.rect(x, y, size, size).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
+    }
+  }
+
+  /** Redraws the explosion rings each frame while any are alive; clears the layer once after the last. */
+  private tickFlashes(): void {
+    if (this.flashes.length === 0) {
+      if (this.fxDrawn) {
+        this.fx.clear();
+        this.fxDrawn = false;
+      }
+      return;
+    }
+    const now = performance.now();
+    this.flashes = this.flashes.filter((f) => now - f.start < FLASH_MS);
+    this.fx.clear();
+    this.fxDrawn = true;
+    const zoom = this.camera.zoom;
+    const origin = this.origin();
+    const base = Math.max(zoom, 6);
+    for (const f of this.flashes) {
+      const t = (now - f.start) / FLASH_MS;
+      const radius = base * (f.still ? 1.2 : 0.6 + t * 3.5);
+      this.fx
+        .circle(origin.x + (f.x + 0.5) * zoom, origin.y + (f.y + 0.5) * zoom, radius)
+        .stroke({ width: f.still ? 3 : 1 + 3 * (1 - t), color: FLASH_COLOR, alpha: 1 - t });
+    }
   }
 
   /** Re-uploads changed chunk buffers once per frame (`update()` re-reads the same `rgba` array). */

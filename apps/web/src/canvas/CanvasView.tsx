@@ -1,21 +1,22 @@
 import { useEffect, useRef } from "react";
+import type { GameClient } from "../game/client";
 import styles from "./CanvasView.module.css";
-import { CanvasSession, type SessionCallbacks } from "./session";
+import { CanvasSession } from "./session";
 
-/** Mounts one CanvasSession; everything inside is imperative. */
-export function CanvasView(props: SessionCallbacks) {
+/** Mounts one CanvasSession wired to the game client; everything inside is imperative. */
+export function CanvasView({ client }: { client: GameClient }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const callbacks = useRef(props);
-  useEffect(() => {
-    callbacks.current = props;
-  });
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const session = new CanvasSession(host, { onCellTap: (cell) => callbacks.current.onCellTap?.(cell) });
-    return () => session.dispose();
-  }, []);
+    const session = new CanvasSession(host, { onCellTap: client.onCellTap, onPlaced: client.onPlaced });
+    client.attach(session);
+    return () => {
+      client.detach();
+      session.dispose();
+    };
+  }, [client]);
 
   return <div ref={hostRef} className={styles.host} />;
 }

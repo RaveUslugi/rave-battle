@@ -1,4 +1,5 @@
-import type { ServerMessage } from "@rave/shared";
+import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared";
+import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { gameStore } from "../state/game-store";
 import { fetchChunk } from "./chunk-loader";
@@ -20,8 +21,9 @@ import {
 } from "./viewport";
 
 export interface SessionCallbacks {
-  /** A tap/click on a canvas cell (used by Plan 3b for placing). */
-  onCellTap?(cell: { x: number; y: number }): void;
+  /** A tap/click on a canvas cell. `pointerType` is "mouse", "pen" or "touch". */
+  onCellTap?(cell: { x: number; y: number }, pointerType: string): void;
+  onPlaced?(message: Extract<ServerMessage, { type: "placed" }>): void;
 }
 
 type Point = { x: number; y: number };
@@ -34,7 +36,7 @@ const WHEEL_ZOOM_SPEED = 0.0015;
 const WHEEL_LINE_PX = 16;
 
 /** Owns the renderer, the socket and all pointer handling for one mounted canvas. */
-export class CanvasSession {
+export class CanvasSession implements CanvasPort {
   private readonly renderer = new PixiRenderer();
   private readonly socket: GameSocket;
   private readonly abort = new AbortController();
@@ -45,7 +47,7 @@ export class CanvasSession {
   private viewTimer: ReturnType<typeof setTimeout> | null = null;
   private urlTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pointers = new Map<number, Point>();
-  private tapStart: (Point & { at: number }) | null = null;
+  private tapStart: (Point & { at: number; pointerType: string }) | null = null;
   private moved = false;
   private readonly resizeObserver: ResizeObserver;
 
@@ -79,6 +81,22 @@ export class CanvasSession {
     this.viewTimer = this.urlTimer = null;
     // No-op while init is still pending; start() destroys it once init resolves.
     this.renderer.destroy();
+  }
+
+  sendPlace(message: Omit<PlaceMessage, "op">): boolean {
+    return this.socket.send(encodePlace(message));
+  }
+
+  setPending(cells: Array<{ x: number; y: number; colorId: number }>): void {
+    this.renderer.setPending(cells);
+  }
+
+  setSelection(cell: { x: number; y: number } | null): void {
+    this.renderer.setSelection(cell);
+  }
+
+  flash(cell: { x: number; y: number }): void {
+    this.renderer.flash(cell);
   }
 
   private async start(): Promise<void> {
@@ -124,7 +142,8 @@ export class CanvasSession {
     if (message.type === "player") store.setPlayer(message.player);
     else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
-    // "placed" and "feed" are handled in Plan 3b.
+    else if (message.type === "placed") this.callbacks.onPlaced?.(message);
+    // "feed" — Plan 4.
   }
 
   private zoomLimits(canvas: CanvasSize): ZoomLimits {
@@ -202,7 +221,7 @@ export class CanvasSession {
       const point = this.local(event);
       this.pointers.set(event.pointerId, point);
       if (this.pointers.size === 1) {
-        this.tapStart = { ...point, at: performance.now() };
+        this.tapStart = { ...point, at: performance.now(), pointerType: event.pointerType };
         this.moved = false;
       } else {
         // A second finger turns the gesture into a pinch: never a tap.
@@ -246,7 +265,7 @@ export class CanvasSession {
       if (event.type !== "pointerup" || this.moved || !tap || performance.now() - tap.at > TAP_MAX_MS) return;
       if (!this.camera || !this.canvas) return;
       const cell = cellAt(this.camera, this.renderer.screenSize(), tap.x, tap.y, this.canvas);
-      if (cell) this.callbacks.onCellTap?.(cell);
+      if (cell) this.callbacks.onCellTap?.(cell, tap.pointerType);
     };
     element.addEventListener("pointerup", release);
     element.addEventListener("pointercancel", release);
