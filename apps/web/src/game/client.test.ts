@@ -208,4 +208,12 @@ describe("GameClient", () => {
     t.ui.getState().select({ x: 1, y: 1 });
     expect(t.selections).toHaveLength(before);
   });
+
+  test("the pre-check uses server time, so a lagging clock does not block placement", () => {
+    // The local clock is 10 s behind: by server time the freeze is over.
+    t.game.setState({ player: player({ frozenUntil: NOW + 5_000 }), clockOffset: 10_000 });
+    t.client.onCellTap({ x: 1, y: 1 }, "mouse");
+    expect(t.sent).toHaveLength(1);
+    expect(t.ui.getState().toasts).toHaveLength(0);
+  });
 });

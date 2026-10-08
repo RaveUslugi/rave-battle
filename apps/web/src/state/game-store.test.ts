@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { defaultConfig } from "@rave/shared";
-import { gameStore } from "./game-store";
+import { defaultConfig, type PlayerView } from "@rave/shared";
+import { createGameStore, gameStore, serverTime } from "./game-store";
 
 test("hello fills identity, config and player", () => {
   gameStore.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: null });
@@ -27,4 +27,30 @@ test("the online count is cleared when the connection is lost", () => {
   expect(gameStore.getState().online).toBe(0);
   setStatus("open");
   expect(gameStore.getState().online).toBe(0);
+});
+
+const view = (serverNow: number) =>
+  ({
+    coins: 0, charges: 0, chargesUpdatedAt: 0, chargeCap: 10, frozenUntil: 0,
+    inventory: { bomb: 0, detector: 0, defuser: 0 }, unlockedColors: [], dailyStep: 0,
+    dailyLastClaim: null, bannedUntil: null, unlimited: false, serverNow,
+  }) satisfies PlayerView;
+
+test("player views set the clock offset; serverTime applies it", () => {
+  let local = 1_000;
+  const store = createGameStore(() => local);
+  expect(store.getState().clockOffset).toBe(0);
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000) });
+  expect(store.getState().clockOffset).toBe(5_000);
+  local = 2_000;
+  store.getState().setPlayer(view(1_500));
+  expect(store.getState().clockOffset).toBe(-500);
+  expect(serverTime(store.getState(), 10_000)).toBe(9_500);
+});
+
+test("hello without a player keeps the offset", () => {
+  const store = createGameStore(() => 0);
+  store.getState().setPlayer(view(3_000));
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null });
+  expect(store.getState().clockOffset).toBe(3_000);
 });

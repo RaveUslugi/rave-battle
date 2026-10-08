@@ -134,7 +134,7 @@ export class GameClient {
       withBomb: ui.bombMode,
       pendingCount: this.pending.size,
       pendingBombs: this.pending.bombs,
-      now,
+      now: now + game.clockOffset,
     });
     if (!plan.ok) {
       this.toast(plan.code);

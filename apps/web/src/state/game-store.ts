@@ -12,6 +12,8 @@ export interface GameState {
   online: number;
   /** Canvas cell under the pointer, for the status bar. */
   hover: { x: number; y: number } | null;
+  /** Server clock minus local clock, from the last player view. */
+  clockOffset: number;
   applyHello(message: HelloMessage): void;
   setPlayer(player: PlayerView): void;
   setStatus(status: ConnectionStatus): void;
@@ -19,7 +21,13 @@ export interface GameState {
   setHover(cell: { x: number; y: number } | null): void;
 }
 
-export function createGameStore() {
+/** Server time at local time `now`. Compare server timestamps (freezes, charge timers) with this, never with Date.now(). */
+export function serverTime(state: Pick<GameState, "clockOffset">, now = Date.now()): number {
+  return now + state.clockOffset;
+}
+
+export function createGameStore(clock: () => number = Date.now) {
+  const offsetOf = (player: PlayerView | null) => (player ? { clockOffset: player.serverNow - clock() } : {});
   return createStore<GameState>()((set) => ({
     status: "connecting",
     bootId: null,
@@ -28,8 +36,9 @@ export function createGameStore() {
     config: null,
     online: 0,
     hover: null,
-    applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config }),
-    setPlayer: (player) => set({ player }),
+    clockOffset: 0,
+    applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config, ...offsetOf(m.player) }),
+    setPlayer: (player) => set({ player, ...offsetOf(player) }),
     // The count belongs to a connection: drop it when the connection goes away.
     setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
     setOnline: (online) => set({ online }),
