@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { BOARD_TABS, formatValue, periodsFor, type Board, type Period } from "../game/leaders";
 import { useTRPC } from "../net/trpc";
@@ -12,7 +12,12 @@ export function LeadersTab() {
   const user = useGame((s) => s.user);
   const [board, setBoard] = useState<Board>("artists");
   const [period, setPeriod] = useState<Period>("day");
-  const query = useQuery({ ...trpc.stats.leaderboard.queryOptions({ board, period }), refetchInterval: 30_000 });
+  // Territory is "now" only; the server ranks it under `all`.
+  const query = useQuery({
+    ...trpc.stats.leaderboard.queryOptions({ board, period: board === "territory" ? "all" : period }),
+    refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
+  });
   const tab = BOARD_TABS.find((b) => b.board === board)!;
 
   return (
@@ -20,7 +25,7 @@ export function LeadersTab() {
       <div className={styles.segments} role="group" aria-label="Рейтинг">
         {BOARD_TABS.map((b) => (
           <button key={b.board} type="button" className={b.board === board ? styles.segmentOn : styles.segment} aria-pressed={b.board === board} onClick={() => setBoard(b.board)}>
-            {b.title}
+            <span aria-hidden="true">{b.icon}</span> {b.title}
           </button>
         ))}
       </div>
@@ -35,14 +40,14 @@ export function LeadersTab() {
       )}
       <p className={styles.hint}>{tab.hint}</p>
       {query.isPending && <p className={styles.hint}>Загрузка…</p>}
-      {query.isError && <p className={styles.hint}>Не удалось загрузить рейтинг</p>}
+      {query.isError && !query.data && <p className={styles.hint}>Не удалось загрузить рейтинг</p>}
       {query.data && query.data.top.length === 0 && <p className={styles.hint}>Пока никого</p>}
       {query.data && query.data.top.length > 0 && (
-        <ol className={styles.ranking}>
+        <ol className={styles.ranking} role="list">
           {query.data.top.map((row) => (
-            <li key={row.user.id} className={row.user.id === user?.id ? styles.rankMe : styles.rank}>
+            <li key={row.user.id} className={row.user.id === user?.id ? styles.rankMe : styles.rank} aria-current={row.user.id === user?.id ? "true" : undefined}>
               <span className={styles.place}>{row.rank}</span>
-              <button type="button" className={styles.player} onClick={() => uiStore.getState().openProfile(row.user.id)}>
+              <button type="button" className={styles.player} title={row.user.name} onClick={() => uiStore.getState().openProfile(row.user.id)}>
                 {row.user.name}
               </button>
               <span className={styles.value}>{formatValue(row.value)}</span>
@@ -50,7 +55,7 @@ export function LeadersTab() {
           ))}
         </ol>
       )}
-      {query.data?.me && !query.data.top.some((r) => r.user.id === user?.id) && (
+      {user && query.data?.me && !query.data.top.some((r) => r.user.id === user?.id) && (
         <p className={styles.mine}>
           Вы: № {query.data.me.rank}, {formatValue(query.data.me.value)}
         </p>

@@ -47,7 +47,8 @@ export function Heatmap({ data }: { data: HeatmapData }) {
         ctx.fillRect(0, 0, layout.width, layout.height);
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = 0.25;
-        ctx.drawImage(img, 0, 0, layout.width, layout.height);
+        // Overview blocks cover `step` cells each; the last row/column may run past the canvas edge.
+        ctx.drawImage(img, 0, 0, o.width * o.step * layout.scale, o.height * o.step * layout.scale);
         ctx.globalAlpha = 1;
         drawHeat();
       })

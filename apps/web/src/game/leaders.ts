@@ -1,12 +1,12 @@
 export type Board = "artists" | "bombers" | "sappers" | "kamikaze" | "territory";
 export type Period = "day" | "week" | "all";
 
-export const BOARD_TABS: Array<{ board: Board; title: string; hint: string }> = [
-  { board: "artists", title: "🎨 Художники", hint: "поставленные пиксели" },
-  { board: "bombers", title: "💣 Бомберы", hint: "подрывы на ваших бомбах" },
-  { board: "sappers", title: "🧯 Сапёры", hint: "обезвреженные чужие бомбы" },
-  { board: "kamikaze", title: "💥 Камикадзе", hint: "подрывы на чужих бомбах" },
-  { board: "territory", title: "🗺 Территория", hint: "клеток на холсте сейчас" },
+export const BOARD_TABS: Array<{ board: Board; icon: string; title: string; hint: string }> = [
+  { board: "artists", icon: "🎨", title: "Художники", hint: "поставленные пиксели" },
+  { board: "bombers", icon: "💣", title: "Бомберы", hint: "подрывы на ваших бомбах" },
+  { board: "sappers", icon: "🧯", title: "Сапёры", hint: "обезвреженные чужие бомбы" },
+  { board: "kamikaze", icon: "💥", title: "Камикадзе", hint: "подрывы на чужих бомбах" },
+  { board: "territory", icon: "🗺", title: "Территория", hint: "клеток на холсте сейчас" },
 ];
 
 const PERIODS: Array<{ period: Period; title: string }> = [

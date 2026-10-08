@@ -17,14 +17,14 @@ export function ProfileTab() {
 
   if (target === null) return <p className={styles.hint}>Войдите, чтобы увидеть свой профиль</p>;
   if (query.isPending) return <p className={styles.hint}>Загрузка…</p>;
-  if (query.isError) return <p className={styles.hint}>Профиль не найден</p>;
+  if (query.isError) return <p className={styles.hint}>{query.error.data?.code === "NOT_FOUND" ? "Профиль не найден" : "Не удалось загрузить профиль"}</p>;
   const p = query.data;
   const own = p.user.id === me?.id;
   const favorite = p.favoriteColor === null ? null : config?.palette.find((e) => e.id === p.favoriteColor);
   const stats: Array<[string, number]> = [
     ["🎨 Пикселей", p.totals.pixels],
     ["🗺 Территория", p.territory],
-    ["💣 Подрывов на моих бомбах", p.totals.bombsTriggered],
+    [own ? "💣 Подрывов на моих бомбах" : "💣 Подрывов на бомбах игрока", p.totals.bombsTriggered],
     ["🧯 Обезврежено", p.totals.defused],
     ["💥 Подрывов на чужих", p.totals.explosionsSuffered],
     ["🤦 Самоподрывов", p.totals.selfExplosions],
@@ -57,7 +57,7 @@ export function ProfileTab() {
         </div>
       </dl>
       <h3 className={styles.section}>Где рисует</h3>
-      <Heatmap data={p.heatmap} />
+      {p.heatmap.cells.length > 0 ? <Heatmap data={p.heatmap} /> : <p className={styles.hint}>Пока ни одного пикселя</p>}
     </div>
   );
 }

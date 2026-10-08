@@ -82,7 +82,8 @@ export function SidePanel() {
               type="button"
               className={panel === tab.panel ? styles.tabOn : styles.tab}
               aria-pressed={panel === tab.panel}
-              onClick={() => uiStore.getState().openPanel(tab.panel)}
+              // Logged in, the tab means your own profile even while someone else's is open.
+              onClick={() => (tab.panel === "profile" && user ? uiStore.getState().openProfile(null) : uiStore.getState().openPanel(tab.panel))}
             >
               {tab.title}
             </button>
