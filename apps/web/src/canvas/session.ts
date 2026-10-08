@@ -2,6 +2,7 @@ import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { gameStore } from "../state/game-store";
+import { readingsStore } from "../state/readings-store";
 import { fetchChunk } from "./chunk-loader";
 import { CanvasController } from "./controller";
 import { PixiRenderer } from "./pixi-renderer";
@@ -49,6 +50,8 @@ export class CanvasSession implements CanvasPort {
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
   private moved = false;
   private readonly resizeObserver: ResizeObserver;
+  private unsubscribeReadings: (() => void) | null = null;
+  private fadeTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly host: HTMLElement,
@@ -78,6 +81,8 @@ export class CanvasSession implements CanvasPort {
     if (this.viewTimer) clearTimeout(this.viewTimer);
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.viewTimer = this.urlTimer = null;
+    this.unsubscribeReadings?.();
+    if (this.fadeTimer) clearInterval(this.fadeTimer);
     // No-op while init is still pending; start() destroys it once init resolves.
     this.renderer.destroy();
   }
@@ -121,6 +126,15 @@ export class CanvasSession implements CanvasPort {
       socket: this.socket,
       timers,
     });
+    this.renderer.setReadings(readingsStore.getState().readings);
+    this.unsubscribeReadings = readingsStore.subscribe((state, prev) => {
+      if (state.readings !== prev.readings) this.renderer.setReadings(state.readings);
+    });
+    // Fading depends on age: redraw now and then, and drop expired readings.
+    this.fadeTimer = setInterval(() => {
+      readingsStore.getState().prune();
+      this.renderer.setReadings(readingsStore.getState().readings);
+    }, 30_000);
     this.attachPointerHandlers(this.renderer.canvasElement);
     this.resizeObserver.observe(this.host);
     this.socket.connect();
