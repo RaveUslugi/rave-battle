@@ -30,6 +30,8 @@ const reject = (code: RejectCode): Rejected => ({ ok: false, code });
  */
 export class GameEngine {
   private outbox: EngineEvent[] = [];
+  /** Dev accounts that spend nothing and cannot be frozen. Runtime-only, never persisted. */
+  private unlimited = new Set<UserId>();
 
   constructor(
     private cfg: GameConfig,
@@ -49,6 +51,14 @@ export class GameEngine {
     return events;
   }
 
+  grantUnlimited(userId: UserId): void {
+    this.unlimited.add(userId);
+  }
+
+  isUnlimited(userId: UserId): boolean {
+    return this.unlimited.has(userId);
+  }
+
   placePixel(userId: UserId, cmd: PlaceCommand, now: number): PlaceResult {
     const p = this.players.get(userId);
     const denied = this.actionError(p, now);
@@ -56,9 +66,10 @@ export class GameEngine {
     if (!this.canvas.inBounds(cmd.x, cmd.y)) return reject("out_of_bounds");
     const colorDenied = this.colorError(p, cmd.colorId);
     if (colorDenied) return reject(colorDenied);
+    const unlimited = this.unlimited.has(userId);
     settleCharges(p, this.cfg, now);
-    if (p.charges < 1) return reject("no_charges");
-    if (cmd.withBomb) {
+    if (!unlimited && p.charges < 1) return reject("no_charges");
+    if (cmd.withBomb && !unlimited) {
       if (p.inventory.bomb < 1) return reject("no_bombs");
       if (this.bombs.activeCount(userId) >= this.cfg.bombs.maxActivePerPlayer) return reject("bomb_limit");
     }
@@ -66,7 +77,7 @@ export class GameEngine {
     const bomb = this.bombs.get(cmd.x, cmd.y);
     const bombOwner = bomb && bomb.ownerId !== userId ? this.players.get(bomb.ownerId) : undefined;
 
-    p.charges -= 1;
+    if (!unlimited) p.charges -= 1;
     const day = dateKey(now, this.cfg.daily.timezone);
 
     if (bomb) return this.explode(p, bomb, bombOwner, day, now);
@@ -78,10 +89,12 @@ export class GameEngine {
     this.stat(userId, day, "coinsFromPixels", this.cfg.coinsPerPixel);
 
     if (cmd.withBomb) {
-      p.inventory.bomb -= 1;
       this.bombs.add({ x: cmd.x, y: cmd.y, ownerId: userId, createdAt: now });
       this.emit({ type: "bomb_added", x: cmd.x, y: cmd.y, ownerId: userId, at: now });
-      this.ledger(p, "bomb", -1, "use", now);
+      if (!unlimited) {
+        p.inventory.bomb -= 1;
+        this.ledger(p, "bomb", -1, "use", now);
+      }
     }
 
     this.emit({ type: "player", userId });
@@ -93,10 +106,13 @@ export class GameEngine {
     const denied = this.actionError(p, now);
     if (denied) return reject(denied);
     if (!this.canvas.inBounds(cell.x, cell.y)) return reject("out_of_bounds");
-    if (p.inventory.detector < 1) return reject("no_detector");
+    const unlimited = this.unlimited.has(userId);
+    if (!unlimited && p.inventory.detector < 1) return reject("no_detector");
 
-    p.inventory.detector -= 1;
-    this.ledger(p, "detector", -1, "use", now);
+    if (!unlimited) {
+      p.inventory.detector -= 1;
+      this.ledger(p, "detector", -1, "use", now);
+    }
     this.emit({ type: "player", userId });
     return { ok: true, count: this.bombs.countAround(cell.x, cell.y) };
   }
@@ -106,10 +122,13 @@ export class GameEngine {
     const denied = this.actionError(p, now);
     if (denied) return reject(denied);
     if (!this.canvas.inBounds(cell.x, cell.y)) return reject("out_of_bounds");
-    if (p.inventory.defuser < 1) return reject("no_defuser");
+    const unlimited = this.unlimited.has(userId);
+    if (!unlimited && p.inventory.defuser < 1) return reject("no_defuser");
 
-    p.inventory.defuser -= 1;
-    this.ledger(p, "defuser", -1, "use", now);
+    if (!unlimited) {
+      p.inventory.defuser -= 1;
+      this.ledger(p, "defuser", -1, "use", now);
+    }
     this.emit({ type: "player", userId });
 
     const bomb = this.bombs.remove(cell.x, cell.y);
@@ -206,8 +225,9 @@ export class GameEngine {
     this.bombs.remove(bomb.x, bomb.y);
     this.emit({ type: "bomb_removed", x: bomb.x, y: bomb.y, ownerId: bomb.ownerId, reason: "exploded", removedBy: victim.userId, at: now });
 
-    victim.frozenUntil = now + (self ? ex.selfFreezeMs : ex.freezeMs);
-    const coinsLost = Math.min(victim.coins, self ? ex.selfCoinPenalty : ex.coinPenalty);
+    const immune = this.unlimited.has(victim.userId);
+    if (!immune) victim.frozenUntil = now + (self ? ex.selfFreezeMs : ex.freezeMs);
+    const coinsLost = immune ? 0 : Math.min(victim.coins, self ? ex.selfCoinPenalty : ex.coinPenalty);
     victim.coins -= coinsLost;
     this.ledger(victim, "coins", -coinsLost, "explosion", now, { bombOwnerId: bomb.ownerId });
 
@@ -224,12 +244,12 @@ export class GameEngine {
     }
 
     this.emit({ type: "player", userId: victim.userId });
-    return { ok: true, outcome: "exploded", self, frozenUntil: victim.frozenUntil, coinsLost, bombOwnerId: bomb.ownerId };
+    return { ok: true, outcome: "exploded", self, frozenUntil: immune ? 0 : victim.frozenUntil, coinsLost, bombOwnerId: bomb.ownerId };
   }
 
-  /** Access problems plus freeze: blocks pixels and sapper tools. */
+  /** Access problems plus freeze: blocks pixels and sapper tools. Unlimited players ignore freezes. */
   private actionError(p: PlayerState, now: number): RejectCode | null {
-    return accessError(p, this.cfg, now) ?? (p.frozenUntil > now ? "frozen" : null);
+    return accessError(p, this.cfg, now) ?? (p.frozenUntil > now && !this.unlimited.has(p.userId) ? "frozen" : null);
   }
 
   private colorError(p: PlayerState, colorId: number): RejectCode | null {
