@@ -132,7 +132,7 @@ export class Hub {
 
   private playerView(userId: number): PlayerView {
     const engine = this.options.runtime.engine;
-    return toPlayerView(engine.players.get(userId), engine.config, this.now());
+    return toPlayerView(engine.players.get(userId), engine.config, this.now(), engine.isUnlimited(userId));
   }
 
   private async open(ws: Socket): Promise<void> {

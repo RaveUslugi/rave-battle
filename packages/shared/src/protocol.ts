@@ -168,6 +168,8 @@ export interface PlayerView {
   dailyStep: number;
   dailyLastClaim: string | null;
   bannedUntil: number | "permanent" | null;
+  /** Dev account: spends nothing and cannot be frozen. */
+  unlimited: boolean;
 }
 
 export type PlaceResultView =

@@ -19,6 +19,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyStep: 0,
   dailyLastClaim: null,
   bannedUntil: null,
+  unlimited: false,
   ...overrides,
 });
 

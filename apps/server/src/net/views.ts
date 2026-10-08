@@ -3,7 +3,7 @@ import { chargeCap, settleCharges } from "../engine/charges";
 import type { EngineEvent, PlaceResult, PlayerState } from "../engine/types";
 import type { UserDirectory } from "./user-directory";
 
-export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number): PlayerView {
+export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlimited: boolean): PlayerView {
   const settled = { ...p };
   settleCharges(settled, cfg, now);
   return {
@@ -17,6 +17,7 @@ export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number): Play
     dailyStep: p.dailyStep,
     dailyLastClaim: p.dailyLastClaim,
     bannedUntil: p.bannedUntil === null ? null : Number.isFinite(p.bannedUntil) ? p.bannedUntil : "permanent",
+    unlimited,
   };
 }
 

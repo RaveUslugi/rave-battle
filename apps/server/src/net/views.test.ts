@@ -17,7 +17,8 @@ describe("toPlayerView", () => {
     const p = addPlayer(1);
     p.charges = 0;
     p.chargesUpdatedAt = T0;
-    const view = toPlayerView(p, cfg, T0 + 65_000);
+    const view = toPlayerView(p, cfg, T0 + 65_000, false);
+    expect(view.unlimited).toBe(false);
     expect(view.charges).toBe(2);
     expect(view.chargeCap).toBe(10);
     expect(p.charges).toBe(0);
@@ -29,10 +30,15 @@ describe("toPlayerView", () => {
     const p = addPlayer(1);
     p.bannedUntil = Number.POSITIVE_INFINITY;
     p.unlockedColors = new Set([40, 33]);
-    const view = toPlayerView(p, cfg, T0);
+    const view = toPlayerView(p, cfg, T0, false);
     expect(view.bannedUntil).toBe("permanent");
     expect(view.unlockedColors).toEqual([33, 40]);
     expect(JSON.parse(JSON.stringify(view))).toEqual(view);
+  });
+
+  test("passes the unlimited flag through", () => {
+    const { cfg, addPlayer } = makeEngine();
+    expect(toPlayerView(addPlayer(1), cfg, T0, true).unlimited).toBe(true);
   });
 });
 

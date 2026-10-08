@@ -14,7 +14,7 @@ export const appRouter = router({
     if (!ctx.user) return null;
     const engine = ctx.deps.runtime.engine;
     const player = engine.players.has(ctx.user.id)
-      ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now())
+      ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id))
       : null;
     return { user: ctx.deps.users.ref(ctx.user.id), player };
   }),

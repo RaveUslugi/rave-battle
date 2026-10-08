@@ -14,6 +14,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyStep: 0,
   dailyLastClaim: null,
   bannedUntil: null,
+  unlimited: false,
   ...overrides,
 });
 const input = (overrides: Partial<PlacementInput> = {}): PlacementInput => ({
