@@ -62,11 +62,19 @@
   box-shadow: var(--glow-pink);
 }
 
-.buy:disabled,
-.armed:disabled {
+.buy[aria-disabled="true"],
+.armed[aria-disabled="true"] {
   opacity: 0.45;
   box-shadow: none;
   cursor: default;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  font-size: 13px;
 }
 
 .calendar {
@@ -114,7 +122,7 @@
   cursor: pointer;
 }
 
-.claim:disabled {
+.claim[aria-disabled="true"] {
   background: none;
   border-color: var(--panel-border);
   opacity: 0.7;
