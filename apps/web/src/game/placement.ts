@@ -20,6 +20,7 @@ export function planPlacement(i: PlacementInput): PlacementPlan {
   if (!i.user) return { ok: false, code: "unauthorized" };
   const p = i.player;
   if (!p) return { ok: false, code: "unavailable" };
+  if (p.access !== "ok") return { ok: false, code: p.access };
   if (p.bannedUntil === "permanent" || (p.bannedUntil !== null && p.bannedUntil > i.now)) return { ok: false, code: "banned" };
   if (isFrozen(p, i.now)) return { ok: false, code: "frozen" };
   const entry = i.config.palette.find((e) => e.id === i.colorId);

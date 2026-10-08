@@ -37,6 +37,16 @@ describe("toPlayerView", () => {
     expect(JSON.parse(JSON.stringify(view))).toEqual(view);
   });
 
+  test("reports why a player may only watch", () => {
+    const { cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    expect(toPlayerView(p, cfg, T0, false).access).toBe("ok");
+    p.guildMember = false;
+    expect(toPlayerView(p, cfg, T0, false).access).toBe("not_guild_member");
+    p.bannedUntil = T0 + 1;
+    expect(toPlayerView(p, cfg, T0, false).access).toBe("banned");
+  });
+
   test("passes the unlimited flag through", () => {
     const { cfg, addPlayer } = makeEngine();
     expect(toPlayerView(addPlayer(1), cfg, T0, true).unlimited).toBe(true);
