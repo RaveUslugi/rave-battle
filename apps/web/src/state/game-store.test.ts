@@ -54,3 +54,14 @@ test("hello without a player keeps the offset", () => {
   store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null });
   expect(store.getState().clockOffset).toBe(3_000);
 });
+
+test("view and jump requests are stored", () => {
+  const store = createGameStore(() => 0);
+  store.getState().setView({ camera: { x: 1, y: 2, zoom: 3 }, screen: { w: 4, h: 5 } });
+  expect(store.getState().view).toEqual({ camera: { x: 1, y: 2, zoom: 3 }, screen: { w: 4, h: 5 } });
+  store.getState().jumpTo(10, 20);
+  const first = store.getState().jump;
+  store.getState().jumpTo(10, 20);
+  expect(store.getState().jump).toEqual({ x: 10, y: 20 });
+  expect(store.getState().jump).not.toBe(first); // same target twice still triggers
+});

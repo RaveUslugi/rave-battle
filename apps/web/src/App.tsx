@@ -10,6 +10,7 @@ import { AuthPanel } from "./ui/AuthPanel";
 import { ConfirmBar } from "./ui/ConfirmBar";
 import { ExplosionFlash } from "./ui/ExplosionFlash";
 import { FreezeBanner } from "./ui/FreezeBanner";
+import Minimap from "./ui/Minimap";
 import { Hud } from "./ui/Hud";
 import { PaletteBar } from "./ui/PaletteBar";
 import { StatusBar } from "./ui/StatusBar";
@@ -50,6 +51,7 @@ export function App() {
         </div>
         <div className={styles.topRight}>
           <AuthPanel />
+          <Minimap />
         </div>
       </div>
       <div className={styles.bottom}>

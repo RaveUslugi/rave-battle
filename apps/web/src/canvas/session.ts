@@ -52,6 +52,7 @@ export class CanvasSession implements CanvasPort {
   private readonly resizeObserver: ResizeObserver;
   private unsubscribeReadings: (() => void) | null = null;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
+  private unsubscribeJump: (() => void) | null = null;
 
   constructor(
     private readonly host: HTMLElement,
@@ -82,6 +83,7 @@ export class CanvasSession implements CanvasPort {
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.viewTimer = this.urlTimer = null;
     this.unsubscribeReadings?.();
+    this.unsubscribeJump?.();
     if (this.fadeTimer) clearInterval(this.fadeTimer);
     // No-op while init is still pending; start() destroys it once init resolves.
     this.renderer.destroy();
@@ -125,6 +127,11 @@ export class CanvasSession implements CanvasPort {
       loadChunk: (cx, cy) => fetchChunk(cx, cy, this.abort.signal),
       socket: this.socket,
       timers,
+    });
+    this.unsubscribeJump = gameStore.subscribe((state, prev) => {
+      if (!state.jump || state.jump === prev.jump || !this.camera) return;
+      this.camera = { ...this.camera, x: state.jump.x + 0.5, y: state.jump.y + 0.5 };
+      this.applyCamera();
     });
     this.renderer.setReadings(readingsStore.getState().readings);
     this.unsubscribeReadings = readingsStore.subscribe((state, prev) => {
@@ -182,6 +189,7 @@ export class CanvasSession implements CanvasPort {
     const zoom = Math.min(limits.max, Math.max(limits.min, this.camera.zoom));
     this.camera = clampCenter({ ...this.camera, zoom }, this.canvas);
     this.renderer.setCamera(this.camera);
+    gameStore.getState().setView({ camera: this.camera, screen: size });
 
     if (immediateView) {
       if (this.viewTimer) clearTimeout(this.viewTimer);

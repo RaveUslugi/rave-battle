@@ -1,6 +1,7 @@
 import type { GameConfig, PlayerView, UserRef } from "@rave/shared";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import type { Camera, ScreenSize } from "../canvas/viewport";
 import type { ConnectionStatus, HelloMessage } from "../net/socket";
 
 export interface GameState {
@@ -14,11 +15,17 @@ export interface GameState {
   hover: { x: number; y: number } | null;
   /** Server clock minus local clock, from the last player view. */
   clockOffset: number;
+  /** Current camera and screen size, published by the canvas session for the minimap. */
+  view: { camera: Camera; screen: ScreenSize } | null;
+  /** Latest "center the camera here" request; a new object every time. */
+  jump: { x: number; y: number } | null;
   applyHello(message: HelloMessage): void;
   setPlayer(player: PlayerView): void;
   setStatus(status: ConnectionStatus): void;
   setOnline(count: number): void;
   setHover(cell: { x: number; y: number } | null): void;
+  setView(view: { camera: Camera; screen: ScreenSize }): void;
+  jumpTo(x: number, y: number): void;
 }
 
 /** Server time at local time `now`. Compare server timestamps (freezes, charge timers) with this, never with Date.now(). */
@@ -37,12 +44,16 @@ export function createGameStore(clock: () => number = Date.now) {
     online: 0,
     hover: null,
     clockOffset: 0,
+    view: null,
+    jump: null,
     applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config, ...offsetOf(m.player) }),
     setPlayer: (player) => set({ player, ...offsetOf(player) }),
     // The count belongs to a connection: drop it when the connection goes away.
     setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
     setOnline: (online) => set({ online }),
     setHover: (hover) => set({ hover }),
+    setView: (view) => set({ view }),
+    jumpTo: (x, y) => set({ jump: { x, y } }),
   }));
 }
 
