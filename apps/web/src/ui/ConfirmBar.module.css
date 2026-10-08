@@ -1,0 +1,33 @@
+.bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--neon-cyan);
+  border-radius: var(--radius);
+  box-shadow: var(--glow-cyan);
+  backdrop-filter: blur(6px);
+}
+
+.cell {
+  color: var(--neon-cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.cancel,
+.confirm {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.confirm {
+  border-color: var(--neon-pink);
+  background: rgba(255, 43, 214, 0.25);
+  font-weight: 600;
+}

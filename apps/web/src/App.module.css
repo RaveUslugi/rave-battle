@@ -2,3 +2,54 @@
   position: fixed;
   inset: 0;
 }
+
+/* Overlay columns let pointer events through to the canvas; only interactive panels take them back. */
+.topLeft,
+.topRight,
+.topCenter,
+.bottom {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.topLeft {
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
+  max-width: calc(50vw - 18px);
+  align-items: flex-start;
+}
+
+.topRight {
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  max-width: calc(50vw - 18px);
+  align-items: flex-end;
+}
+
+.topRight > * {
+  pointer-events: auto;
+}
+
+.topCenter {
+  top: calc(64px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+  width: max-content;
+  max-width: 94vw;
+}
+
+.bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  align-items: center;
+  padding: 0 calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+}
+
+.bottom > * {
+  pointer-events: auto;
+}

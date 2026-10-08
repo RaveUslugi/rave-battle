@@ -1,0 +1,50 @@
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.charges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 180px;
+}
+
+.pip,
+.pipOn {
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pipOn {
+  background: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.chargeText {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat {
+  color: var(--text);
+}

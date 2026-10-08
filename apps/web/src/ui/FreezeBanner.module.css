@@ -1,0 +1,11 @@
+.banner {
+  padding: 8px 16px;
+  background: rgba(34, 243, 255, 0.14);
+  border: 1px solid var(--neon-cyan);
+  border-radius: var(--radius);
+  box-shadow: var(--glow-cyan);
+  backdrop-filter: blur(6px);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
