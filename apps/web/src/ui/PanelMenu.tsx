@@ -13,6 +13,7 @@ const ITEMS: Array<{ panel: Panel; icon: string; label: string; needsLogin: bool
 ];
 
 export function PanelMenu() {
+  const user = useGame((s) => s.user);
   const player = useGame((s) => s.player);
   const config = useGame((s) => s.config);
   const panel = useUi((s) => s.panel);
@@ -24,7 +25,7 @@ export function PanelMenu() {
   const isOn = (item: Panel) => panel === item && (item !== "profile" || profileUserId === null);
   return (
     <nav className={styles.menu} aria-label="Разделы">
-      {ITEMS.filter((item) => player || !item.needsLogin).map((item) => (
+      {ITEMS.filter((item) => user || !item.needsLogin).map((item) => (
         <button
           key={item.panel}
           type="button"

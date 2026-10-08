@@ -42,6 +42,8 @@ export function SidePanel() {
     if (user) return;
     const { panel: current, profileUserId: whose, closePanel } = uiStore.getState();
     if (current === "shop" || current === "daily" || (current === "profile" && whose === null)) closePanel();
+    // The panel stays open but the tab that had focus may be gone: keep focus in the panel.
+    else if (focusInside.current && (document.activeElement === null || document.activeElement === document.body)) asideRef.current?.focus();
   }, [user]);
 
   // Opening moves focus into the panel; closing returns it to whatever opened it (usually the menu button).
