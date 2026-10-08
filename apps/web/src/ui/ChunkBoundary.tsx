@@ -27,7 +27,7 @@ export class ChunkBoundary extends Component<Props, { failed: boolean }> {
     if (this.props.fallback === null) return null;
     return (
       <div className={styles.reload} role="alert">
-        <p>Не удалось загрузить холст. Возможно, игра обновилась.</p>
+        <p>Не удалось загрузить холст. Обновите страницу — возможно, игра обновилась.</p>
         <button type="button" onClick={() => window.location.reload()}>
           Обновить страницу
         </button>
