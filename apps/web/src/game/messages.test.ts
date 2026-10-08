@@ -8,5 +8,5 @@ test("known codes have a human text", () => {
 });
 
 test("unknown codes fall back to a generic text", () => {
-  expect(rejectText("something_new")).toBe("Не получилось поставить пиксель");
+  expect(rejectText("something_new")).toBe("Действие не удалось");
 });
