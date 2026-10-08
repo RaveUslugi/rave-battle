@@ -5,7 +5,7 @@ import { statsDaily, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import type { GameRuntime } from "../persistence/runtime";
-import { Leaderboards } from "./leaderboards";
+import { Leaderboards, minusDays } from "./leaderboards";
 
 const t = createTestDb();
 const NOW = Date.UTC(2026, 9, 8, 12); // 15:00 Moscow
@@ -26,6 +26,15 @@ afterAll(() => t.close());
 async function stat(name: Name, daysAgo: number, values: Partial<typeof statsDaily.$inferInsert>) {
   await t.db.insert(statsDaily).values({ userId: ids[name]!, seasonId: runtime.season, date: dateKey(NOW - daysAgo * DAY_MS, TZ), ...values });
 }
+
+describe("minusDays", () => {
+  test("steps back whole calendar days across months, years and leap days", () => {
+    expect(minusDays("2026-10-08", 6)).toBe("2026-10-02");
+    expect(minusDays("2026-03-03", 6)).toBe("2026-02-25");
+    expect(minusDays("2024-03-02", 2)).toBe("2024-02-29");
+    expect(minusDays("2026-01-03", 6)).toBe("2025-12-28");
+  });
+});
 
 describe("Leaderboards", () => {
   test("sums by period, ranks with ties, skips zeros and reports my place", async () => {

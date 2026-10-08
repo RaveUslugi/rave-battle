@@ -25,6 +25,12 @@ const COLUMNS = {
 
 const CACHE_MS = 30_000;
 
+/** `YYYY-MM-DD` minus whole calendar days (UTC math on the key itself, so DST shifts do not matter). */
+export function minusDays(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d) - days * DAY_MS).toISOString().slice(0, 10);
+}
+
 /** Ranks by value, then user id for a stable order. */
 function rank(rows: Array<{ userId: number; value: number }>): Ranked[] {
   const sorted = [...rows].sort((a, b) => b.value - a.value || a.userId - b.userId);
@@ -54,7 +60,9 @@ export class Leaderboards {
     if (hit && now - hit.at < CACHE_MS) return hit.ranking;
     const ranking = board === "territory" ? Promise.resolve(this.territory(now)) : this.fromStats(board, period, now);
     // A failed query must not stay cached.
-    ranking.catch(() => this.cache.delete(key));
+    ranking.catch(() => {
+      if (this.cache.get(key)?.ranking === ranking) this.cache.delete(key);
+    });
     this.cache.set(key, { at: now, ranking });
     return ranking;
   }
@@ -62,7 +70,7 @@ export class Leaderboards {
   private async fromStats(board: Exclude<Board, "territory">, period: Period, now: number): Promise<Ranked[]> {
     const column = COLUMNS[board];
     const tz = this.runtime.engine.config.daily.timezone;
-    const from = period === "day" ? dateKey(now, tz) : period === "week" ? dateKey(now - 6 * DAY_MS, tz) : null;
+    const from = period === "day" ? dateKey(now, tz) : period === "week" ? minusDays(dateKey(now, tz), 6) : null;
     const total = sql<number>`sum(${column})::int`;
     const rows = await this.db
       .select({ userId: statsDaily.userId, value: total })

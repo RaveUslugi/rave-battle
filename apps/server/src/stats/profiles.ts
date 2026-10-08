@@ -78,7 +78,9 @@ export class Profiles {
     const hit = this.pixelCache.get(userId);
     if (hit && now - hit.at < PIXEL_CACHE_MS) return hit.data;
     const data = this.loadPixels(userId);
-    data.catch(() => this.pixelCache.delete(userId));
+    data.catch(() => {
+      if (this.pixelCache.get(userId)?.data === data) this.pixelCache.delete(userId);
+    });
     this.pixelCache.delete(userId);
     this.pixelCache.set(userId, { at: now, data });
     // Map keeps insertion order: drop the oldest entries beyond the cap.
@@ -91,7 +93,7 @@ export class Profiles {
 
   /** Both aggregates use the (season_id, user_id, created_at) index. */
   private async loadPixels(userId: number): Promise<PixelAggregates> {
-    const { width: cw, height: ch } = this.runtime.engine.config.canvas;
+    const { width: cw, height: ch } = this.runtime.engine.canvas;
     const step = Math.max(1, Math.ceil(Math.max(cw, ch) / HEATMAP_MAX_SIDE));
     const width = Math.ceil(cw / step);
     const height = Math.ceil(ch / step);
