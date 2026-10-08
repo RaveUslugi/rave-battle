@@ -252,6 +252,45 @@ describe("websocket", () => {
     expect(viewer.deltas).toHaveLength(2);
   });
 
+  test("new connections get the recent feed right after hello", async () => {
+    const alice = await connect(await login("alice"));
+    const bob = await connect(await login("bob"));
+    alice.ws.send(encodePlace({ reqId: 1, x: 5, y: 5, colorId: 3, withBomb: true }));
+    await placed(alice, 1);
+    bob.ws.send(encodePlace({ reqId: 2, x: 5, y: 5, colorId: 9, withBomb: false }));
+    await placed(bob, 2);
+    await waitFor(() => bob.json.find((m) => m.type === "feed"));
+
+    const late = await connect();
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    expect(late.json[0]?.type).toBe("hello");
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0]).toMatchObject({ type: "feed", kind: "exploded", actor: { name: "bob" }, owner: { name: "alice" } });
+    expect(Object.keys(history.entries[0]!).sort()).toEqual(["actor", "at", "kind", "owner", "type"]);
+  });
+
+  test("the feed history keeps the latest 20 entries", async () => {
+    const owner = await connect(await login("owner"));
+    const victim = await connect(await login("victim"));
+    for (let i = 0; i < 22; i++) {
+      await runtime.run((engine) => {
+        const o = engine.players.get(hello(owner).user!.id);
+        const v = engine.players.get(hello(victim).user!.id);
+        o.inventory.bomb = 1;
+        o.charges = 10;
+        v.charges = 10;
+        v.frozenUntil = 0;
+      });
+      owner.ws.send(encodePlace({ reqId: 100 + i * 2, x: i, y: 10, colorId: 3, withBomb: true }));
+      await placed(owner, 100 + i * 2);
+      victim.ws.send(encodePlace({ reqId: 101 + i * 2, x: i, y: 10, colorId: 4, withBomb: false }));
+      await placed(victim, 101 + i * 2);
+    }
+    const late = await connect();
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    expect(history.entries).toHaveLength(20);
+  });
+
   test("subscriptions are acknowledged with current chunk versions", async () => {
     type Subscribed = Extract<ServerMessage, { type: "subscribed" }>;
     const acks = (c: Client) => c.json.filter((m): m is Subscribed => m.type === "subscribed");
