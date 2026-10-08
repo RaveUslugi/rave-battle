@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { fetchOverview } from "../canvas/chunk-loader";
-import { clampRect, minimapLayout, minimapToCanvas, viewportRect } from "../canvas/minimap-math";
+import { clampRect, minimapLayout, minimapToCanvas, viewportRect, type MinimapLayout } from "../canvas/minimap-math";
 import { buildPaletteLut, paintRgba } from "../canvas/palette";
+import type { CanvasSize } from "../canvas/viewport";
 import { gameStore, useGame } from "../state/game-store";
 import styles from "./Minimap.module.css";
 
@@ -22,10 +23,8 @@ function initiallyOpen(): boolean {
 /** Whole-canvas overview with the current viewport; click or drag to move the camera there. */
 export default function Minimap() {
   const config = useGame((s) => s.config);
-  const view = useGame((s) => s.view);
   const [open, setOpen] = useState(initiallyOpen);
   const [image, setImage] = useState<HTMLCanvasElement | null>(null);
-  const mapRef = useRef<HTMLCanvasElement>(null);
   const layout = useMemo(() => (config ? minimapLayout(config.canvas, BOX) : null), [config]);
 
   // Fetch while open and the tab is visible; the server caches the overview for a few seconds anyway.
@@ -64,9 +63,36 @@ export default function Minimap() {
     };
   }, [open, config]);
 
+  if (!config || !layout) return null;
+
+  const toggle = () =>
+    setOpen((was) => {
+      try {
+        window.localStorage.setItem(OPEN_KEY, was ? "0" : "1");
+      } catch {
+        // Not remembered; fine.
+      }
+      return !was;
+    });
+
+  return (
+    <div className={styles.minimap}>
+      <button type="button" className={styles.toggle} aria-expanded={open} onClick={toggle}>
+        <span aria-hidden="true">🗺 </span>Карта
+      </button>
+      {open && <MinimapMap layout={layout} image={image} canvas={config.canvas} />}
+    </div>
+  );
+}
+
+/** The open map: the only part that follows the camera, so a collapsed minimap never redraws. */
+function MinimapMap({ layout, image, canvas }: { layout: MinimapLayout; image: HTMLCanvasElement | null; canvas: CanvasSize }) {
+  const view = useGame((s) => s.view);
+  const mapRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     const el = mapRef.current;
-    if (!el || !layout) return;
+    if (!el) return;
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(layout.width * dpr);
     const h = Math.round(layout.height * dpr);
@@ -87,47 +113,28 @@ export default function Minimap() {
       ctx.lineWidth = lineWidth;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
     }
-  }, [layout, view, image, open]);
-
-  if (!config || !layout) return null;
-
-  const toggle = () =>
-    setOpen((was) => {
-      try {
-        window.localStorage.setItem(OPEN_KEY, was ? "0" : "1");
-      } catch {
-        // Not remembered; fine.
-      }
-      return !was;
-    });
+  }, [layout, view, image]);
 
   const jump = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const cell = minimapToCanvas(layout, event.clientX - rect.left, event.clientY - rect.top, config.canvas);
+    const cell = minimapToCanvas(layout, event.clientX - rect.left, event.clientY - rect.top, canvas);
     gameStore.getState().jumpTo(cell.x, cell.y);
   };
 
   return (
-    <div className={styles.minimap}>
-      <button type="button" className={styles.toggle} aria-expanded={open} onClick={toggle}>
-        <span aria-hidden="true">🗺 </span>Карта
-      </button>
-      {open && (
-        <canvas
-          ref={mapRef}
-          className={styles.map}
-          style={{ width: layout.width, height: layout.height }}
-          role="img"
-          aria-label="Миникарта холста"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            jump(e);
-          }}
-          onPointerMove={(e) => {
-            if (e.buttons & 1) jump(e);
-          }}
-        />
-      )}
-    </div>
+    <canvas
+      ref={mapRef}
+      className={styles.map}
+      style={{ width: layout.width, height: layout.height }}
+      role="img"
+      aria-label="Миникарта холста"
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        jump(e);
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons & 1) jump(e);
+      }}
+    />
   );
 }

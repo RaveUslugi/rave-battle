@@ -45,6 +45,7 @@ export class CanvasSession implements CanvasPort {
   private canvas: CanvasSize | null = null;
   private disposed = false;
   private viewTimer: ReturnType<typeof setTimeout> | null = null;
+  private viewFrame: number | null = null;
   private urlTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pointers = new Map<number, Point>();
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
@@ -82,6 +83,7 @@ export class CanvasSession implements CanvasPort {
     if (this.viewTimer) clearTimeout(this.viewTimer);
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.viewTimer = this.urlTimer = null;
+    if (this.viewFrame !== null) cancelAnimationFrame(this.viewFrame);
     this.unsubscribeReadings?.();
     this.unsubscribeJump?.();
     if (this.fadeTimer) clearInterval(this.fadeTimer);
@@ -189,7 +191,13 @@ export class CanvasSession implements CanvasPort {
     const zoom = Math.min(limits.max, Math.max(limits.min, this.camera.zoom));
     this.camera = clampCenter({ ...this.camera, zoom }, this.canvas);
     this.renderer.setCamera(this.camera);
-    gameStore.getState().setView({ camera: this.camera, screen: size });
+    // The minimap needs at most one update per frame; pointer events can fire more often.
+    if (this.viewFrame === null) {
+      this.viewFrame = requestAnimationFrame(() => {
+        this.viewFrame = null;
+        if (this.camera && !this.disposed) gameStore.getState().setView({ camera: this.camera, screen: this.renderer.screenSize() });
+      });
+    }
 
     if (immediateView) {
       if (this.viewTimer) clearTimeout(this.viewTimer);
