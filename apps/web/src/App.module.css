@@ -42,6 +42,13 @@
   max-width: 94vw;
 }
 
+/* Narrow screens: the centered banner and toasts would cover the HUD, so they go below it. */
+@media (max-width: 900px) {
+  .topCenter {
+    top: calc(128px + env(safe-area-inset-top));
+  }
+}
+
 .bottom {
   left: 0;
   right: 0;
