@@ -70,4 +70,12 @@ describe("ui store", () => {
     expect(second).not.toBe(first);
     expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([["info", "x"], ["error", "Нет зарядов"]]);
   });
+
+  test("switching tools clears the selection", () => {
+    const store = createUiStore(null);
+    expect(store.getState().tool).toBe("paint");
+    store.getState().select({ x: 1, y: 1 });
+    store.getState().setTool("detector");
+    expect(store.getState()).toMatchObject({ tool: "detector", selection: null });
+  });
 });

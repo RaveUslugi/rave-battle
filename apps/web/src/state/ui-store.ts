@@ -1,5 +1,8 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import type { Tool } from "../game/tools";
+
+export type ActiveTool = "paint" | Tool;
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -25,6 +28,9 @@ export interface UiState {
   selection: { x: number; y: number } | null;
   toasts: Toast[];
   explosion: ExplosionInfo | null;
+  /** What a tap does. Bomb mode only applies to "paint". */
+  tool: ActiveTool;
+  setTool(tool: ActiveTool): void;
   selectColor(id: number): void;
   setBombMode(on: boolean): void;
   select(cell: { x: number; y: number } | null): void;
@@ -56,6 +62,9 @@ export function createUiStore(storage: StorageLike | null) {
     selection: null,
     toasts: [],
     explosion: null,
+    tool: "paint",
+    // The pending selection meant something else under the previous tool.
+    setTool: (tool) => set({ tool, selection: null }),
     selectColor: (id) => {
       try {
         storage?.setItem(COLOR_KEY, String(id));

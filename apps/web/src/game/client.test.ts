@@ -2,8 +2,10 @@ import { defaultConfig, type PlayerView, type ServerMessage } from "@rave/shared
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
+import { createReadingsStore } from "../state/readings-store";
 import { createUiStore } from "../state/ui-store";
 import { GameClient, type CanvasPort } from "./client";
+import type { DetectAnswer, ToolsApi } from "./tools";
 
 const NOW = 2_000_000;
 type Placed = Extract<ServerMessage, { type: "placed" }>;
@@ -14,7 +16,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   chargesUpdatedAt: NOW,
   chargeCap: 10,
   frozenUntil: 0,
-  inventory: { bomb: 2, detector: 0, defuser: 0 },
+  inventory: { bomb: 2, detector: 1, defuser: 1 },
   unlockedColors: [],
   dailyStep: 0,
   dailyLastClaim: null,
@@ -24,7 +26,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   ...overrides,
 });
 
-function setup(options: { sendResult?: boolean; throwOnSend?: boolean } = {}) {
+function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: DetectAnswer } = {}) {
   const game = createGameStore();
   const ui = createUiStore(null);
   const sent: Array<{ reqId: number; x: number; y: number; colorId: number; withBomb: boolean }> = [];
@@ -45,10 +47,16 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean } = {}) {
   const cleared: unknown[] = [];
   const timers: Timers = { set: (fn) => timeouts.push(fn) - 1, clear: (handle) => void cleared.push(handle) };
   let now = NOW;
-  const client = new GameClient({ game, ui, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
+  const readings = createReadingsStore(null, () => now);
+  const toolCalls: string[] = [];
+  const tools: ToolsApi = {
+    detect: async (c) => (toolCalls.push(`detect ${c.x},${c.y}`), options.detect ?? { ok: true, count: 1 }),
+    defuse: async (c) => (toolCalls.push(`defuse ${c.x},${c.y}`), { ok: true, found: false, reward: 0 }),
+  };
+  const client = new GameClient({ game, ui, readings, tools, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
-  return { game, ui, client, sent, pendingCalls, selections, flashes, timeouts, cleared, advance: (ms: number) => void (now += ms) };
+  return { game, ui, readings, toolCalls, client, sent, pendingCalls, selections, flashes, timeouts, cleared, advance: (ms: number) => void (now += ms) };
 }
 
 const placed = (reqId: number, result: Placed["result"]): Placed => ({ type: "placed", reqId, result });
@@ -271,5 +279,52 @@ describe("GameClient", () => {
     t.client.onCellTap({ x: 7, y: 7 }, "mouse");
     expect(t.ui.getState().selection).toBeNull();
     expect(t.sent).toEqual([{ reqId: 1, x: 7, y: 7, colorId: 7, withBomb: false }]);
+  });
+
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  test("detector: a click uses it at once and returns to the brush", async () => {
+    t.ui.getState().setTool("detector");
+    t.client.onCellTap({ x: 5, y: 6 }, "mouse");
+    expect(t.toolCalls).toEqual(["detect 5,6"]);
+    expect(t.ui.getState().tool).toBe("paint");
+    expect(t.sent).toHaveLength(0);
+    await tick();
+    expect(t.readings.getState().readings).toHaveLength(1);
+  });
+
+  test("detector by touch and defuser by any pointer wait for confirmation", async () => {
+    t.ui.getState().setTool("detector");
+    t.client.onCellTap({ x: 1, y: 2 }, "touch");
+    expect(t.toolCalls).toEqual([]);
+    t.client.confirmSelection();
+    expect(t.toolCalls).toEqual(["detect 1,2"]);
+    expect(t.ui.getState().selection).toBeNull();
+    await tick(); // one tool request at a time
+
+    t.ui.getState().setTool("defuser");
+    t.client.onCellTap({ x: 3, y: 3 }, "mouse");
+    expect(t.toolCalls).toHaveLength(1);
+    expect(t.ui.getState().selection).toEqual({ x: 3, y: 3 });
+    t.client.confirmSelection();
+    expect(t.toolCalls).toEqual(["detect 1,2", "defuse 3,3"]);
+    expect(t.ui.getState().tool).toBe("paint");
+  });
+
+  test("a refused tool keeps the mode and the selection", () => {
+    t.game.setState({ player: player({ inventory: { bomb: 2, detector: 1, defuser: 0 } }) });
+    t.ui.getState().setTool("defuser");
+    t.client.onCellTap({ x: 3, y: 3 }, "mouse");
+    t.client.confirmSelection();
+    expect(t.toolCalls).toEqual([]);
+    expect(t.ui.getState()).toMatchObject({ tool: "defuser", selection: { x: 3, y: 3 } });
+    expect(toastTexts(t.ui)).toEqual(["Дефьюзеры закончились"]);
+  });
+
+  test("readings follow the logged-in user", () => {
+    t.game.setState({ user: { id: 2, name: "other" } });
+    expect(t.readings.getState().userId).toBe(2);
+    t.game.setState({ user: null });
+    expect(t.readings.getState().userId).toBeNull();
   });
 });

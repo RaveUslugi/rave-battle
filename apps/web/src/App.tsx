@@ -2,7 +2,9 @@ import { useEffect, useMemo } from "react";
 import styles from "./App.module.css";
 import { CanvasView } from "./canvas/CanvasView";
 import { GameClient } from "./game/client";
+import { toolsApi } from "./net/api";
 import { gameStore } from "./state/game-store";
+import { readingsStore } from "./state/readings-store";
 import { uiStore } from "./state/ui-store";
 import { AuthPanel } from "./ui/AuthPanel";
 import { ConfirmBar } from "./ui/ConfirmBar";
@@ -20,7 +22,7 @@ const LOGIN_ERRORS: Record<string, string> = {
 };
 
 export function App() {
-  const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore }), []);
+  const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore, readings: readingsStore, tools: toolsApi }), []);
 
   // The auth redirect reports failures in the query string: show it once and clean the URL.
   useEffect(() => {
