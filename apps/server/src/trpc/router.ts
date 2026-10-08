@@ -59,7 +59,7 @@ export const appRouter = router({
           me: mine ? { rank: mine.rank, value: mine.value } : null,
         };
       }),
-    profile: publicProcedure.input(z.object({ userId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+    profile: publicProcedure.input(z.object({ userId: z.number().int().positive().max(2_147_483_647) })).query(async ({ ctx, input }) => {
       const profile = await ctx.deps.stats.profiles.profile(input.userId);
       if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
       return profile;

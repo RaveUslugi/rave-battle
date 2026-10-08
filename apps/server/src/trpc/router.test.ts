@@ -116,6 +116,7 @@ describe("appRouter", () => {
   test("profiles are public and unknown ids are NOT_FOUND", async () => {
     expect((await as(null).stats.profile({ userId: alice.id })).user.name).toBe("alice");
     await expect(as(null).stats.profile({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(as(null).stats.profile({ userId: 3e9 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(null).stats.leaderboard({ board: "nope" as never, period: "all" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
