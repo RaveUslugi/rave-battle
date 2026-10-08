@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { minimapLayout, minimapToCanvas, viewportRect } from "./minimap-math";
+import { clampRect, minimapLayout, minimapToCanvas, viewportRect } from "./minimap-math";
 
 describe("minimap math", () => {
   test("layout fits the longest side into the box", () => {
@@ -16,5 +16,11 @@ describe("minimap math", () => {
     const layout = minimapLayout({ width: 512, height: 512 }, 128);
     const rect = viewportRect({ camera: { x: 256, y: 256, zoom: 2 }, screen: { w: 400, h: 200 } }, layout);
     expect(rect).toEqual({ x: (256 - 100) / 4, y: (256 - 50) / 4, w: 50, h: 25 });
+  });
+
+  test("the frame is clamped inside the map", () => {
+    const layout = minimapLayout({ width: 512, height: 256 }, 160);
+    expect(clampRect({ x: -10, y: -10, w: 300, h: 300 }, layout, 1)).toEqual({ x: 1, y: 1, w: 158, h: 78 });
+    expect(clampRect({ x: 10, y: 10, w: 20, h: 20 }, layout, 1)).toEqual({ x: 10, y: 10, w: 20, h: 20 });
   });
 });

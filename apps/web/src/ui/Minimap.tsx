@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { fetchOverview } from "../canvas/chunk-loader";
-import { minimapLayout, minimapToCanvas, viewportRect } from "../canvas/minimap-math";
+import { clampRect, minimapLayout, minimapToCanvas, viewportRect } from "../canvas/minimap-math";
 import { buildPaletteLut, paintRgba } from "../canvas/palette";
 import { gameStore, useGame } from "../state/game-store";
 import styles from "./Minimap.module.css";
@@ -53,9 +53,14 @@ export default function Minimap() {
     };
     load();
     const id = setInterval(load, REFRESH_MS);
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       abort.abort();
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [open, config]);
 
@@ -63,8 +68,11 @@ export default function Minimap() {
     const el = mapRef.current;
     if (!el || !layout) return;
     const dpr = window.devicePixelRatio || 1;
-    el.width = Math.round(layout.width * dpr);
-    el.height = Math.round(layout.height * dpr);
+    const w = Math.round(layout.width * dpr);
+    const h = Math.round(layout.height * dpr);
+    // Resizing the backing store reallocates it: only do it when the size actually changes.
+    if (el.width !== w) el.width = w;
+    if (el.height !== h) el.height = h;
     const ctx = el.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -73,9 +81,10 @@ export default function Minimap() {
     ctx.fillRect(0, 0, layout.width, layout.height);
     if (image) ctx.drawImage(image, 0, 0, layout.width, layout.height);
     if (view) {
-      const r = viewportRect(view, layout);
+      const lineWidth = 1.5;
+      const r = clampRect(viewportRect(view, layout), layout, lineWidth / 2);
       ctx.strokeStyle = "#22f3ff";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = lineWidth;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
     }
   }, [layout, view, image, open]);
