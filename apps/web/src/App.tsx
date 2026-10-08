@@ -9,6 +9,7 @@ import { AuthPanel } from "./ui/AuthPanel";
 import { ChunkBoundary } from "./ui/ChunkBoundary";
 import { ConfirmBar } from "./ui/ConfirmBar";
 import { ExplosionFlash } from "./ui/ExplosionFlash";
+import { Feed } from "./ui/Feed";
 import { FreezeBanner } from "./ui/FreezeBanner";
 import { Hud } from "./ui/Hud";
 import { PaletteBar } from "./ui/PaletteBar";
@@ -67,6 +68,7 @@ export function App() {
         </div>
       </div>
       <div className={styles.bottom}>
+        <Feed />
         <ConfirmBar client={client} />
         <PaletteBar />
       </div>

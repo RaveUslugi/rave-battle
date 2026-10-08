@@ -1,0 +1,52 @@
+.feed {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(100%, 340px);
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+}
+
+.toggle {
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: var(--neon-cyan);
+  cursor: pointer;
+}
+
+.list,
+.listOpen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listOpen {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.item {
+  opacity: 0.6;
+}
+
+.fresh {
+  opacity: 1;
+  color: var(--neon-pink);
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}

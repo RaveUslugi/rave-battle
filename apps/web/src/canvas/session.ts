@@ -1,6 +1,7 @@
 import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
 import { fetchChunk } from "./chunk-loader";
@@ -165,7 +166,8 @@ export class CanvasSession implements CanvasPort {
     else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
-    // "feed" — Plan 4.
+    else if (message.type === "feed") feedStore.getState().push(message);
+    else if (message.type === "feed_history") feedStore.getState().replace(message.entries);
   }
 
   private zoomLimits(canvas: CanvasSize): ZoomLimits {
