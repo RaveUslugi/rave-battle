@@ -83,6 +83,11 @@ export class CanvasStore {
     return this.territory.get(userId) ?? 0;
   }
 
+  /** Cells owned per user (only users with at least one cell). */
+  territories(): IterableIterator<[UserId, number]> {
+    return this.territory.entries();
+  }
+
   resize(width: number, height: number): void {
     assertChunkAligned(width, height);
     if (width < this._width || height < this._height) {

@@ -66,6 +66,11 @@ export class GameRuntime {
     this.dirtyChunks = new Set(options.dirtyChunks);
   }
 
+  /** Season all game state belongs to. */
+  get season(): number {
+    return this.seasonId;
+  }
+
   /** Executes `command` right away; resolves with its result once its effects are committed. */
   run<T>(command: (engine: GameEngine, now: number) => T): Promise<T> {
     const unavailable = this.unavailableError();
