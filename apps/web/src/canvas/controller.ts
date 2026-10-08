@@ -1,4 +1,4 @@
-import type { ChunkDelta, GameConfig } from "@rave/shared";
+import type { ChunkDelta, GameConfig } from "@rave/shared/client";
 import type { Timers } from "../net/socket";
 import { ChunkSync, type SyncAction } from "./chunk-sync";
 import { buildPaletteLut } from "./palette";

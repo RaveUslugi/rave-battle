@@ -1,4 +1,4 @@
-import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared";
+import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { gameStore } from "../state/game-store";

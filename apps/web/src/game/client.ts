@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@rave/shared";
+import type { ServerMessage } from "@rave/shared/client";
 import type { StoreApi } from "zustand/vanilla";
 import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";

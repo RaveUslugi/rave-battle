@@ -1,4 +1,4 @@
-import type { PaletteEntry } from "@rave/shared";
+import type { PaletteEntry } from "@rave/shared/client";
 
 /** 256 entries × RGBA. Ids missing from the palette stay transparent. Effects render with `base` in v1. */
 export function buildPaletteLut(palette: PaletteEntry[]): Uint8Array {

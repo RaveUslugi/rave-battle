@@ -1,4 +1,4 @@
-import { CHUNK_SIZE } from "@rave/shared";
+import { CHUNK_SIZE } from "@rave/shared/client";
 import { Application, BufferImageSource, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import { readingAlpha, type Reading } from "../state/readings-store";
 import type { Renderer } from "./controller";

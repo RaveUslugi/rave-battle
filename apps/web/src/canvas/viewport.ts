@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, MAX_SUBSCRIBED_CHUNKS } from "@rave/shared";
+import { CHUNK_SIZE, MAX_SUBSCRIBED_CHUNKS } from "@rave/shared/client";
 
 /** `x`, `y`: canvas coordinates at the screen center; `zoom`: screen pixels per canvas pixel. */
 export interface Camera {

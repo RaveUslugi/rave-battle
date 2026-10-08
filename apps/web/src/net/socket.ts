@@ -1,4 +1,4 @@
-import { decodeChunkDelta, encodeSubscribe, type ChunkDelta, type ServerMessage } from "@rave/shared";
+import { decodeChunkDelta, encodeSubscribe, type ChunkDelta, type ServerMessage } from "@rave/shared/client";
 
 export type HelloMessage = Extract<ServerMessage, { type: "hello" }>;
 export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "closed";

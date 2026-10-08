@@ -1,4 +1,4 @@
-import type { ChunkDelta } from "@rave/shared";
+import type { ChunkDelta } from "@rave/shared/client";
 
 export type SyncAction =
   | { type: "load"; cx: number; cy: number; requestId: number }

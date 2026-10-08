@@ -1,4 +1,4 @@
-import type { GameConfig, PlayerView, UserRef } from "@rave/shared";
+import type { GameConfig, PlayerView, UserRef } from "@rave/shared/client";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import type { Camera, ScreenSize } from "../canvas/viewport";
