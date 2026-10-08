@@ -23,8 +23,18 @@ export function ConfirmBar({ client }: { client: GameClient }) {
             <span className="visually-hidden">, с бомбой</span>
           </>
         )}
-        {tool === "detector" && <span> · 🔍</span>}
-        {tool === "defuser" && <span> · 🧯 осталось {left}</span>}
+        {tool === "detector" && (
+          <>
+            <span aria-hidden="true"> · 🔍</span>
+            <span className="visually-hidden">, детектор</span>
+          </>
+        )}
+        {tool === "defuser" && (
+          <>
+            <span aria-hidden="true"> · 🧯 осталось {left}</span>
+            <span className="visually-hidden">, дефьюзер, осталось {left}</span>
+          </>
+        )}
       </span>
       <button type="button" className={styles.cancel} onClick={client.cancelSelection}>
         Отмена

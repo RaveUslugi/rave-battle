@@ -55,7 +55,7 @@ export function PaletteBar() {
           onClick={() => {
             const ui = uiStore.getState();
             const on = !(tool === "paint" && bombMode);
-            ui.setTool("paint");
+            if (tool !== "paint") ui.setTool("paint");
             ui.setBombMode(on);
           }}
         >
