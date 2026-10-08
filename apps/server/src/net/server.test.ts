@@ -17,6 +17,7 @@ import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
 import { KeyedRateLimiter } from "./rate-limit";
@@ -51,7 +52,7 @@ async function start(
     sessionTtlMs: 86_400_000,
     discord: options.discord ?? null,
   };
-  server = startServer({ db: t.db, runtime, hub, users, config, fetch: options.fetch, ipLimiter: options.ipLimiter });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats: new StatsService(t.db, runtime, users), fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
 

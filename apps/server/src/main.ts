@@ -8,6 +8,7 @@ import { Hub } from "./net/hub";
 import { startServer } from "./net/server";
 import { UserDirectory } from "./net/user-directory";
 import { bootGame } from "./persistence/boot";
+import { StatsService } from "./stats/service";
 
 async function main(): Promise<void> {
   const config = loadEnv();
@@ -29,7 +30,8 @@ async function main(): Promise<void> {
   const runtime = await bootGame(db, { onCommit: (events) => hub?.handleCommit(events) });
   if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
   hub = new Hub({ runtime, users });
-  const server = startServer({ db, runtime, hub, users, config });
+  const stats = new StatsService(db, runtime, users);
+  const server = startServer({ db, runtime, hub, users, config, stats });
   console.log(`Rave Battle server listening on :${server.port}`);
 
   let shuttingDown = false;
