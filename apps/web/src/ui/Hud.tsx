@@ -1,5 +1,5 @@
 import { chargesAt, isFrozen } from "../game/charges";
-import { useNow } from "../hooks/useNow";
+import { useServerNow } from "../hooks/useNow";
 import { useGame } from "../state/game-store";
 import styles from "./Hud.module.css";
 
@@ -7,7 +7,7 @@ import styles from "./Hud.module.css";
 export function Hud() {
   const player = useGame((s) => s.player);
   const config = useGame((s) => s.config);
-  const now = useNow(250);
+  const now = useServerNow(250);
   if (!player || !config) return null;
   const { charges, nextAt } = chargesAt(player, config.charges.regenMs, now);
   const frozen = isFrozen(player, now);
@@ -34,12 +34,12 @@ export function Hud() {
           </>
         )}
       </div>
-      <div className={styles.stat} title="Монеты">
+      <div className={styles.stat}>
         <span aria-hidden="true">🪙 </span>
         <span className="visually-hidden">Монеты: </span>
         {player.coins}
       </div>
-      <div className={styles.stat} title="Бомбы">
+      <div className={styles.stat}>
         <span aria-hidden="true">💣 </span>
         <span className="visually-hidden">Бомбы: </span>
         {player.unlimited ? "∞" : player.inventory.bomb}

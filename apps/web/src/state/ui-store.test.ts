@@ -61,4 +61,21 @@ describe("ui store", () => {
     store.getState().setExplosion(null);
     expect(store.getState().explosion).toBeNull();
   });
+
+  test("a repeated toast replaces the identical one with a fresh id", () => {
+    const store = createUiStore(null);
+    const first = store.getState().pushToast("error", "Нет зарядов");
+    store.getState().pushToast("info", "x");
+    const second = store.getState().pushToast("error", "Нет зарядов");
+    expect(second).not.toBe(first);
+    expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([["info", "x"], ["error", "Нет зарядов"]]);
+  });
+
+  test("switching tools clears the selection", () => {
+    const store = createUiStore(null);
+    expect(store.getState().tool).toBe("paint");
+    store.getState().select({ x: 1, y: 1 });
+    store.getState().setTool("detector");
+    expect(store.getState()).toMatchObject({ tool: "detector", selection: null });
+  });
 });

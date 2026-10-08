@@ -12,6 +12,7 @@ export default defineConfig({
     proxy: {
       "/trpc": SERVER,
       "/chunk": SERVER,
+      "/overview": SERVER,
       "/auth": SERVER,
       "/ws": { target: SERVER, ws: true },
     },

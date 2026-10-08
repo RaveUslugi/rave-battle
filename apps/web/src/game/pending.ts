@@ -7,9 +7,14 @@ export interface Pending {
   at: number;
 }
 
+/** How many expired requests still get their late answer matched. */
+const LATE_MEMORY = 64;
+
 /** Placements sent to the server and not answered yet. */
 export class PendingPlacements {
   private items = new Map<number, Pending>();
+  /** Expired entries, oldest first: a late answer may still explain an explosion. */
+  private late = new Map<number, Pending>();
   private nextId = 1;
 
   add(cell: { x: number; y: number }, colorId: number, withBomb: boolean, now: number): Pending {
@@ -21,21 +26,36 @@ export class PendingPlacements {
     return pending;
   }
 
-  resolve(reqId: number): Pending | undefined {
-    const pending = this.items.get(reqId);
-    this.items.delete(reqId);
-    return pending;
+  resolve(reqId: number): { item: Pending; late: boolean } | undefined {
+    const item = this.items.get(reqId);
+    if (item) {
+      this.items.delete(reqId);
+      return { item, late: false };
+    }
+    const lateItem = this.late.get(reqId);
+    if (!lateItem) return undefined;
+    this.late.delete(reqId);
+    return { item: lateItem, late: true };
   }
 
-  /** Removes and returns entries sent more than `ttlMs` ago. */
+  /** Removes and returns entries sent more than `ttlMs` ago; they are remembered for late answers. */
   expire(now: number, ttlMs: number): Pending[] {
     const gone = [...this.items.values()].filter((p) => now - p.at >= ttlMs);
-    for (const p of gone) this.items.delete(p.reqId);
+    for (const p of gone) {
+      this.items.delete(p.reqId);
+      this.late.set(p.reqId, p);
+    }
+    for (const reqId of this.late.keys()) {
+      if (this.late.size <= LATE_MEMORY) break;
+      this.late.delete(reqId);
+    }
     return gone;
   }
 
+  /** After a disconnect no answer will come, late or not. */
   clear(): void {
     this.items.clear();
+    this.late.clear();
   }
 
   list(): Pending[] {

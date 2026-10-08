@@ -1,5 +1,8 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import type { Tool } from "../game/tools";
+
+export type ActiveTool = "paint" | Tool;
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -25,6 +28,9 @@ export interface UiState {
   selection: { x: number; y: number } | null;
   toasts: Toast[];
   explosion: ExplosionInfo | null;
+  /** What a tap does. Bomb mode only applies to "paint". */
+  tool: ActiveTool;
+  setTool(tool: ActiveTool): void;
   selectColor(id: number): void;
   setBombMode(on: boolean): void;
   select(cell: { x: number; y: number } | null): void;
@@ -56,6 +62,9 @@ export function createUiStore(storage: StorageLike | null) {
     selection: null,
     toasts: [],
     explosion: null,
+    tool: "paint",
+    // The pending selection meant something else under the previous tool.
+    setTool: (tool) => set({ tool, selection: null }),
     selectColor: (id) => {
       try {
         storage?.setItem(COLOR_KEY, String(id));
@@ -68,7 +77,8 @@ export function createUiStore(storage: StorageLike | null) {
     select: (selection) => set({ selection }),
     pushToast: (kind, text) => {
       const id = nextId++;
-      set((s) => ({ toasts: [...s.toasts, { id, kind, text }].slice(-MAX_TOASTS) }));
+      // Repeated clicks must not stack copies; the new id restarts the dismiss timer.
+      set((s) => ({ toasts: [...s.toasts.filter((t) => t.kind !== kind || t.text !== text), { id, kind, text }].slice(-MAX_TOASTS) }));
       return id;
     },
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
@@ -76,7 +86,7 @@ export function createUiStore(storage: StorageLike | null) {
   }));
 }
 
-function browserStorage(): StorageLike | null {
+export function browserStorage(): StorageLike | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;
   } catch {

@@ -131,3 +131,17 @@ export function cameraFromSearch(search: string): Camera | null {
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(zoom) || zoom <= 0) return null;
   return { x, y, zoom };
 }
+
+const WHEEL_ZOOM_SPEED = 0.004;
+const WHEEL_LINE_PX = 16;
+const MAX_WHEEL_DELTA_PX = 300;
+
+/**
+ * Zoom factor for one wheel event: about 1.5x per mouse notch (deltaY 100), proportionally less for
+ * trackpads. `deltaMode`: 0 pixels, 1 lines, 2 pages.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode: number, pageHeight: number): number {
+  const px = deltaY * (deltaMode === 1 ? WHEEL_LINE_PX : deltaMode === 2 ? pageHeight : 1);
+  const capped = Math.max(-MAX_WHEEL_DELTA_PX, Math.min(MAX_WHEEL_DELTA_PX, px));
+  return Math.exp(-capped * WHEEL_ZOOM_SPEED);
+}

@@ -1,7 +1,9 @@
 import { CHUNK_SIZE } from "@rave/shared";
-import { Application, BufferImageSource, Container, Graphics, Sprite, Texture } from "pixi.js";
+import { Application, BufferImageSource, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { readingAlpha, type Reading } from "../state/readings-store";
 import type { Renderer } from "./controller";
 import { paintCell, paintRgba } from "./palette";
+import { readingColor, visibleReadings } from "./reading-view";
 import type { Camera } from "./viewport";
 
 interface ChunkView {
@@ -17,6 +19,14 @@ const FLASH_MS = 700;
 const PENDING_BORDER = 0xff2bd6;
 const SELECTION_BORDER = 0x22f3ff;
 const FLASH_COLOR = 0xff7a2b;
+const READING_FONT_SIZE = 48;
+const READING_STYLE = new TextStyle({
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  fontSize: READING_FONT_SIZE,
+  fontWeight: "bold",
+  fill: 0xffffff,
+  stroke: { color: 0x000000, width: 8 },
+});
 
 type Cell = { x: number; y: number };
 
@@ -33,6 +43,10 @@ export class PixiRenderer implements Renderer {
   private readonly overlay = new Graphics();
   /** Explosion rings (screen space), animated by the ticker. */
   private readonly fx = new Graphics();
+  /** Detector digits (screen space); Text objects are pooled and only re-laid out. */
+  private readonly readingsLayer = new Container();
+  private readingTexts: Text[] = [];
+  private readings: Reading[] = [];
   private pendingCells: Array<Cell & { colorId: number }> = [];
   private selectedCell: Cell | null = null;
   private flashes: Array<Cell & { start: number; still: boolean }> = [];
@@ -58,7 +72,7 @@ export class PixiRenderer implements Renderer {
     this.state = "ready";
     host.appendChild(this.app.canvas);
     this.world.addChild(this.board);
-    this.app.stage.addChild(this.world, this.grid, this.overlay, this.fx);
+    this.app.stage.addChild(this.world, this.grid, this.readingsLayer, this.overlay, this.fx);
     this.app.ticker.add(() => {
       this.flush();
       this.tickFlashes();
@@ -157,6 +171,7 @@ export class PixiRenderer implements Renderer {
     this.world.position.set(origin.x, origin.y);
     this.drawGrid();
     this.drawOverlay();
+    this.drawReadings();
   }
 
   /** Cells placed but not yet answered. Stored before init too, so the first camera shows them. */
@@ -169,6 +184,12 @@ export class PixiRenderer implements Renderer {
   setSelection(cell: Cell | null): void {
     this.selectedCell = cell;
     this.drawOverlay();
+  }
+
+  /** Detector readings to show; call again to refresh their fading. Stored before init too. */
+  setReadings(readings: Reading[]): void {
+    this.readings = readings;
+    this.drawReadings();
   }
 
   /** Expanding ring on a cell, e.g. where a bomb went off (a fading, non-moving ring with reduced motion). */
@@ -223,6 +244,32 @@ export class PixiRenderer implements Renderer {
       const y = origin.y + (sel.y + 0.5) * zoom - size / 2;
       this.overlay.rect(x, y, size, size).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
     }
+  }
+
+  /** One white Text per visible reading, tinted by count and scaled to the cell (fixed font size, no re-rasterising on zoom). */
+  private drawReadings(): void {
+    if (this.state !== "ready") return;
+    const { width, height } = this.app.screen;
+    const visible = visibleReadings(this.readings, this.camera, { w: width, h: height });
+    while (this.readingTexts.length < visible.length) {
+      const text = new Text({ text: "", style: READING_STYLE, anchor: 0.5 });
+      this.readingsLayer.addChild(text);
+      this.readingTexts.push(text);
+    }
+    const zoom = this.camera.zoom;
+    const origin = this.origin();
+    const scale = (zoom * 0.8) / READING_FONT_SIZE;
+    const now = Date.now();
+    this.readingTexts.forEach((text, i) => {
+      const reading = visible[i];
+      text.visible = reading !== undefined;
+      if (!reading) return;
+      text.text = String(reading.count);
+      text.tint = readingColor(reading.count);
+      text.alpha = readingAlpha(now - reading.at);
+      text.scale.set(scale);
+      text.position.set(origin.x + (reading.x + 0.5) * zoom, origin.y + (reading.y + 0.5) * zoom);
+    });
   }
 
   /** Redraws the explosion rings each frame while any are alive; clears the layer once after the last. */

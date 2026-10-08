@@ -149,6 +149,44 @@ export function decodeChunkBody(bytes: Uint8Array): { version: number; colors: U
   return { version: view.getUint32(0, true), colors: bytes.slice(4) };
 }
 
+// ---- GET /overview: the whole canvas sampled down for the minimap ----
+
+export const OVERVIEW_MAX_SIDE = 256;
+
+export interface Overview {
+  /** Canvas cells per overview cell (the top-left cell of each block is sampled). */
+  step: number;
+  width: number;
+  height: number;
+  colors: Uint8Array;
+}
+
+export function overviewShape(canvasWidth: number, canvasHeight: number): Omit<Overview, "colors"> {
+  const step = Math.max(1, Math.ceil(Math.max(canvasWidth, canvasHeight) / OVERVIEW_MAX_SIDE));
+  return { step, width: Math.ceil(canvasWidth / step), height: Math.ceil(canvasHeight / step) };
+}
+
+/** u16 LE step, width, height, then width×height color ids. */
+export function encodeOverview(o: Overview): Uint8Array {
+  const bytes = new Uint8Array(6 + o.colors.byteLength);
+  const view = new DataView(bytes.buffer);
+  view.setUint16(0, o.step, true);
+  view.setUint16(2, o.width, true);
+  view.setUint16(4, o.height, true);
+  bytes.set(o.colors, 6);
+  return bytes;
+}
+
+export function decodeOverview(bytes: Uint8Array): Overview | null {
+  if (bytes.byteLength < 6) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const step = view.getUint16(0, true);
+  const width = view.getUint16(2, true);
+  const height = view.getUint16(4, true);
+  if (bytes.byteLength !== 6 + width * height) return null;
+  return { step, width, height, colors: bytes.slice(6) };
+}
+
 // ---- Server → client: JSON text messages ----
 
 export interface UserRef {
@@ -170,6 +208,8 @@ export interface PlayerView {
   bannedUntil: number | "permanent" | null;
   /** Dev account: spends nothing and cannot be frozen. */
   unlimited: boolean;
+  /** Server clock when this view was built: lets the client compare server timestamps despite clock skew. */
+  serverNow: number;
 }
 
 export type PlaceResultView =

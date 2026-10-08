@@ -10,8 +10,8 @@
   backdrop-filter: blur(6px);
 }
 
-.bomb,
-.bombOn {
+.tool,
+.toolOn {
   flex: none;
   display: flex;
   gap: 6px;
@@ -27,10 +27,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-.bombOn {
+.toolOn {
   border-color: var(--neon-pink);
   background: rgba(255, 43, 214, 0.2);
   box-shadow: var(--glow-pink);
+}
+
+.tools {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }
 
 .swatches {
@@ -46,8 +52,8 @@
 .swatch {
   position: relative;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: 8px;
@@ -67,4 +73,21 @@
   font-size: 14px;
   background: rgba(0, 0, 0, 0.55);
   border-radius: 6px;
+}
+
+/* Touch screens: 44 px targets. */
+@media (pointer: coarse) {
+  .swatch {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Phones: three tool buttons plus swatches need the room. */
+@media (max-width: 480px) {
+  .tool,
+  .toolOn {
+    min-width: 48px;
+    padding: 0 8px;
+  }
 }

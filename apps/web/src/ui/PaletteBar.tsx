@@ -5,14 +5,17 @@ import styles from "./PaletteBar.module.css";
 
 const NEXT_KEYS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
-/** Bomb-mode toggle and the color picker (a radio group with arrow-key navigation). */
+/** Tool buttons (bomb mode, detector, defuser) and the color picker (a radio group with arrow-key navigation). */
 export function PaletteBar() {
   const config = useGame((s) => s.config);
   const player = useGame((s) => s.player);
   const selected = useUi((s) => s.selectedColor);
   const bombMode = useUi((s) => s.bombMode);
   const swatchesRef = useRef<HTMLDivElement>(null);
-  const bombs = player?.unlimited ? "∞" : (player?.inventory.bomb ?? 0);
+  const tool = useUi((s) => s.tool);
+  const count = (item: "bomb" | "detector" | "defuser") => (player?.unlimited ? "∞" : (player?.inventory[item] ?? 0));
+  const bombs = count("bomb");
+  const pickTool = (next: "detector" | "defuser") => uiStore.getState().setTool(tool === next ? "paint" : next);
 
   // The stored color may not exist (or be hidden) after a config change.
   useEffect(() => {
@@ -26,15 +29,16 @@ export function PaletteBar() {
   const unlocked = new Set(player?.unlockedColors ?? []);
   const isLocked = (entry: { id: number; unlock: string }) => entry.unlock !== "default" && !unlocked.has(entry.id);
 
-  // Arrow keys move the checked color over the open ones (locked colors are skipped), like native radios.
+  // Arrow keys move the checked color over the open ones (locked colors are skipped), Home/End jump to the ends, like native radios.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = NEXT_KEYS[event.key];
-    if (step === undefined) return;
+    const edge = event.key === "Home" || event.key === "End";
+    if (step === undefined && !edge) return;
     event.preventDefault();
     const open = config.palette.filter((e) => !isLocked(e));
     if (open.length === 0) return;
     const at = open.findIndex((e) => e.id === selected);
-    const next = open[(at + step + open.length) % open.length];
+    const next = event.key === "Home" ? open[0] : event.key === "End" ? open.at(-1) : open[(at + (step ?? 0) + open.length) % open.length];
     if (!next) return;
     uiStore.getState().selectColor(next.id);
     swatchesRef.current?.querySelector<HTMLButtonElement>(`[data-color="${next.id}"]`)?.focus();
@@ -42,16 +46,43 @@ export function PaletteBar() {
 
   return (
     <div className={styles.bar}>
-      <button
-        type="button"
-        className={bombMode ? styles.bombOn : styles.bomb}
-        aria-pressed={bombMode}
-        aria-label={`Режим бомбы, осталось ${bombs}`}
-        onClick={() => uiStore.getState().setBombMode(!bombMode)}
-      >
-        <span aria-hidden="true">💣</span>
-        <span aria-hidden="true">{bombs}</span>
-      </button>
+      <div className={styles.tools} role="group" aria-label="Инструменты">
+        <button
+          type="button"
+          className={tool === "paint" && bombMode ? styles.toolOn : styles.tool}
+          aria-pressed={tool === "paint" && bombMode}
+          aria-label={`Режим бомбы, осталось ${bombs}`}
+          onClick={() => {
+            const ui = uiStore.getState();
+            const on = !(tool === "paint" && bombMode);
+            if (tool !== "paint") ui.setTool("paint");
+            ui.setBombMode(on);
+          }}
+        >
+          <span aria-hidden="true">💣</span>
+          <span aria-hidden="true">{bombs}</span>
+        </button>
+        <button
+          type="button"
+          className={tool === "detector" ? styles.toolOn : styles.tool}
+          aria-pressed={tool === "detector"}
+          aria-label={`Детектор, осталось ${count("detector")}`}
+          onClick={() => pickTool("detector")}
+        >
+          <span aria-hidden="true">🔍</span>
+          <span aria-hidden="true">{count("detector")}</span>
+        </button>
+        <button
+          type="button"
+          className={tool === "defuser" ? styles.toolOn : styles.tool}
+          aria-pressed={tool === "defuser"}
+          aria-label={`Дефьюзер, осталось ${count("defuser")}`}
+          onClick={() => pickTool("defuser")}
+        >
+          <span aria-hidden="true">🧯</span>
+          <span aria-hidden="true">{count("defuser")}</span>
+        </button>
+      </div>
       <div ref={swatchesRef} className={styles.swatches} role="radiogroup" aria-label="Цвет" onKeyDown={onKeyDown}>
         {config.palette.map((entry) => {
           const locked = isLocked(entry);

@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import styles from "./App.module.css";
-import { CanvasView } from "./canvas/CanvasView";
 import { GameClient } from "./game/client";
+import { toolsApi } from "./net/api";
 import { gameStore } from "./state/game-store";
+import { readingsStore } from "./state/readings-store";
 import { uiStore } from "./state/ui-store";
 import { AuthPanel } from "./ui/AuthPanel";
 import { ConfirmBar } from "./ui/ConfirmBar";
@@ -13,6 +14,9 @@ import { PaletteBar } from "./ui/PaletteBar";
 import { StatusBar } from "./ui/StatusBar";
 import { Toasts } from "./ui/Toasts";
 
+const CanvasView = lazy(() => import("./canvas/CanvasView").then((m) => ({ default: m.CanvasView })));
+const Minimap = lazy(() => import("./ui/Minimap"));
+
 const LOGIN_ERRORS: Record<string, string> = {
   denied: "Вход отменён",
   discord: "Не удалось войти через Discord, попробуйте ещё раз",
@@ -20,7 +24,7 @@ const LOGIN_ERRORS: Record<string, string> = {
 };
 
 export function App() {
-  const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore }), []);
+  const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore, readings: readingsStore, tools: toolsApi }), []);
 
   // The auth redirect reports failures in the query string: show it once and clean the URL.
   useEffect(() => {
@@ -35,18 +39,25 @@ export function App() {
 
   return (
     <div className={styles.app}>
-      <CanvasView client={client} />
+      <Suspense fallback={null}>
+        <CanvasView client={client} />
+      </Suspense>
       <ExplosionFlash />
-      <div className={styles.topLeft}>
-        <StatusBar />
-        <Hud />
-      </div>
-      <div className={styles.topRight}>
-        <AuthPanel />
-      </div>
-      <div className={styles.topCenter}>
-        <FreezeBanner />
-        <Toasts />
+      <div className={styles.top}>
+        <div className={styles.topLeft}>
+          <StatusBar />
+          <Hud />
+        </div>
+        <div className={styles.topCenter}>
+          <FreezeBanner />
+          <Toasts />
+        </div>
+        <div className={styles.topRight}>
+          <AuthPanel />
+          <Suspense fallback={null}>
+            <Minimap />
+          </Suspense>
+        </div>
       </div>
       <div className={styles.bottom}>
         <ConfirmBar client={client} />

@@ -15,6 +15,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyLastClaim: null,
   bannedUntil: null,
   unlimited: false,
+  serverNow: NOW,
   ...overrides,
 });
 const input = (overrides: Partial<PlacementInput> = {}): PlacementInput => ({

@@ -2,6 +2,7 @@ import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { gameStore } from "../state/game-store";
+import { readingsStore } from "../state/readings-store";
 import { fetchChunk } from "./chunk-loader";
 import { CanvasController } from "./controller";
 import { PixiRenderer } from "./pixi-renderer";
@@ -14,6 +15,7 @@ import {
   mergeCameraSearch,
   pan,
   visibleChunks,
+  wheelZoomFactor,
   zoomAt,
   type Camera,
   type CanvasSize,
@@ -32,8 +34,6 @@ const TAP_MAX_MOVE = 5;
 const TAP_MAX_MS = 400;
 const SUBSCRIBE_THROTTLE_MS = 150;
 const URL_DEBOUNCE_MS = 300;
-const WHEEL_ZOOM_SPEED = 0.0015;
-const WHEEL_LINE_PX = 16;
 
 /** Owns the renderer, the socket and all pointer handling for one mounted canvas. */
 export class CanvasSession implements CanvasPort {
@@ -50,6 +50,9 @@ export class CanvasSession implements CanvasPort {
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
   private moved = false;
   private readonly resizeObserver: ResizeObserver;
+  private unsubscribeReadings: (() => void) | null = null;
+  private fadeTimer: ReturnType<typeof setInterval> | null = null;
+  private unsubscribeJump: (() => void) | null = null;
 
   constructor(
     private readonly host: HTMLElement,
@@ -79,6 +82,9 @@ export class CanvasSession implements CanvasPort {
     if (this.viewTimer) clearTimeout(this.viewTimer);
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.viewTimer = this.urlTimer = null;
+    this.unsubscribeReadings?.();
+    this.unsubscribeJump?.();
+    if (this.fadeTimer) clearInterval(this.fadeTimer);
     // No-op while init is still pending; start() destroys it once init resolves.
     this.renderer.destroy();
   }
@@ -122,6 +128,20 @@ export class CanvasSession implements CanvasPort {
       socket: this.socket,
       timers,
     });
+    this.unsubscribeJump = gameStore.subscribe((state, prev) => {
+      if (!state.jump || state.jump === prev.jump || !this.camera) return;
+      this.camera = { ...this.camera, x: state.jump.x + 0.5, y: state.jump.y + 0.5 };
+      this.applyCamera();
+    });
+    this.renderer.setReadings(readingsStore.getState().readings);
+    this.unsubscribeReadings = readingsStore.subscribe((state, prev) => {
+      if (state.readings !== prev.readings) this.renderer.setReadings(state.readings);
+    });
+    // Fading depends on age: redraw now and then, and drop expired readings.
+    this.fadeTimer = setInterval(() => {
+      readingsStore.getState().prune();
+      this.renderer.setReadings(readingsStore.getState().readings);
+    }, 30_000);
     this.attachPointerHandlers(this.renderer.canvasElement);
     this.resizeObserver.observe(this.host);
     this.socket.connect();
@@ -169,6 +189,7 @@ export class CanvasSession implements CanvasPort {
     const zoom = Math.min(limits.max, Math.max(limits.min, this.camera.zoom));
     this.camera = clampCenter({ ...this.camera, zoom }, this.canvas);
     this.renderer.setCamera(this.camera);
+    gameStore.getState().setView({ camera: this.camera, screen: size });
 
     if (immediateView) {
       if (this.viewTimer) clearTimeout(this.viewTimer);
@@ -281,10 +302,8 @@ export class CanvasSession implements CanvasPort {
         event.preventDefault();
         if (!this.camera || !this.canvas) return;
         const point = this.local(event);
-        const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE;
-        const pages = event.deltaMode === WheelEvent.DOM_DELTA_PAGE;
-        const deltaY = event.deltaY * (lines ? WHEEL_LINE_PX : pages ? this.renderer.screenSize().h : 1);
-        this.camera = zoomAt(this.camera, this.renderer.screenSize(), point.x, point.y, Math.exp(-deltaY * WHEEL_ZOOM_SPEED), this.zoomLimits(this.canvas));
+        const factor = wheelZoomFactor(event.deltaY, event.deltaMode, this.renderer.screenSize().h);
+        this.camera = zoomAt(this.camera, this.renderer.screenSize(), point.x, point.y, factor, this.zoomLimits(this.canvas));
         this.applyCamera();
         this.updateHover(point);
       },

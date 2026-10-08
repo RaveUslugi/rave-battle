@@ -12,9 +12,12 @@ const REJECT_TEXT: Record<string, string> = {
   no_charges: "Нет зарядов",
   no_bombs: "Бомбы закончились",
   bomb_limit: "Достигнут лимит активных бомб",
+  no_detector: "Детекторы закончились",
+  no_defuser: "Дефьюзеры закончились",
+  rate_limited: "Слишком часто, подождите немного",
 };
 
 /** Human text for a reject code from the server or from the client-side pre-check. */
 export function rejectText(code: string): string {
-  return REJECT_TEXT[code] ?? "Не получилось поставить пиксель";
+  return REJECT_TEXT[code] ?? "Действие не удалось";
 }

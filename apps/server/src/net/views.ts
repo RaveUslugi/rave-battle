@@ -18,6 +18,7 @@ export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlim
     dailyLastClaim: p.dailyLastClaim,
     bannedUntil: p.bannedUntil === null ? null : Number.isFinite(p.bannedUntil) ? p.bannedUntil : "permanent",
     unlimited,
+    serverNow: now,
   };
 }
 

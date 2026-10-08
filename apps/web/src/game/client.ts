@@ -2,10 +2,12 @@ import type { ServerMessage } from "@rave/shared";
 import type { StoreApi } from "zustand/vanilla";
 import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";
+import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
 import { rejectText } from "./messages";
 import { PendingPlacements } from "./pending";
 import { planPlacement } from "./placement";
+import { SapperTools, type Tool, type ToolsApi } from "./tools";
 
 type Cell = { x: number; y: number };
 type PlacedMessage = Extract<ServerMessage, { type: "placed" }>;
@@ -25,6 +27,11 @@ export interface ClientDeps {
   now?: () => number;
   timers?: Timers;
   pendingTtlMs?: number;
+  /** Monotonic clock for the pending timeout; defaults to performance.now. */
+  monotonic?: () => number;
+  /** Both are needed for the sapper tools; without them tool taps say the server is unavailable. */
+  readings?: StoreApi<ReadingsState>;
+  tools?: ToolsApi;
 }
 
 const defaultTimers: Timers = {
@@ -39,24 +46,41 @@ export class GameClient {
   private readonly expiryTimers = new Set<unknown>();
   private unsubscribe: Array<() => void> = [];
   private readonly now: () => number;
+  private readonly monotonic: () => number;
   private readonly timers: Timers;
   private readonly ttlMs: number;
+  private readonly sapper: SapperTools | null;
 
   constructor(private readonly deps: ClientDeps) {
     this.now = deps.now ?? Date.now;
+    this.monotonic = deps.monotonic ?? (() => performance.now());
     this.timers = deps.timers ?? defaultTimers;
     this.ttlMs = deps.pendingTtlMs ?? 10_000;
+    this.sapper =
+      deps.tools && deps.readings
+        ? new SapperTools({ game: deps.game, ui: deps.ui, readings: deps.readings, api: deps.tools, now: this.now })
+        : null;
   }
 
   attach(port: CanvasPort): void {
     this.detach();
     this.port = port;
+    this.deps.readings?.getState().setUser(this.deps.game.getState().user?.id ?? null);
     this.unsubscribe = [
       this.deps.game.subscribe((state, prev) => {
         // Answers sent before a disconnect will never arrive.
         const disconnected = prev.status === "open" && state.status !== "open";
         if (disconnected) this.dropPending();
+        if (state.user?.id !== prev.user?.id) {
+          this.deps.readings?.getState().setUser(state.user?.id ?? null);
+          // A tool picked by the previous user must not fire for the next one.
+          this.deps.ui.getState().setTool("paint");
+        }
         if (disconnected || (prev.user && !state.user)) this.deps.ui.getState().select(null);
+        const p = state.player;
+        if (p !== prev.player && p && !p.unlimited && p.inventory.bomb === 0 && this.deps.ui.getState().bombMode) {
+          this.deps.ui.getState().setBombMode(false);
+        }
       }),
       this.deps.ui.subscribe((state, prev) => {
         if (state.selection !== prev.selection) this.port?.setSelection(state.selection);
@@ -74,34 +98,54 @@ export class GameClient {
   }
 
   readonly onCellTap = (cell: Cell, pointerType: string): void => {
+    const ui = this.deps.ui.getState();
     if (!this.deps.game.getState().user) {
       this.toast("unauthorized");
       return;
     }
-    if (pointerType === "touch") {
-      this.deps.ui.getState().select(cell);
+    // Touch always confirms; the defuser is expensive, so it confirms for every pointer.
+    if (pointerType === "touch" || ui.tool === "defuser") {
+      ui.select(cell);
       return;
     }
-    this.place(cell);
+    // A mouse click while a touch selection is open acts on the click, not on the old selection.
+    if (ui.selection) ui.select(null);
+    if (ui.tool === "paint") this.place(cell);
+    else this.useTool(ui.tool, cell);
   };
 
   readonly confirmSelection = (): void => {
-    const selection = this.deps.ui.getState().selection;
+    const ui = this.deps.ui.getState();
+    const selection = ui.selection;
     if (!selection) return;
-    if (this.place(selection)) this.deps.ui.getState().select(null);
+    const done = ui.tool === "paint" ? this.place(selection) : this.useTool(ui.tool, selection);
+    if (done) this.deps.ui.getState().select(null);
   };
+
+  /** True when the request was sent; the brush comes back so the next tap paints again. */
+  private useTool(tool: Tool, cell: Cell): boolean {
+    if (!this.sapper) {
+      this.toast("unavailable");
+      return false;
+    }
+    if (!this.sapper.use(tool, cell)) return false;
+    this.deps.ui.getState().setTool("paint");
+    return true;
+  }
 
   readonly cancelSelection = (): void => {
     this.deps.ui.getState().select(null);
   };
 
   readonly onPlaced = (message: PlacedMessage): void => {
-    const placed = this.pending.resolve(message.reqId);
-    if (!placed) return;
-    this.port?.setPending(this.pending.list());
+    const resolved = this.pending.resolve(message.reqId);
+    if (!resolved) return;
+    const { item: placed, late } = resolved;
+    if (!late) this.port?.setPending(this.pending.list());
     const result = message.result;
     if (!result.ok) {
-      this.toast(result.code);
+      // A late reject changes nothing the player can see: the timeout toast already covered it.
+      if (!late) this.toast(result.code);
       return;
     }
     if (result.outcome === "placed") return;
@@ -125,7 +169,6 @@ export class GameClient {
     const game = this.deps.game.getState();
     const ui = this.deps.ui.getState();
     if (!game.config) return false;
-    const now = this.now();
     const plan = planPlacement({
       user: game.user,
       player: game.player,
@@ -134,13 +177,13 @@ export class GameClient {
       withBomb: ui.bombMode,
       pendingCount: this.pending.size,
       pendingBombs: this.pending.bombs,
-      now,
+      now: this.now() + game.clockOffset,
     });
     if (!plan.ok) {
       this.toast(plan.code);
       return false;
     }
-    const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, now);
+    const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, this.monotonic());
     let sent = false;
     try {
       sent =
@@ -169,7 +212,7 @@ export class GameClient {
   }
 
   private expire(): void {
-    if (this.pending.expire(this.now(), this.ttlMs).length === 0) return;
+    if (this.pending.expire(this.monotonic(), this.ttlMs).length === 0) return;
     this.port?.setPending(this.pending.list());
     this.toast("timeout");
   }

@@ -3,6 +3,7 @@ import {
   CHUNK_SIZE,
   decodeChunkBody,
   decodeChunkDelta,
+  decodeOverview,
   encodePlace,
   encodeSubscribe,
   type ChunkDelta,
@@ -131,6 +132,15 @@ const placed = (c: Client, reqId: number) =>
   waitFor(() => c.json.find((m): m is Extract<ServerMessage, { type: "placed" }> => m.type === "placed" && m.reqId === reqId));
 
 describe("http", () => {
+  test("overview returns the sampled canvas", async () => {
+    const alice = await connect(await login("alice"));
+    alice.ws.send(encodePlace({ reqId: 1, x: 2, y: 2, colorId: 5, withBomb: false }));
+    await placed(alice, 1);
+    const o = decodeOverview(new Uint8Array(await (await fetch(`${base}/overview`)).arrayBuffer()))!;
+    expect(o).toMatchObject({ step: 2, width: 256, height: 256 });
+    expect(o.colors[1 * 256 + 1]).toBe(5);
+  });
+
   test("health", async () => {
     expect(await (await fetch(`${base}/health`)).text()).toBe("ok");
   });
