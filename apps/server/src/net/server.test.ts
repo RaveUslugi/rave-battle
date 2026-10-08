@@ -285,10 +285,18 @@ describe("websocket", () => {
       await placed(owner, 100 + i * 2);
       victim.ws.send(encodePlace({ reqId: 101 + i * 2, x: i, y: 10, colorId: 4, withBomb: false }));
       await placed(victim, 101 + i * 2);
+      // Distinct timestamps, so the comparison below tells entries apart.
+      await Bun.sleep(2);
     }
+    const live = await waitFor(() => {
+      const feed = owner.json.filter((m) => m.type === "feed");
+      return feed.length === 22 && feed;
+    });
+    expect(new Set(live.map((m) => m.at)).size).toBe(22);
     const late = await connect();
     const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
     expect(history.entries).toHaveLength(20);
+    expect(history.entries).toEqual(live.slice(-20));
   });
 
   test("subscriptions are acknowledged with current chunk versions", async () => {

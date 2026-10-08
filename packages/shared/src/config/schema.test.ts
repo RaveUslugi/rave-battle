@@ -15,7 +15,7 @@ describe("gameConfigSchema", () => {
     expect(gameConfigSchema.safeParse(defaultConfig).success).toBe(true);
   });
 
-  test("default config has 32 base colors and 512x512 canvas", () => {
+  test("default config has 32 base colors, 8 shop colors and a 512x512 canvas", () => {
     expect(defaultConfig.palette).toHaveLength(40);
     const shop = defaultConfig.palette.filter((e) => e.unlock === "shop");
     expect(shop.map((e) => e.id)).toEqual([32, 33, 34, 35, 36, 37, 38, 39]);
