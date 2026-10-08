@@ -6,6 +6,7 @@ import { gameStore } from "./state/game-store";
 import { bindReadings, readingsStore } from "./state/readings-store";
 import { uiStore } from "./state/ui-store";
 import { AuthPanel } from "./ui/AuthPanel";
+import { ChunkBoundary } from "./ui/ChunkBoundary";
 import { ConfirmBar } from "./ui/ConfirmBar";
 import { ExplosionFlash } from "./ui/ExplosionFlash";
 import { FreezeBanner } from "./ui/FreezeBanner";
@@ -41,9 +42,11 @@ export function App() {
 
   return (
     <div className={styles.app}>
-      <Suspense fallback={null}>
-        <CanvasView client={client} />
-      </Suspense>
+      <ChunkBoundary fallback="reload">
+        <Suspense fallback={null}>
+          <CanvasView client={client} />
+        </Suspense>
+      </ChunkBoundary>
       <ExplosionFlash />
       <div className={styles.top}>
         <div className={styles.topLeft}>
@@ -56,9 +59,11 @@ export function App() {
         </div>
         <div className={styles.topRight}>
           <AuthPanel />
-          <Suspense fallback={null}>
-            <Minimap />
-          </Suspense>
+          <ChunkBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <Minimap />
+            </Suspense>
+          </ChunkBoundary>
         </div>
       </div>
       <div className={styles.bottom}>
