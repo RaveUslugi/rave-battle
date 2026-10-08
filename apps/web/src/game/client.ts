@@ -25,6 +25,8 @@ export interface ClientDeps {
   now?: () => number;
   timers?: Timers;
   pendingTtlMs?: number;
+  /** Monotonic clock for the pending timeout; defaults to performance.now. */
+  monotonic?: () => number;
 }
 
 const defaultTimers: Timers = {
@@ -39,11 +41,13 @@ export class GameClient {
   private readonly expiryTimers = new Set<unknown>();
   private unsubscribe: Array<() => void> = [];
   private readonly now: () => number;
+  private readonly monotonic: () => number;
   private readonly timers: Timers;
   private readonly ttlMs: number;
 
   constructor(private readonly deps: ClientDeps) {
     this.now = deps.now ?? Date.now;
+    this.monotonic = deps.monotonic ?? (() => performance.now());
     this.timers = deps.timers ?? defaultTimers;
     this.ttlMs = deps.pendingTtlMs ?? 10_000;
   }
@@ -96,12 +100,14 @@ export class GameClient {
   };
 
   readonly onPlaced = (message: PlacedMessage): void => {
-    const placed = this.pending.resolve(message.reqId);
-    if (!placed) return;
-    this.port?.setPending(this.pending.list());
+    const resolved = this.pending.resolve(message.reqId);
+    if (!resolved) return;
+    const { item: placed, late } = resolved;
+    if (!late) this.port?.setPending(this.pending.list());
     const result = message.result;
     if (!result.ok) {
-      this.toast(result.code);
+      // A late reject changes nothing the player can see: the timeout toast already covered it.
+      if (!late) this.toast(result.code);
       return;
     }
     if (result.outcome === "placed") return;
@@ -125,7 +131,6 @@ export class GameClient {
     const game = this.deps.game.getState();
     const ui = this.deps.ui.getState();
     if (!game.config) return false;
-    const now = this.now();
     const plan = planPlacement({
       user: game.user,
       player: game.player,
@@ -134,13 +139,13 @@ export class GameClient {
       withBomb: ui.bombMode,
       pendingCount: this.pending.size,
       pendingBombs: this.pending.bombs,
-      now: now + game.clockOffset,
+      now: this.now() + game.clockOffset,
     });
     if (!plan.ok) {
       this.toast(plan.code);
       return false;
     }
-    const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, now);
+    const placement = this.pending.add(cell, ui.selectedColor, ui.bombMode, this.monotonic());
     let sent = false;
     try {
       sent =
@@ -169,7 +174,7 @@ export class GameClient {
   }
 
   private expire(): void {
-    if (this.pending.expire(this.now(), this.ttlMs).length === 0) return;
+    if (this.pending.expire(this.monotonic(), this.ttlMs).length === 0) return;
     this.port?.setPending(this.pending.list());
     this.toast("timeout");
   }

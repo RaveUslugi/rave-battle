@@ -45,7 +45,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean } = {}) {
   const cleared: unknown[] = [];
   const timers: Timers = { set: (fn) => timeouts.push(fn) - 1, clear: (handle) => void cleared.push(handle) };
   let now = NOW;
-  const client = new GameClient({ game, ui, now: () => now, timers, pendingTtlMs: 10_000 });
+  const client = new GameClient({ game, ui, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
   return { game, ui, client, sent, pendingCalls, selections, flashes, timeouts, cleared, advance: (ms: number) => void (now += ms) };
@@ -215,5 +215,42 @@ describe("GameClient", () => {
     t.client.onCellTap({ x: 1, y: 1 }, "mouse");
     expect(t.sent).toHaveLength(1);
     expect(t.ui.getState().toasts).toHaveLength(0);
+  });
+
+  test("a late explosion is still explained; a late reject or success is silent", () => {
+    t.client.onCellTap({ x: 1, y: 1 }, "mouse");
+    t.client.onCellTap({ x: 2, y: 1 }, "mouse");
+    t.client.onCellTap({ x: 3, y: 1 }, "mouse");
+    t.advance(10_001);
+    t.timeouts[0]!();
+    expect(toastTexts(t.ui)).toEqual(["Нет ответа от сервера"]);
+    t.client.onPlaced(placed(1, { ok: false, code: "no_charges" }));
+    t.client.onPlaced(placed(2, { ok: true, outcome: "placed" }));
+    expect(toastTexts(t.ui)).toEqual(["Нет ответа от сервера"]);
+    t.client.onPlaced(placed(3, { ok: true, outcome: "exploded", self: false, frozenUntil: NOW + 60_000, coinsLost: 10, bombOwner: { id: 2, name: "neko" } }));
+    expect(t.flashes).toEqual([{ x: 3, y: 1 }]);
+    expect(toastTexts(t.ui).at(-1)).toContain("neko");
+  });
+
+  test("the pending timeout runs on the monotonic clock", () => {
+    let wall = NOW;
+    let mono = 0;
+    const timeouts: Array<() => void> = [];
+    const c = new GameClient({
+      game: t.game,
+      ui: t.ui,
+      now: () => wall,
+      monotonic: () => mono,
+      timers: { set: (fn) => timeouts.push(fn) - 1, clear: () => {} },
+      pendingTtlMs: 10_000,
+    });
+    t.client.detach();
+    const pendingSizes: number[] = [];
+    c.attach({ sendPlace: () => true, setPending: (cells) => void pendingSizes.push(cells.length), setSelection: () => {}, flash: () => {} });
+    c.onCellTap({ x: 1, y: 1 }, "mouse");
+    wall -= 3_600_000; // the wall clock jumps back an hour
+    mono += 10_001;
+    timeouts[0]!();
+    expect(pendingSizes.at(-1)).toBe(0);
   });
 });
