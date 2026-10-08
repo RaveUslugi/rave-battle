@@ -13,6 +13,8 @@ import { Feed } from "./ui/Feed";
 import { FreezeBanner } from "./ui/FreezeBanner";
 import { Hud } from "./ui/Hud";
 import { PaletteBar } from "./ui/PaletteBar";
+import { PanelMenu } from "./ui/PanelMenu";
+import { SidePanel } from "./ui/SidePanel";
 import { StatusBar } from "./ui/StatusBar";
 import { Toasts } from "./ui/Toasts";
 
@@ -60,6 +62,7 @@ export function App() {
         </div>
         <div className={styles.topRight}>
           <AuthPanel />
+          <PanelMenu />
           <ChunkBoundary fallback={null}>
             <Suspense fallback={null}>
               <Minimap />
@@ -72,6 +75,7 @@ export function App() {
         <ConfirmBar client={client} />
         <PaletteBar />
       </div>
+      <SidePanel />
     </div>
   );
 }

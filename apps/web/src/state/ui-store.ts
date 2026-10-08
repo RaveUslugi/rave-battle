@@ -4,6 +4,8 @@ import type { Tool } from "../game/tools";
 
 export type ActiveTool = "paint" | Tool;
 
+export type Panel = "shop" | "daily";
+
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export interface Toast {
@@ -30,6 +32,8 @@ export interface UiState {
   explosion: ExplosionInfo | null;
   /** What a tap does. Bomb mode only applies to "paint". */
   tool: ActiveTool;
+  /** The side panel tab, or null when closed. */
+  panel: Panel | null;
   setTool(tool: ActiveTool): void;
   selectColor(id: number): void;
   setBombMode(on: boolean): void;
@@ -37,6 +41,8 @@ export interface UiState {
   pushToast(kind: Toast["kind"], text: string): number;
   dismissToast(id: number): void;
   setExplosion(info: Omit<ExplosionInfo, "id"> | null): void;
+  togglePanel(panel: Panel): void;
+  closePanel(): void;
 }
 
 const COLOR_KEY = "rb:color";
@@ -63,6 +69,7 @@ export function createUiStore(storage: StorageLike | null) {
     toasts: [],
     explosion: null,
     tool: "paint",
+    panel: null,
     // The pending selection meant something else under the previous tool.
     setTool: (tool) => set({ tool, selection: null }),
     selectColor: (id) => {
@@ -83,6 +90,8 @@ export function createUiStore(storage: StorageLike | null) {
     },
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
     setExplosion: (info) => set({ explosion: info ? { ...info, id: nextId++ } : null }),
+    togglePanel: (panel) => set((s) => ({ panel: s.panel === panel ? null : panel })),
+    closePanel: () => set({ panel: null }),
   }));
 }
 

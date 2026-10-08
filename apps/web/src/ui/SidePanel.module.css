@@ -1,0 +1,58 @@
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, 100vw);
+  padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) 12px;
+  background: var(--panel);
+  border-left: 1px solid var(--panel-border);
+  backdrop-filter: blur(10px);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Narrow screens: a bottom sheet, so the canvas stays visible above it. */
+@media (max-width: 900px) {
+  .panel {
+    top: auto;
+    left: 0;
+    width: auto;
+    max-height: 70vh;
+    border-left: none;
+    border-top: 1px solid var(--panel-border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding-left: calc(12px + env(safe-area-inset-left));
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--neon-cyan);
+}
+
+.close {
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 8px;
+}
