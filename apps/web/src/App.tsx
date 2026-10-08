@@ -37,16 +37,18 @@ export function App() {
     <div className={styles.app}>
       <CanvasView client={client} />
       <ExplosionFlash />
-      <div className={styles.topLeft}>
-        <StatusBar />
-        <Hud />
-      </div>
-      <div className={styles.topRight}>
-        <AuthPanel />
-      </div>
-      <div className={styles.topCenter}>
-        <FreezeBanner />
-        <Toasts />
+      <div className={styles.top}>
+        <div className={styles.topLeft}>
+          <StatusBar />
+          <Hud />
+        </div>
+        <div className={styles.topCenter}>
+          <FreezeBanner />
+          <Toasts />
+        </div>
+        <div className={styles.topRight}>
+          <AuthPanel />
+        </div>
       </div>
       <div className={styles.bottom}>
         <ConfirmBar client={client} />
