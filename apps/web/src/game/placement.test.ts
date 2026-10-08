@@ -15,6 +15,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyLastClaim: null,
   bannedUntil: null,
   access: "ok",
+  playableAt: null,
   unlimited: false,
   serverNow: NOW,
   ...overrides,
@@ -48,6 +49,10 @@ describe("planPlacement", () => {
 
   test("players who may only watch are refused with the reason", () => {
     expect(planPlacement(input({ player: player({ access: "account_too_new" }) }))).toEqual({ ok: false, code: "account_too_new" });
+  });
+
+  test("a watch-only reason that has since expired does not refuse", () => {
+    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: NOW - 1 }) }))).toEqual({ ok: true });
   });
 
   test("refuses banned and frozen players", () => {

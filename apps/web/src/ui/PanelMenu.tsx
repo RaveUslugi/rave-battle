@@ -1,3 +1,4 @@
+import { effectiveAccess } from "../game/access";
 import { dailyState } from "../game/daily";
 import { useServerNow } from "../hooks/useNow";
 import { useGame } from "../state/game-store";
@@ -15,7 +16,7 @@ export function PanelMenu() {
   const panel = useUi((s) => s.panel);
   const now = useServerNow(30_000);
   if (!player || !config) return null;
-  const dailyReady = player.access === "ok" && !dailyState(player, config, now).claimedToday;
+  const dailyReady = effectiveAccess(player, now) === "ok" && !dailyState(player, config, now).claimedToday;
   return (
     <nav className={styles.menu} aria-label="Разделы">
       {ITEMS.map((item) => (

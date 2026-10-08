@@ -209,6 +209,8 @@ export interface PlayerView {
   bannedUntil: number | "permanent" | null;
   /** "ok", or why the player may only watch (ban, not in the guild, account too new). Freeze is separate. */
   access: "ok" | "banned" | "not_guild_member" | "account_too_new";
+  /** For "account_too_new": when the account becomes old enough to play; otherwise null. Ban end is `bannedUntil`. */
+  playableAt: number | null;
   /** Dev account: spends nothing and cannot be frozen. */
   unlimited: boolean;
   /** Server clock when this view was built: lets the client compare server timestamps despite clock skew. */

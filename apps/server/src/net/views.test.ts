@@ -1,3 +1,4 @@
+import { DAY_MS } from "@rave/shared";
 import { describe, expect, test } from "bun:test";
 import { makeEngine, T0 } from "../engine/test-utils";
 import type { EngineEvent } from "../engine/types";
@@ -45,6 +46,16 @@ describe("toPlayerView", () => {
     expect(toPlayerView(p, cfg, T0, false).access).toBe("not_guild_member");
     p.bannedUntil = T0 + 1;
     expect(toPlayerView(p, cfg, T0, false).access).toBe("banned");
+  });
+
+  test("tells a too-new account when it may play", () => {
+    const { cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    expect(toPlayerView(p, cfg, T0, false).playableAt).toBeNull();
+    p.accountCreatedAt = T0 - DAY_MS;
+    const view = toPlayerView(p, cfg, T0, false);
+    expect(view.access).toBe("account_too_new");
+    expect(view.playableAt).toBe(T0 - DAY_MS + cfg.access.minAccountAgeDays * DAY_MS);
   });
 
   test("passes the unlimited flag through", () => {

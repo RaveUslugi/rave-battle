@@ -11,7 +11,7 @@ export async function fetchChunk(cx: number, cy: number, signal?: AbortSignal): 
 
 /** GET /overview: the whole canvas sampled down to at most 256×256. */
 export async function fetchOverview(signal?: AbortSignal): Promise<Overview> {
-  const res = await fetch("/overview", { cache: "no-store", signal });
+  const res = await fetch("/overview", { signal });
   if (!res.ok) throw new Error(`overview: HTTP ${res.status}`);
   const body = decodeOverview(new Uint8Array(await res.arrayBuffer()));
   if (!body) throw new Error("overview: malformed body");
