@@ -15,6 +15,7 @@ export function chargesAt(p: ChargeState, regenMs: number, now: number): { charg
   return { charges, nextAt: from + (gained + 1) * regenMs };
 }
 
-export function isFrozen(p: Pick<PlayerView, "frozenUntil">, now: number): boolean {
-  return p.frozenUntil > now;
+/** Unlimited (dev) players ignore freezes. */
+export function isFrozen(p: Pick<PlayerView, "frozenUntil" | "unlimited">, now: number): boolean {
+  return !p.unlimited && p.frozenUntil > now;
 }

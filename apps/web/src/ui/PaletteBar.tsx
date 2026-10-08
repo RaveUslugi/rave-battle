@@ -12,7 +12,7 @@ export function PaletteBar() {
   const selected = useUi((s) => s.selectedColor);
   const bombMode = useUi((s) => s.bombMode);
   const swatchesRef = useRef<HTMLDivElement>(null);
-  const bombs = player?.inventory.bomb ?? 0;
+  const bombs = player?.unlimited ? "∞" : (player?.inventory.bomb ?? 0);
 
   // The stored color may not exist (or be hidden) after a config change.
   useEffect(() => {

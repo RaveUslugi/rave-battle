@@ -25,7 +25,7 @@ export function planPlacement(i: PlacementInput): PlacementPlan {
   const entry = i.config.palette.find((e) => e.id === i.colorId);
   if (!entry) return { ok: false, code: "invalid_color" };
   if (entry.unlock !== "default" && !p.unlockedColors.includes(i.colorId)) return { ok: false, code: "color_locked" };
-  if (chargesAt(p, i.config.charges.regenMs, i.now).charges - i.pendingCount < 1) return { ok: false, code: "no_charges" };
-  if (i.withBomb && p.inventory.bomb - i.pendingBombs < 1) return { ok: false, code: "no_bombs" };
+  if (!p.unlimited && chargesAt(p, i.config.charges.regenMs, i.now).charges - i.pendingCount < 1) return { ok: false, code: "no_charges" };
+  if (!p.unlimited && i.withBomb && p.inventory.bomb - i.pendingBombs < 1) return { ok: false, code: "no_bombs" };
   return { ok: true };
 }

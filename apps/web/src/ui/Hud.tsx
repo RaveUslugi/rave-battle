@@ -15,16 +15,24 @@ export function Hud() {
   return (
     <div className={styles.hud}>
       <div className={styles.charges}>
-        <div className={styles.pips} aria-hidden="true">
-          {Array.from({ length: player.chargeCap }, (_, i) => (
-            <span key={i} className={i < charges ? styles.pipOn : styles.pip} />
-          ))}
-        </div>
-        <span className={styles.chargeText}>
-          <span className="visually-hidden">Заряды: </span>
-          {charges}/{player.chargeCap}
-          {seconds !== null && !frozen ? ` · +1 через ${seconds} с` : ""}
-        </span>
+        {player.unlimited ? (
+          <span className={styles.chargeText}>
+            <span className="visually-hidden">Заряды: </span>∞
+          </span>
+        ) : (
+          <>
+            <div className={styles.pips} aria-hidden="true">
+              {Array.from({ length: player.chargeCap }, (_, i) => (
+                <span key={i} className={i < charges ? styles.pipOn : styles.pip} />
+              ))}
+            </div>
+            <span className={styles.chargeText}>
+              <span className="visually-hidden">Заряды: </span>
+              {charges}/{player.chargeCap}
+              {seconds !== null && !frozen ? ` · +1 через ${seconds} с` : ""}
+            </span>
+          </>
+        )}
       </div>
       <div className={styles.stat} title="Монеты">
         <span aria-hidden="true">🪙 </span>
@@ -34,7 +42,7 @@ export function Hud() {
       <div className={styles.stat} title="Бомбы">
         <span aria-hidden="true">💣 </span>
         <span className="visually-hidden">Бомбы: </span>
-        {player.inventory.bomb}
+        {player.unlimited ? "∞" : player.inventory.bomb}
       </div>
     </div>
   );

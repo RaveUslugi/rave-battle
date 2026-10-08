@@ -34,8 +34,12 @@ describe("chargesAt", () => {
 
 describe("isFrozen", () => {
   test("frozen strictly before frozenUntil", () => {
-    expect(isFrozen({ frozenUntil: 100 }, 99)).toBe(true);
-    expect(isFrozen({ frozenUntil: 100 }, 100)).toBe(false);
-    expect(isFrozen({ frozenUntil: 0 }, 5)).toBe(false);
+    expect(isFrozen({ frozenUntil: 100, unlimited: false }, 99)).toBe(true);
+    expect(isFrozen({ frozenUntil: 100, unlimited: false }, 100)).toBe(false);
+    expect(isFrozen({ frozenUntil: 0, unlimited: false }, 5)).toBe(false);
+  });
+
+  test("unlimited players are never frozen", () => {
+    expect(isFrozen({ frozenUntil: 10, unlimited: true }, 5)).toBe(false);
   });
 });

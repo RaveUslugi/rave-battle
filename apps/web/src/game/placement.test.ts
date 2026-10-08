@@ -30,6 +30,11 @@ const input = (overrides: Partial<PlacementInput> = {}): PlacementInput => ({
 });
 
 describe("planPlacement", () => {
+  test("unlimited players skip the freeze, charge and bomb checks", () => {
+    const p = player({ unlimited: true, charges: 0, frozenUntil: NOW + 60_000, inventory: { bomb: 0, detector: 0, defuser: 0 } });
+    expect(planPlacement(input({ player: p, withBomb: true, pendingCount: 5, pendingBombs: 5 }))).toEqual({ ok: true });
+  });
+
   test("accepts a valid placement", () => {
     expect(planPlacement(input())).toEqual({ ok: true });
   });

@@ -120,6 +120,13 @@ describe("GameClient", () => {
     t.client.onCellTap({ x: 9, y: 9 }, "mouse");
     t.client.onPlaced(placed(2, { ok: true, outcome: "exploded", self: true, frozenUntil: NOW, coinsLost: 20, bombOwner: { id: 1, name: "me" } }));
     expect(toastTexts(t.ui)[1]).toContain("собственной");
+    expect(toastTexts(t.ui)[0]).toContain("заморозка");
+  });
+
+  test("an explosion without a freeze does not mention one", () => {
+    t.client.onCellTap({ x: 9, y: 8 }, "mouse");
+    t.client.onPlaced(placed(1, { ok: true, outcome: "exploded", self: false, frozenUntil: 0, coinsLost: 0, bombOwner: { id: 2, name: "neko" } }));
+    expect(toastTexts(t.ui)[0]).toBe("💥 Бомба игрока neko! −0 монет");
   });
 
   test("answers for unknown requests are ignored", () => {

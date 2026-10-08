@@ -113,9 +113,10 @@ export class GameClient {
       bombOwner: result.bombOwner.name,
       at: this.now(),
     });
+    const freeze = result.frozenUntil > 0 ? ", заморозка" : "";
     const text = result.self
-      ? `Вы подорвались на собственной бомбе! −${result.coinsLost} монет, заморозка`
-      : `💥 Бомба игрока ${result.bombOwner.name}! −${result.coinsLost} монет, заморозка`;
+      ? `Вы подорвались на собственной бомбе! −${result.coinsLost} монет${freeze}`
+      : `💥 Бомба игрока ${result.bombOwner.name}! −${result.coinsLost} монет${freeze}`;
     this.deps.ui.getState().pushToast("error", text);
   };
 
