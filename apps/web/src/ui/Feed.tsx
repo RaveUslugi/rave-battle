@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useServerNow } from "../hooks/useNow";
-import { feedText, useFeed } from "../state/feed-store";
+import { feedText, useFeed, type FeedEntry } from "../state/feed-store";
 import styles from "./Feed.module.css";
 
 const COLLAPSED = 3;
@@ -10,20 +10,32 @@ const time = (at: number) => new Date(at).toLocaleTimeString("ru-RU", { hour: "2
 /** Explosions and defuses without coordinates: the latest few, expandable to the full history. */
 export function Feed() {
   const entries = useFeed((s) => s.entries);
+  if (entries.length === 0) return null;
+  return <FeedPanel entries={entries} />;
+}
+
+function FeedPanel({ entries }: { entries: FeedEntry[] }) {
   const [open, setOpen] = useState(false);
   // `at` is server time, so freshness is measured against the server clock.
   const now = useServerNow(1_000);
-  if (entries.length === 0) return null;
+  const list = useRef<HTMLOListElement>(null);
+  // Oldest first, so keep the newest entries in view when the list opens or grows.
+  useLayoutEffect(() => {
+    if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
+  }, [open, entries]);
   const shown = open ? entries : entries.slice(-COLLAPSED);
   return (
     <section className={styles.feed} aria-label="Лента событий">
       <button type="button" className={styles.toggle} aria-expanded={open} onClick={() => setOpen(!open)}>
-        Лента {open ? "▾" : "▸"}
+        Лента <span aria-hidden="true">{open ? "▾" : "▸"}</span>
       </button>
-      <ol className={open ? styles.listOpen : styles.list}>
+      <ol ref={list} className={open ? styles.listOpen : styles.list}>
         {shown.map((e) => (
           <li key={e.id} className={now - e.at < FRESH_MS ? styles.fresh : styles.item}>
-            <time className={styles.time}>{time(e.at)}</time> {feedText(e)}
+            <time className={styles.time} dateTime={new Date(e.at).toISOString()}>
+              {time(e.at)}
+            </time>{" "}
+            {feedText(e)}
           </li>
         ))}
       </ol>

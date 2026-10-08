@@ -10,6 +10,7 @@
   border-radius: var(--radius);
   backdrop-filter: blur(6px);
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .toggle {
