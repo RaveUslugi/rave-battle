@@ -122,14 +122,14 @@ export class GameClient {
     if (done) this.deps.ui.getState().select(null);
   };
 
-  /** True when the request was sent; the brush comes back so the next tap paints again. */
+  /** True when the request was sent. The detector stays picked for scanning an area; the costly defuser hands back the brush. */
   private useTool(tool: Tool, cell: Cell): boolean {
     if (!this.sapper) {
       this.toast("unavailable");
       return false;
     }
     if (!this.sapper.use(tool, cell)) return false;
-    this.deps.ui.getState().setTool("paint");
+    if (tool === "defuser") this.deps.ui.getState().setTool("paint");
     return true;
   }
 

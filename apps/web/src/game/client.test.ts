@@ -283,14 +283,16 @@ describe("GameClient", () => {
 
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  test("detector: a click uses it at once and returns to the brush", async () => {
+  test("detector: a click uses it at once and the mode stays for the next scan", async () => {
     t.ui.getState().setTool("detector");
     t.client.onCellTap({ x: 5, y: 6 }, "mouse");
     expect(t.toolCalls).toEqual(["detect 5,6"]);
-    expect(t.ui.getState().tool).toBe("paint");
+    expect(t.ui.getState().tool).toBe("detector");
     expect(t.sent).toHaveLength(0);
     await tick();
     expect(t.readings.getState().readings).toHaveLength(1);
+    t.client.onCellTap({ x: 9, y: 9 }, "mouse");
+    expect(t.toolCalls).toEqual(["detect 5,6", "detect 9,9"]);
   });
 
   test("detector by touch and defuser by any pointer wait for confirmation", async () => {
@@ -300,6 +302,7 @@ describe("GameClient", () => {
     t.client.confirmSelection();
     expect(t.toolCalls).toEqual(["detect 1,2"]);
     expect(t.ui.getState().selection).toBeNull();
+    expect(t.ui.getState().tool).toBe("detector");
     await tick(); // one tool request at a time
 
     t.ui.getState().setTool("defuser");
