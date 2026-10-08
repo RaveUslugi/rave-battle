@@ -327,4 +327,13 @@ describe("GameClient", () => {
     t.game.setState({ user: null });
     expect(t.readings.getState().userId).toBeNull();
   });
+
+  test("logout or a user change brings the brush back", () => {
+    t.ui.getState().setTool("detector");
+    t.game.setState({ user: { id: 2, name: "other" } });
+    expect(t.ui.getState().tool).toBe("paint");
+    t.ui.getState().setTool("defuser");
+    t.game.setState({ user: null });
+    expect(t.ui.getState().tool).toBe("paint");
+  });
 });

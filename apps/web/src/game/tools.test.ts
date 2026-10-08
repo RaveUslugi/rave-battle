@@ -69,9 +69,20 @@ describe("SapperTools", () => {
     const t = setup();
     const first = t.tools.use("detector", { x: 0, y: 0 });
     expect(t.tools.use("detector", { x: 1, y: 0 })).toBeNull();
+    expect(t.toasts()).toEqual(["Подождите, предыдущий запрос ещё выполняется"]);
     await first;
     expect(t.tools.use("detector", { x: 1, y: 0 })).not.toBeNull();
     expect(t.calls).toHaveLength(2);
+  });
+
+  test("an answer that arrives after the user changed is dropped", async () => {
+    const t = setup();
+    const pending = t.tools.use("detector", { x: 4, y: 5 });
+    t.game.setState({ user: { id: 2, name: "other" } });
+    t.readings.getState().setUser(2);
+    await pending;
+    expect(t.readings.getState().readings).toEqual([]);
+    expect(t.toasts()).toEqual([]);
   });
 
   test("server rejects and thrown errors become toasts and free the tool", async () => {

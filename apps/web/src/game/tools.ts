@@ -41,7 +41,10 @@ export class SapperTools {
 
   /** Starts the request and returns its completion, or null when refused locally (a toast explains why) or busy. */
   use(tool: Tool, cell: Cell): Promise<void> | null {
-    if (this.busy) return null;
+    if (this.busy) {
+      this.deps.ui.getState().pushToast("info", "Подождите, предыдущий запрос ещё выполняется");
+      return null;
+    }
     const problem = this.check(tool);
     if (problem) {
       this.toast(problem);
@@ -63,19 +66,24 @@ export class SapperTools {
   }
 
   private async run(tool: Tool, cell: Cell): Promise<void> {
+    const userId = this.deps.game.getState().user?.id;
+    // After a logout or account switch the answer belongs to someone else: drop it silently.
+    const stale = () => this.deps.game.getState().user?.id !== userId;
     try {
       if (tool === "detector") {
         const answer = await this.deps.api.detect(cell);
+        if (stale()) return;
         if (!answer.ok) return this.toast(answer.code);
         this.deps.readings.getState().add({ x: cell.x, y: cell.y, count: answer.count, at: this.now() });
         this.deps.ui.getState().pushToast("info", `🔍 Бомб рядом: ${answer.count}`);
       } else {
         const answer = await this.deps.api.defuse(cell);
+        if (stale()) return;
         if (!answer.ok) return this.toast(answer.code);
         this.deps.ui.getState().pushToast("info", defuseText(answer));
       }
     } catch {
-      this.toast("unavailable");
+      if (!stale()) this.toast("unavailable");
     }
   }
 

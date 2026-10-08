@@ -71,7 +71,11 @@ export class GameClient {
         // Answers sent before a disconnect will never arrive.
         const disconnected = prev.status === "open" && state.status !== "open";
         if (disconnected) this.dropPending();
-        if (state.user?.id !== prev.user?.id) this.deps.readings?.getState().setUser(state.user?.id ?? null);
+        if (state.user?.id !== prev.user?.id) {
+          this.deps.readings?.getState().setUser(state.user?.id ?? null);
+          // A tool picked by the previous user must not fire for the next one.
+          this.deps.ui.getState().setTool("paint");
+        }
         if (disconnected || (prev.user && !state.user)) this.deps.ui.getState().select(null);
         const p = state.player;
         if (p !== prev.player && p && !p.unlimited && p.inventory.bomb === 0 && this.deps.ui.getState().bombMode) {
