@@ -170,6 +170,8 @@ export interface PlayerView {
   bannedUntil: number | "permanent" | null;
   /** Dev account: spends nothing and cannot be frozen. */
   unlimited: boolean;
+  /** Server clock when this view was built: lets the client compare server timestamps despite clock skew. */
+  serverNow: number;
 }
 
 export type PlaceResultView =

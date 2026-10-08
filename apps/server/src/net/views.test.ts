@@ -23,6 +23,7 @@ describe("toPlayerView", () => {
     expect(view.chargeCap).toBe(10);
     expect(p.charges).toBe(0);
     expect(p.chargesUpdatedAt).toBe(T0);
+    expect(view.serverNow).toBe(T0 + 65_000);
   });
 
   test("maps a permanent ban and sorts unlocked colors", () => {
