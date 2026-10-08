@@ -183,6 +183,7 @@ export function decodeOverview(bytes: Uint8Array): Overview | null {
   const step = view.getUint16(0, true);
   const width = view.getUint16(2, true);
   const height = view.getUint16(4, true);
+  if (step < 1 || width < 1 || height < 1 || width > OVERVIEW_MAX_SIDE || height > OVERVIEW_MAX_SIDE) return null;
   if (bytes.byteLength !== 6 + width * height) return null;
   return { step, width, height, colors: bytes.slice(6) };
 }

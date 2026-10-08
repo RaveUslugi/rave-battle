@@ -95,7 +95,7 @@ function chunkResponse(deps: AppDeps, cx: number, cy: number): Response {
 
 function overviewResponse(deps: AppDeps, cache: OverviewCache): Response {
   return new Response(cache.get(deps.runtime.engine.canvas), {
-    headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "public, max-age=5" },
   });
 }
 

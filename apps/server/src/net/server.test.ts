@@ -137,7 +137,9 @@ describe("http", () => {
     const alice = await connect(await login("alice"));
     alice.ws.send(encodePlace({ reqId: 1, x: 2, y: 2, colorId: 5, withBomb: false }));
     await placed(alice, 1);
-    const o = decodeOverview(new Uint8Array(await (await fetch(`${base}/overview`)).arrayBuffer()))!;
+    const res = await fetch(`${base}/overview`);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=5");
+    const o = decodeOverview(new Uint8Array(await res.arrayBuffer()))!;
     expect(o).toMatchObject({ step: 2, width: 256, height: 256 });
     expect(o.colors[1 * 256 + 1]).toBe(5);
   });
