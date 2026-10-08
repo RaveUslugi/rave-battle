@@ -1,6 +1,7 @@
 import { CHUNK_SIZE, encodeChunkBody } from "@rave/shared";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { Server } from "bun";
+import { DEV_ADMIN_DISCORD_ID } from "../auth/dev-admin";
 import { finishDiscordLogin, startDiscordLogin } from "../auth/discord-routes";
 import {
   clearSessionCookie,
@@ -91,7 +92,9 @@ function chunkResponse(deps: AppDeps, cx: number, cy: number): Response {
 async function devLogin(url: URL, deps: AppDeps): Promise<Response> {
   const name = url.searchParams.get("name") ?? "";
   if (!/^[a-z0-9_]{1,32}$/i.test(name)) return new Response("Bad name", { status: 400 });
-  const id = await upsertUser(deps.db, { discordId: `dev:${name}`, username: name, avatar: null, discordCreatedAt: DEV_ACCOUNT_CREATED_AT });
+  const discordId = `dev:${name}`;
+  const id = await upsertUser(deps.db, { discordId, username: name, avatar: null, discordCreatedAt: DEV_ACCOUNT_CREATED_AT });
+  if (discordId === DEV_ADMIN_DISCORD_ID) deps.runtime.engine.grantUnlimited(id);
   deps.users.set(id, name);
   const { token, expiresAt } = await createSession(deps.db, id, deps.config.sessionTtlMs, Date.now());
   return new Response(null, {

@@ -1,3 +1,4 @@
+import { restoreDevAdmin } from "./auth/dev-admin";
 import { deleteExpiredSessions } from "./auth/session";
 import { createDb } from "./db/client";
 import { runMigrations } from "./db/migrate";
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   const users = await UserDirectory.load(db);
   let hub: Hub | undefined;
   const runtime = await bootGame(db, { onCommit: (events) => hub?.handleCommit(events) });
+  if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
   hub = new Hub({ runtime, users });
   const server = startServer({ db, runtime, hub, users, config });
   console.log(`Rave Battle server listening on :${server.port}`);

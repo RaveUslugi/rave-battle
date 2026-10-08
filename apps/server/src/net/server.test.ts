@@ -161,6 +161,16 @@ describe("http", () => {
 });
 
 describe("websocket", () => {
+  test("dev login as admin places without charges", async () => {
+    const admin = await connect(await login("admin"));
+    expect(hello(admin).player?.unlimited).toBe(true);
+    const cap = hello(admin).player!.chargeCap;
+    for (let i = 1; i <= cap + 2; i++) admin.ws.send(encodePlace({ reqId: i, x: i, y: 0, colorId: 3, withBomb: true }));
+    for (let i = 1; i <= cap + 2; i++) expect((await placed(admin, i)).result).toEqual({ ok: true, outcome: "placed" });
+    const bob = await connect(await login("bob"));
+    expect(hello(bob).player?.unlimited).toBe(false);
+  });
+
   test("logout closes the sockets of that session only", async () => {
     const first = await login("alice");
     const second = await login("alice");
