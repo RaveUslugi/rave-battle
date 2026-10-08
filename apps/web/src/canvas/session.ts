@@ -14,6 +14,7 @@ import {
   mergeCameraSearch,
   pan,
   visibleChunks,
+  wheelZoomFactor,
   zoomAt,
   type Camera,
   type CanvasSize,
@@ -32,8 +33,6 @@ const TAP_MAX_MOVE = 5;
 const TAP_MAX_MS = 400;
 const SUBSCRIBE_THROTTLE_MS = 150;
 const URL_DEBOUNCE_MS = 300;
-const WHEEL_ZOOM_SPEED = 0.0015;
-const WHEEL_LINE_PX = 16;
 
 /** Owns the renderer, the socket and all pointer handling for one mounted canvas. */
 export class CanvasSession implements CanvasPort {
@@ -281,10 +280,8 @@ export class CanvasSession implements CanvasPort {
         event.preventDefault();
         if (!this.camera || !this.canvas) return;
         const point = this.local(event);
-        const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE;
-        const pages = event.deltaMode === WheelEvent.DOM_DELTA_PAGE;
-        const deltaY = event.deltaY * (lines ? WHEEL_LINE_PX : pages ? this.renderer.screenSize().h : 1);
-        this.camera = zoomAt(this.camera, this.renderer.screenSize(), point.x, point.y, Math.exp(-deltaY * WHEEL_ZOOM_SPEED), this.zoomLimits(this.canvas));
+        const factor = wheelZoomFactor(event.deltaY, event.deltaMode, this.renderer.screenSize().h);
+        this.camera = zoomAt(this.camera, this.renderer.screenSize(), point.x, point.y, factor, this.zoomLimits(this.canvas));
         this.applyCamera();
         this.updateHover(point);
       },

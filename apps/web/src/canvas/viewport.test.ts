@@ -9,6 +9,7 @@ import {
   pan,
   screenToWorld,
   visibleChunks,
+  wheelZoomFactor,
   worldToScreen,
   zoomAt,
 } from "./viewport";
@@ -113,5 +114,21 @@ describe("viewport", () => {
   test("mergeCameraSearch keeps its output parseable", () => {
     const search = mergeCameraSearch("?a=1", { x: 12.345, y: 67.8, zoom: 8.123 });
     expect(cameraFromSearch(search)).toEqual({ x: 12, y: 68, zoom: 8.12 });
+  });
+});
+
+describe("wheelZoomFactor", () => {
+  test("one mouse notch zooms by about 1.5x either way", () => {
+    expect(1 / wheelZoomFactor(100, 0, 800)).toBeCloseTo(Math.exp(0.4), 5);
+    expect(wheelZoomFactor(-100, 0, 800)).toBeCloseTo(Math.exp(0.4), 5);
+  });
+
+  test("line and page deltas are converted to pixels", () => {
+    expect(wheelZoomFactor(3, 1, 800)).toBeCloseTo(Math.exp(-48 * 0.004), 5);
+    expect(wheelZoomFactor(1, 2, 50)).toBeCloseTo(Math.exp(-50 * 0.004), 5);
+  });
+
+  test("huge deltas are capped", () => {
+    expect(wheelZoomFactor(10_000, 0, 800)).toBeCloseTo(Math.exp(-300 * 0.004), 5);
   });
 });
