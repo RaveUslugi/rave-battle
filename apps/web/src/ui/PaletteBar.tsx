@@ -26,15 +26,16 @@ export function PaletteBar() {
   const unlocked = new Set(player?.unlockedColors ?? []);
   const isLocked = (entry: { id: number; unlock: string }) => entry.unlock !== "default" && !unlocked.has(entry.id);
 
-  // Arrow keys move the checked color over the open ones (locked colors are skipped), like native radios.
+  // Arrow keys move the checked color over the open ones (locked colors are skipped), Home/End jump to the ends, like native radios.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = NEXT_KEYS[event.key];
-    if (step === undefined) return;
+    const edge = event.key === "Home" || event.key === "End";
+    if (step === undefined && !edge) return;
     event.preventDefault();
     const open = config.palette.filter((e) => !isLocked(e));
     if (open.length === 0) return;
     const at = open.findIndex((e) => e.id === selected);
-    const next = open[(at + step + open.length) % open.length];
+    const next = event.key === "Home" ? open[0] : event.key === "End" ? open.at(-1) : open[(at + (step ?? 0) + open.length) % open.length];
     if (!next) return;
     uiStore.getState().selectColor(next.id);
     swatchesRef.current?.querySelector<HTMLButtonElement>(`[data-color="${next.id}"]`)?.focus();

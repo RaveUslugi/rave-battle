@@ -61,6 +61,10 @@ export class GameClient {
         const disconnected = prev.status === "open" && state.status !== "open";
         if (disconnected) this.dropPending();
         if (disconnected || (prev.user && !state.user)) this.deps.ui.getState().select(null);
+        const p = state.player;
+        if (p !== prev.player && p && !p.unlimited && p.inventory.bomb === 0 && this.deps.ui.getState().bombMode) {
+          this.deps.ui.getState().setBombMode(false);
+        }
       }),
       this.deps.ui.subscribe((state, prev) => {
         if (state.selection !== prev.selection) this.port?.setSelection(state.selection);
@@ -86,6 +90,8 @@ export class GameClient {
       this.deps.ui.getState().select(cell);
       return;
     }
+    // A mouse click while a touch selection is open acts on the click, not on the old selection.
+    if (this.deps.ui.getState().selection) this.deps.ui.getState().select(null);
     this.place(cell);
   };
 

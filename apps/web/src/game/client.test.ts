@@ -253,4 +253,23 @@ describe("GameClient", () => {
     timeouts[0]!();
     expect(pendingSizes.at(-1)).toBe(0);
   });
+
+  test("bomb mode turns off when the last bomb is gone", () => {
+    t.ui.getState().setBombMode(true);
+    t.game.getState().setPlayer(player({ inventory: { bomb: 0, detector: 0, defuser: 0 } }));
+    expect(t.ui.getState().bombMode).toBe(false);
+  });
+
+  test("unlimited players keep bomb mode at zero bombs", () => {
+    t.ui.getState().setBombMode(true);
+    t.game.getState().setPlayer(player({ unlimited: true, inventory: { bomb: 0, detector: 0, defuser: 0 } }));
+    expect(t.ui.getState().bombMode).toBe(true);
+  });
+
+  test("a mouse click drops an open touch selection and acts on the clicked cell", () => {
+    t.client.onCellTap({ x: 3, y: 4 }, "touch");
+    t.client.onCellTap({ x: 7, y: 7 }, "mouse");
+    expect(t.ui.getState().selection).toBeNull();
+    expect(t.sent).toEqual([{ reqId: 1, x: 7, y: 7, colorId: 7, withBomb: false }]);
+  });
 });

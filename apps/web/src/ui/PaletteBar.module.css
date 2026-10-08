@@ -46,8 +46,8 @@
 .swatch {
   position: relative;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: 8px;
@@ -67,4 +67,12 @@
   font-size: 14px;
   background: rgba(0, 0, 0, 0.55);
   border-radius: 6px;
+}
+
+/* Touch screens: 44 px targets. */
+@media (pointer: coarse) {
+  .swatch {
+    width: 44px;
+    height: 44px;
+  }
 }
