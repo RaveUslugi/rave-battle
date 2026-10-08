@@ -35,15 +35,16 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const expected = readCookie(req, stateCookieName(deps.config.secureCookies));
-  if (!state || !expected || state !== expected) return new Response("Invalid OAuth state", { status: 400 });
 
   const headers = new Headers({ Location: "/" });
   headers.append("Set-Cookie", stateCookie("", 0, deps.config.secureCookies));
-  if (url.searchParams.has("error")) {
-    headers.set("Location", "/?login_error=denied");
+  const fail = (reason: "state" | "denied" | "discord"): Response => {
+    headers.set("Location", `/?login_error=${reason}`);
     return new Response(null, { status: 302, headers });
-  }
-  if (!code) return new Response("Missing authorization code", { status: 400 });
+  };
+  if (!state || !expected || state !== expected) return fail("state");
+  if (url.searchParams.has("error")) return fail("denied");
+  if (!code) return fail("state");
   const fetchFn = deps.fetch ?? fetch;
 
   let profile: DiscordProfile;
@@ -55,8 +56,7 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
   } catch (error) {
     if (!(error instanceof DiscordError)) throw error;
     console.warn("Discord login failed", error.message);
-    headers.set("Location", "/?login_error=discord");
-    return new Response(null, { status: 302, headers });
+    return fail("discord");
   }
 
   const id = await upsertUser(deps.db, {
