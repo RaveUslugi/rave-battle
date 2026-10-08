@@ -15,8 +15,11 @@ describe("gameConfigSchema", () => {
     expect(gameConfigSchema.safeParse(defaultConfig).success).toBe(true);
   });
 
-  test("default config has 32 base colors and 512x512 canvas", () => {
-    expect(defaultConfig.palette).toHaveLength(32);
+  test("default config has 32 base colors, 8 shop colors and a 512x512 canvas", () => {
+    expect(defaultConfig.palette).toHaveLength(40);
+    const shop = defaultConfig.palette.filter((e) => e.unlock === "shop");
+    expect(shop.map((e) => e.id)).toEqual([32, 33, 34, 35, 36, 37, 38, 39]);
+    expect(shop.every((e) => e.price !== undefined && e.price >= 200 && e.price <= 500)).toBe(true);
     expect(defaultConfig.canvas).toEqual({ width: 512, height: 512 });
   });
 
@@ -37,13 +40,13 @@ describe("gameConfigSchema", () => {
   test("rejects duplicate palette ids", () => {
     const cfg = clone();
     cfg.palette.push({ id: 5, type: "solid", base: "#123456", params: {}, unlock: "daily" });
-    expect(issuePaths(cfg)).toContain("palette.32.id");
+    expect(issuePaths(cfg)).toContain("palette.40.id");
   });
 
   test("rejects missing base color", () => {
     const cfg = clone();
     cfg.palette = cfg.palette.filter((entry) => entry.id !== 7);
-    cfg.palette.push({ id: 40, type: "solid", base: "#123456", params: {}, unlock: "daily" });
+    cfg.palette.push({ id: 41, type: "solid", base: "#123456", params: {}, unlock: "daily" });
     expect(issuePaths(cfg)).toContain("palette");
   });
 
@@ -56,8 +59,8 @@ describe("gameConfigSchema", () => {
 
   test("rejects shop color without price", () => {
     const cfg = clone();
-    cfg.palette.push({ id: 32, type: "animated", base: "#FF00FF", params: {}, unlock: "shop" });
-    expect(issuePaths(cfg)).toContain("palette.32.price");
+    cfg.palette.push({ id: 40, type: "animated", base: "#FF00FF", params: {}, unlock: "shop" });
+    expect(issuePaths(cfg)).toContain("palette.40.price");
   });
 
   test("rejects unknown time zone", () => {

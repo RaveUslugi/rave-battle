@@ -2,7 +2,7 @@ import { defaultConfig, type PlayerView, type ServerMessage } from "@rave/shared
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
-import { createReadingsStore } from "../state/readings-store";
+import { bindReadings, createReadingsStore } from "../state/readings-store";
 import { createUiStore } from "../state/ui-store";
 import { GameClient, type CanvasPort } from "./client";
 import type { DetectAnswer, ToolsApi } from "./tools";
@@ -48,6 +48,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   const timers: Timers = { set: (fn) => timeouts.push(fn) - 1, clear: (handle) => void cleared.push(handle) };
   let now = NOW;
   const readings = createReadingsStore(null, () => now);
+  bindReadings(game, readings);
   const toolCalls: string[] = [];
   const tools: ToolsApi = {
     detect: async (c) => (toolCalls.push(`detect ${c.x},${c.y}`), options.detect ?? { ok: true, count: 1 }),
@@ -283,14 +284,16 @@ describe("GameClient", () => {
 
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  test("detector: a click uses it at once and returns to the brush", async () => {
+  test("detector: a click uses it at once and the mode stays for the next scan", async () => {
     t.ui.getState().setTool("detector");
     t.client.onCellTap({ x: 5, y: 6 }, "mouse");
     expect(t.toolCalls).toEqual(["detect 5,6"]);
-    expect(t.ui.getState().tool).toBe("paint");
+    expect(t.ui.getState().tool).toBe("detector");
     expect(t.sent).toHaveLength(0);
     await tick();
     expect(t.readings.getState().readings).toHaveLength(1);
+    t.client.onCellTap({ x: 9, y: 9 }, "mouse");
+    expect(t.toolCalls).toEqual(["detect 5,6", "detect 9,9"]);
   });
 
   test("detector by touch and defuser by any pointer wait for confirmation", async () => {
@@ -300,6 +303,7 @@ describe("GameClient", () => {
     t.client.confirmSelection();
     expect(t.toolCalls).toEqual(["detect 1,2"]);
     expect(t.ui.getState().selection).toBeNull();
+    expect(t.ui.getState().tool).toBe("detector");
     await tick(); // one tool request at a time
 
     t.ui.getState().setTool("defuser");
@@ -319,13 +323,6 @@ describe("GameClient", () => {
     expect(t.toolCalls).toEqual([]);
     expect(t.ui.getState()).toMatchObject({ tool: "defuser", selection: { x: 3, y: 3 } });
     expect(toastTexts(t.ui)).toEqual(["Дефьюзеры закончились"]);
-  });
-
-  test("readings follow the logged-in user", () => {
-    t.game.setState({ user: { id: 2, name: "other" } });
-    expect(t.readings.getState().userId).toBe(2);
-    t.game.setState({ user: null });
-    expect(t.readings.getState().userId).toBeNull();
   });
 
   test("logout or a user change brings the brush back", () => {

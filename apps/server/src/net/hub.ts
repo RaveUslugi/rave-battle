@@ -22,6 +22,8 @@ const chunkTopic = (key: string) => `chunk:${key}`;
 const userTopic = (userId: number) => `user:${userId}`;
 /** Frames accepted before `hello` is sent; more than this closes the socket. */
 const MAX_PENDING = 16;
+/** How many feed entries a new connection gets right after hello. */
+const FEED_HISTORY = 20;
 
 export interface SocketData {
   user: SessionUser | null;
@@ -43,6 +45,7 @@ export interface HubOptions {
 }
 
 type Socket = ServerWebSocket<SocketData>;
+type FeedMessage = Extract<ServerMessage, { type: "feed" }>;
 
 const send = (ws: Socket, message: ServerMessage) => ws.send(JSON.stringify(message));
 
@@ -53,6 +56,7 @@ export class Hub {
   private server: Server<SocketData> | null = null;
   private connectionsByIp = new Map<string, number>();
   private readonly sockets = new Set<Socket>();
+  private readonly feedHistory: FeedMessage[] = [];
   private onlineTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private readonly now: () => number;
@@ -113,7 +117,11 @@ export class Hub {
     for (const delta of buildChunkDeltas(events, this.versions)) {
       server.publish(chunkTopic(`${delta.cx}:${delta.cy}`), encodeChunkDelta(delta));
     }
-    for (const entry of buildFeed(events, this.options.users)) server.publish(GLOBAL_TOPIC, JSON.stringify(entry));
+    for (const entry of buildFeed(events, this.options.users)) {
+      this.feedHistory.push(entry);
+      if (this.feedHistory.length > FEED_HISTORY) this.feedHistory.shift();
+      server.publish(GLOBAL_TOPIC, JSON.stringify(entry));
+    }
     const touched = new Set<number>();
     for (const e of events) if (e.type === "player") touched.add(e.userId);
     for (const userId of touched) {
@@ -161,6 +169,7 @@ export class Hub {
       config: this.options.runtime.engine.config,
       player,
     });
+    send(ws, { type: "feed_history", entries: [...this.feedHistory] });
     // Topics only after hello, so it is always the first message the client sees.
     ws.subscribe(GLOBAL_TOPIC);
     if (user) ws.subscribe(userTopic(user.id));

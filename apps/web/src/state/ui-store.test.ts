@@ -78,4 +78,28 @@ describe("ui store", () => {
     store.getState().setTool("detector");
     expect(store.getState()).toMatchObject({ tool: "detector", selection: null });
   });
+
+  test("panels open, switch and toggle closed", () => {
+    const store = createUiStore(null);
+    expect(store.getState().panel).toBeNull();
+    store.getState().togglePanel("shop");
+    expect(store.getState().panel).toBe("shop");
+    store.getState().togglePanel("daily");
+    expect(store.getState().panel).toBe("daily");
+    store.getState().togglePanel("daily");
+    expect(store.getState().panel).toBeNull();
+    store.getState().togglePanel("shop");
+    store.getState().closePanel();
+    expect(store.getState().panel).toBeNull();
+  });
+
+  test("opening a panel never closes it", () => {
+    const store = createUiStore(null);
+    store.getState().openPanel("daily");
+    expect(store.getState().panel).toBe("daily");
+    store.getState().openPanel("daily");
+    expect(store.getState().panel).toBe("daily");
+    store.getState().openPanel("shop");
+    expect(store.getState().panel).toBe("shop");
+  });
 });

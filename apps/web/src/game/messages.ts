@@ -15,6 +15,11 @@ const REJECT_TEXT: Record<string, string> = {
   no_detector: "Детекторы закончились",
   no_defuser: "Дефьюзеры закончились",
   rate_limited: "Слишком часто, подождите немного",
+  insufficient_coins: "Не хватает монет",
+  boost_limit: "Достигнут максимум буста зарядов",
+  not_for_sale: "Этот товар не продаётся",
+  already_unlocked: "Этот цвет уже открыт",
+  already_claimed: "Награда за сегодня уже получена",
 };
 
 /** Human text for a reject code from the server or from the client-side pre-check. */

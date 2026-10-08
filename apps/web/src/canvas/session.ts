@@ -1,6 +1,7 @@
-import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared";
+import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
 import { fetchChunk } from "./chunk-loader";
@@ -45,6 +46,7 @@ export class CanvasSession implements CanvasPort {
   private canvas: CanvasSize | null = null;
   private disposed = false;
   private viewTimer: ReturnType<typeof setTimeout> | null = null;
+  private viewFrame: number | null = null;
   private urlTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pointers = new Map<number, Point>();
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
@@ -82,6 +84,7 @@ export class CanvasSession implements CanvasPort {
     if (this.viewTimer) clearTimeout(this.viewTimer);
     if (this.urlTimer) clearTimeout(this.urlTimer);
     this.viewTimer = this.urlTimer = null;
+    if (this.viewFrame !== null) cancelAnimationFrame(this.viewFrame);
     this.unsubscribeReadings?.();
     this.unsubscribeJump?.();
     if (this.fadeTimer) clearInterval(this.fadeTimer);
@@ -163,7 +166,8 @@ export class CanvasSession implements CanvasPort {
     else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
-    // "feed" — Plan 4.
+    else if (message.type === "feed") feedStore.getState().push(message);
+    else if (message.type === "feed_history") feedStore.getState().replace(message.entries);
   }
 
   private zoomLimits(canvas: CanvasSize): ZoomLimits {
@@ -189,7 +193,13 @@ export class CanvasSession implements CanvasPort {
     const zoom = Math.min(limits.max, Math.max(limits.min, this.camera.zoom));
     this.camera = clampCenter({ ...this.camera, zoom }, this.canvas);
     this.renderer.setCamera(this.camera);
-    gameStore.getState().setView({ camera: this.camera, screen: size });
+    // The minimap needs at most one update per frame; pointer events can fire more often.
+    if (this.viewFrame === null) {
+      this.viewFrame = requestAnimationFrame(() => {
+        this.viewFrame = null;
+        if (this.camera && !this.disposed) gameStore.getState().setView({ camera: this.camera, screen: this.renderer.screenSize() });
+      });
+    }
 
     if (immediateView) {
       if (this.viewTimer) clearTimeout(this.viewTimer);

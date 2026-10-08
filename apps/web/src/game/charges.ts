@@ -1,4 +1,4 @@
-import type { PlayerView } from "@rave/shared";
+import type { PlayerView } from "@rave/shared/client";
 
 type ChargeState = Pick<PlayerView, "charges" | "chargesUpdatedAt" | "chargeCap" | "frozenUntil">;
 

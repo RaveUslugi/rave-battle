@@ -1,4 +1,4 @@
-import { decodeChunkBody, decodeOverview, type Overview } from "@rave/shared";
+import { decodeChunkBody, decodeOverview, type Overview } from "@rave/shared/client";
 
 /** GET /chunk/:cx/:cy. `signal` lets the session abort loads still in flight when it is disposed. */
 export async function fetchChunk(cx: number, cy: number, signal?: AbortSignal): Promise<{ version: number; colors: Uint8Array }> {

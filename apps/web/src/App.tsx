@@ -3,14 +3,18 @@ import styles from "./App.module.css";
 import { GameClient } from "./game/client";
 import { toolsApi } from "./net/api";
 import { gameStore } from "./state/game-store";
-import { readingsStore } from "./state/readings-store";
+import { bindReadings, readingsStore } from "./state/readings-store";
 import { uiStore } from "./state/ui-store";
 import { AuthPanel } from "./ui/AuthPanel";
+import { ChunkBoundary } from "./ui/ChunkBoundary";
 import { ConfirmBar } from "./ui/ConfirmBar";
 import { ExplosionFlash } from "./ui/ExplosionFlash";
+import { Feed } from "./ui/Feed";
 import { FreezeBanner } from "./ui/FreezeBanner";
 import { Hud } from "./ui/Hud";
 import { PaletteBar } from "./ui/PaletteBar";
+import { PanelMenu } from "./ui/PanelMenu";
+import { SidePanel } from "./ui/SidePanel";
 import { StatusBar } from "./ui/StatusBar";
 import { Toasts } from "./ui/Toasts";
 
@@ -26,6 +30,8 @@ const LOGIN_ERRORS: Record<string, string> = {
 export function App() {
   const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore, readings: readingsStore, tools: toolsApi }), []);
 
+  useEffect(() => bindReadings(gameStore, readingsStore), []);
+
   // The auth redirect reports failures in the query string: show it once and clean the URL.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -39,9 +45,11 @@ export function App() {
 
   return (
     <div className={styles.app}>
-      <Suspense fallback={null}>
-        <CanvasView client={client} />
-      </Suspense>
+      <ChunkBoundary fallback="reload">
+        <Suspense fallback={null}>
+          <CanvasView client={client} />
+        </Suspense>
+      </ChunkBoundary>
       <ExplosionFlash />
       <div className={styles.top}>
         <div className={styles.topLeft}>
@@ -54,15 +62,20 @@ export function App() {
         </div>
         <div className={styles.topRight}>
           <AuthPanel />
-          <Suspense fallback={null}>
-            <Minimap />
-          </Suspense>
+          <PanelMenu />
+          <ChunkBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <Minimap />
+            </Suspense>
+          </ChunkBoundary>
         </div>
       </div>
       <div className={styles.bottom}>
+        <Feed />
         <ConfirmBar client={client} />
         <PaletteBar />
       </div>
+      <SidePanel />
     </div>
   );
 }

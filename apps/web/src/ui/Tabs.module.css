@@ -1,0 +1,122 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.balance {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.section {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--neon-pink);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+}
+
+.buy,
+.armed {
+  flex: none;
+  min-width: 96px;
+  min-height: 40px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.armed {
+  border-color: var(--neon-pink);
+  box-shadow: var(--glow-pink);
+}
+
+.buy:disabled,
+.armed:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: default;
+}
+
+.calendar {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.day,
+.dayNext,
+.dayTaken {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayNext {
+  border-color: var(--neon-pink);
+  box-shadow: var(--glow-pink);
+}
+
+.dayTaken {
+  border-color: var(--neon-cyan);
+  opacity: 0.7;
+}
+
+.dayNumber {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.claim {
+  min-height: 44px;
+  margin-top: 8px;
+  background: rgba(255, 43, 214, 0.2);
+  border: 1px solid var(--neon-pink);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.claim:disabled {
+  background: none;
+  border-color: var(--panel-border);
+  opacity: 0.7;
+  cursor: default;
+}

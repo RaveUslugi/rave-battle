@@ -1,0 +1,20 @@
+.reload {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 16px;
+}
+
+.reload button {
+  justify-self: center;
+  min-height: 44px;
+  padding: 0 16px;
+  background: var(--panel);
+  border: 1px solid var(--neon-cyan);
+  border-radius: var(--radius);
+  box-shadow: var(--glow-cyan);
+  cursor: pointer;
+}

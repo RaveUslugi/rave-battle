@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@rave/shared";
+import type { ServerMessage } from "@rave/shared/client";
 import type { StoreApi } from "zustand/vanilla";
 import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";
@@ -65,14 +65,12 @@ export class GameClient {
   attach(port: CanvasPort): void {
     this.detach();
     this.port = port;
-    this.deps.readings?.getState().setUser(this.deps.game.getState().user?.id ?? null);
     this.unsubscribe = [
       this.deps.game.subscribe((state, prev) => {
         // Answers sent before a disconnect will never arrive.
         const disconnected = prev.status === "open" && state.status !== "open";
         if (disconnected) this.dropPending();
         if (state.user?.id !== prev.user?.id) {
-          this.deps.readings?.getState().setUser(state.user?.id ?? null);
           // A tool picked by the previous user must not fire for the next one.
           this.deps.ui.getState().setTool("paint");
         }
@@ -122,14 +120,14 @@ export class GameClient {
     if (done) this.deps.ui.getState().select(null);
   };
 
-  /** True when the request was sent; the brush comes back so the next tap paints again. */
+  /** True when the request was sent. The detector stays picked for scanning an area; the costly defuser hands back the brush. */
   private useTool(tool: Tool, cell: Cell): boolean {
     if (!this.sapper) {
       this.toast("unavailable");
       return false;
     }
     if (!this.sapper.use(tool, cell)) return false;
-    this.deps.ui.getState().setTool("paint");
+    if (tool === "defuser") this.deps.ui.getState().setTool("paint");
     return true;
   }
 

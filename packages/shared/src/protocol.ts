@@ -233,6 +233,8 @@ export type ServerMessage =
   | { type: "player"; player: PlayerView }
   | { type: "placed"; reqId: number; result: PlaceResultView }
   | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
+  /** Sent once right after `hello`: the latest feed entries, oldest first. Replaces whatever the client showed before. */
+  | { type: "feed_history"; entries: Array<Extract<ServerMessage, { type: "feed" }>> }
   | { type: "online"; count: number }
   /**
    * Answer to SUBSCRIBE listing only newly added chunks with their current version. Deltas for them

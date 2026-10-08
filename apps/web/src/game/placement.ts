@@ -1,4 +1,4 @@
-import type { GameConfig, PlayerView, UserRef } from "@rave/shared";
+import type { GameConfig, PlayerView, UserRef } from "@rave/shared/client";
 import { chargesAt, isFrozen } from "./charges";
 
 export interface PlacementInput {

@@ -1,6 +1,9 @@
 import { useStore } from "zustand";
-import { createStore } from "zustand/vanilla";
-import { browserStorage, type StorageLike } from "./ui-store";
+import { createStore, type StoreApi } from "zustand/vanilla";
+import type { GameState } from "./game-store";
+import { browserStorage } from "./ui-store";
+
+export type ReadingsStorage = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
 
 /** One detector result: `count` bombs in the 3×3 square around (x, y), measured at local time `at`. */
 export interface Reading {
@@ -23,13 +26,16 @@ export interface ReadingsState {
   prune(): void;
 }
 
-const keyOf = (userId: number) => `rb:readings:${userId}`;
+const KEY_PREFIX = "rb:readings:";
+const keyOf = (userId: number) => `${KEY_PREFIX}${userId}`;
+/** A 3×3 square holds at most 9 bombs. */
+const MAX_COUNT = 9;
 
 function isReading(value: unknown): value is Reading {
   const r = value as Reading;
   return (
     typeof r === "object" && r !== null &&
-    Number.isInteger(r.x) && Number.isInteger(r.y) && Number.isInteger(r.count) && r.count >= 0 && Number.isFinite(r.at)
+    Number.isInteger(r.x) && Number.isInteger(r.y) && Number.isInteger(r.count) && r.count >= 0 && r.count <= MAX_COUNT && Number.isFinite(r.at)
   );
 }
 
@@ -42,7 +48,7 @@ function fresh(readings: Reading[], now: number): Reading[] {
  * Detector results live only on this device (spec: no sync, the server never says a reading went stale).
  * Ages use the local clock on both ends, so clock skew does not matter here.
  */
-export function createReadingsStore(storage: StorageLike | null, clock: () => number = Date.now) {
+export function createReadingsStore(storage: ReadingsStorage | null, clock: () => number = Date.now) {
   const load = (userId: number): Reading[] => {
     try {
       const parsed: unknown = JSON.parse(storage?.getItem(keyOf(userId)) ?? "[]");
@@ -58,11 +64,35 @@ export function createReadingsStore(storage: StorageLike | null, clock: () => nu
       // Full or blocked storage: readings stay for this session only.
     }
   };
+  /** Drops other accounts' keys with nothing fresh left: a shared device should not keep them forever. */
+  const sweep = (userId: number) => {
+    try {
+      if (!storage) return;
+      const keys: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key?.startsWith(KEY_PREFIX) && key !== keyOf(userId)) keys.push(key);
+      }
+      for (const key of keys) {
+        let keep = false;
+        try {
+          const parsed: unknown = JSON.parse(storage.getItem(key) ?? "[]");
+          keep = Array.isArray(parsed) && fresh(parsed.filter(isReading), clock()).length > 0;
+        } catch {
+          keep = false;
+        }
+        if (!keep) storage.removeItem(key);
+      }
+    } catch {
+      // Blocked storage: nothing to sweep.
+    }
+  };
   return createStore<ReadingsState>()((set, get) => ({
     userId: null,
     readings: [],
     setUser: (userId) => {
       if (userId === get().userId) return;
+      if (userId !== null) sweep(userId);
       set({ userId, readings: userId === null ? [] : load(userId) });
     },
     add: (reading) => {
@@ -96,6 +126,14 @@ export function formatAge(ageMs: number): string {
 
 export function readingAt(readings: Reading[], cell: { x: number; y: number }): Reading | null {
   return readings.find((r) => r.x === cell.x && r.y === cell.y) ?? null;
+}
+
+/** Keeps the readings store on the logged-in user. Independent of the canvas, so it works even if the canvas chunk fails to load. */
+export function bindReadings(game: StoreApi<GameState>, readings: StoreApi<ReadingsState>): () => void {
+  readings.getState().setUser(game.getState().user?.id ?? null);
+  return game.subscribe((state, prev) => {
+    if (state.user?.id !== prev.user?.id) readings.getState().setUser(state.user?.id ?? null);
+  });
 }
 
 export const readingsStore = createReadingsStore(browserStorage());

@@ -1,4 +1,6 @@
+import type { PaletteEntry } from "@rave/shared/client";
 import { useEffect, useRef, type KeyboardEvent } from "react";
+import { rejectText } from "../game/messages";
 import { useGame } from "../state/game-store";
 import { uiStore, useUi } from "../state/ui-store";
 import styles from "./PaletteBar.module.css";
@@ -28,6 +30,14 @@ export function PaletteBar() {
   if (!config) return null;
   const unlocked = new Set(player?.unlockedColors ?? []);
   const isLocked = (entry: { id: number; unlock: string }) => entry.unlock !== "default" && !unlocked.has(entry.id);
+
+  // A locked color on sale opens the shop; the others unlock elsewhere.
+  const onLocked = (entry: PaletteEntry) => {
+    const ui = uiStore.getState();
+    if (entry.unlock !== "shop") return ui.pushToast("info", "Этот цвет откроется позже");
+    if (!player) return ui.pushToast("error", rejectText("unauthorized"));
+    ui.openPanel("shop");
+  };
 
   // Arrow keys move the checked color over the open ones (locked colors are skipped), Home/End jump to the ends, like native radios.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -95,14 +105,10 @@ export function PaletteBar() {
               data-color={entry.id}
               aria-checked={checked}
               tabIndex={checked ? 0 : -1}
-              aria-label={`Цвет ${entry.id}${locked ? " (закрыт)" : ""}`}
+              aria-label={`Цвет ${entry.id}${!locked ? "" : entry.unlock === "shop" ? ` (купить за ${entry.price})` : " (закрыт)"}`}
               className={`${styles.swatch} ${checked ? styles.selected : ""}`}
               style={{ background: entry.base }}
-              onClick={() =>
-                locked
-                  ? uiStore.getState().pushToast("info", "Этот цвет откроется позже")
-                  : uiStore.getState().selectColor(entry.id)
-              }
+              onClick={() => (locked ? onLocked(entry) : uiStore.getState().selectColor(entry.id))}
             >
               {locked && (
                 <span className={styles.lock} aria-hidden="true">
