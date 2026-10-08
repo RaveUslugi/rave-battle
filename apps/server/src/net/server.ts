@@ -16,6 +16,7 @@ import { upsertUser } from "../auth/users";
 import { appRouter } from "../trpc/router";
 import type { AppDeps } from "./deps";
 import type { Hub, SocketData } from "./hub";
+import { OverviewCache } from "./overview";
 import { KeyedRateLimiter, UserRateLimiter } from "./rate-limit";
 
 /** Dev accounts look old enough to pass the account-age check. */
@@ -25,9 +26,10 @@ const CHUNK_PATH = /^\/chunk\/(\d+)\/(\d+)$/;
 export function startServer(deps: AppDeps): Server<SocketData> {
   const limiter = deps.limiter ?? new UserRateLimiter(20, 5);
   const ipLimiter = deps.ipLimiter ?? new KeyedRateLimiter<string>(60, 20);
+  const overview = new OverviewCache();
   const server = Bun.serve({
     port: deps.config.port,
-    fetch: (req, srv) => route(req, srv, deps, limiter, ipLimiter),
+    fetch: (req, srv) => route(req, srv, deps, limiter, ipLimiter, overview),
     websocket: deps.hub.websocket,
   });
   deps.hub.attach(server);
@@ -40,12 +42,14 @@ async function route(
   deps: AppDeps,
   limiter: UserRateLimiter,
   ipLimiter: KeyedRateLimiter<string>,
+  overview: OverviewCache,
 ): Promise<Response | undefined> {
   const url = new URL(req.url);
   if (url.pathname === "/ws") return upgrade(req, server, deps);
   if (req.method === "GET" && url.pathname === "/health") return new Response("ok");
   const chunk = req.method === "GET" ? CHUNK_PATH.exec(url.pathname) : null;
   if (chunk) return chunkResponse(deps, Number(chunk[1]), Number(chunk[2]));
+  if (req.method === "GET" && url.pathname === "/overview") return overviewResponse(deps, overview);
   if (req.method === "GET" && url.pathname === "/auth/discord" && deps.config.discord) return startDiscordLogin(deps);
   if (req.method === "GET" && url.pathname === "/auth/discord/callback" && deps.config.discord) return finishDiscordLogin(req, deps);
   if (req.method === "GET" && url.pathname === "/auth/dev" && deps.config.devLogin) return devLogin(url, deps);
@@ -85,6 +89,12 @@ function chunkResponse(deps: AppDeps, cx: number, cy: number): Response {
   const colors = canvas.getChunk(cx, cy)?.colors ?? new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   const body = Bun.gzipSync(encodeChunkBody(deps.hub.versions.get(cx, cy), colors) as Uint8Array<ArrayBuffer>);
   return new Response(body, {
+    headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "no-store" },
+  });
+}
+
+function overviewResponse(deps: AppDeps, cache: OverviewCache): Response {
+  return new Response(cache.get(deps.runtime.engine.canvas), {
     headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "no-store" },
   });
 }
