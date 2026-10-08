@@ -77,7 +77,7 @@ export function createUiStore(storage: StorageLike | null) {
   }));
 }
 
-function browserStorage(): StorageLike | null {
+export function browserStorage(): StorageLike | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;
   } catch {
