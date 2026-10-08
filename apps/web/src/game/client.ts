@@ -65,14 +65,12 @@ export class GameClient {
   attach(port: CanvasPort): void {
     this.detach();
     this.port = port;
-    this.deps.readings?.getState().setUser(this.deps.game.getState().user?.id ?? null);
     this.unsubscribe = [
       this.deps.game.subscribe((state, prev) => {
         // Answers sent before a disconnect will never arrive.
         const disconnected = prev.status === "open" && state.status !== "open";
         if (disconnected) this.dropPending();
         if (state.user?.id !== prev.user?.id) {
-          this.deps.readings?.getState().setUser(state.user?.id ?? null);
           // A tool picked by the previous user must not fire for the next one.
           this.deps.ui.getState().setTool("paint");
         }

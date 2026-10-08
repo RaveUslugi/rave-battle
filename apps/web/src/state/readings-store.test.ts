@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createGameStore } from "./game-store";
 import {
+  bindReadings,
   createReadingsStore,
   formatAge,
   MAX_READINGS,
@@ -7,12 +9,21 @@ import {
   READING_TTL_MS,
   readingAlpha,
   readingAt,
+  type ReadingsStorage,
 } from "./readings-store";
-import type { StorageLike } from "./ui-store";
 
-function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
+function memoryStorage(initial: Record<string, string> = {}): ReadingsStorage & { data: Record<string, string> } {
   const data = { ...initial };
-  return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
+  return {
+    data,
+    getItem: (k) => data[k] ?? null,
+    setItem: (k, v) => void (data[k] = v),
+    removeItem: (k) => void delete data[k],
+    key: (i) => Object.keys(data)[i] ?? null,
+    get length() {
+      return Object.keys(data).length;
+    },
+  };
 }
 
 describe("readings store", () => {
@@ -56,7 +67,13 @@ describe("readings store", () => {
     const store = createReadingsStore(memoryStorage({ "rb:readings:1": "{oops" }), () => 0);
     store.getState().setUser(1);
     expect(store.getState().readings).toEqual([]);
-    const throwing: StorageLike = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    const throwing: ReadingsStorage = {
+      getItem: () => { throw new Error("blocked"); },
+      setItem: () => { throw new Error("blocked"); },
+      removeItem: () => { throw new Error("blocked"); },
+      key: () => { throw new Error("blocked"); },
+      length: 0,
+    };
     const other = createReadingsStore(throwing, () => 0);
     other.getState().setUser(1);
     other.getState().add({ x: 0, y: 0, count: 0, at: 0 });
@@ -70,6 +87,41 @@ describe("readings store", () => {
     const xs = store.getState().readings.map((r) => r.x);
     expect(xs).toHaveLength(MAX_READINGS);
     expect(xs[0]).toBe(1);
+  });
+
+  test("switching users sweeps other accounts' keys that hold nothing fresh", () => {
+    const now = READING_TTL_MS * 3;
+    const storage = memoryStorage({
+      "rb:readings:2": JSON.stringify([{ x: 0, y: 0, count: 1, at: 0 }]), // expired
+      "rb:readings:3": JSON.stringify([{ x: 0, y: 0, count: 1, at: now }]), // fresh: kept
+      "rb:readings:4": "{broken",
+      "rb:color": "5", // not ours
+    });
+    const store = createReadingsStore(storage, () => now);
+    store.getState().setUser(1);
+    expect(Object.keys(storage.data).sort()).toEqual(["rb:color", "rb:readings:3"]);
+  });
+
+  test("counts above 9 are rejected as malformed", () => {
+    const storage = memoryStorage({ "rb:readings:1": JSON.stringify([{ x: 0, y: 0, count: 10, at: 0 }]) });
+    const store = createReadingsStore(storage, () => 0);
+    store.getState().setUser(1);
+    expect(store.getState().readings).toEqual([]);
+  });
+});
+
+describe("bindReadings", () => {
+  test("follows the game store's user, including the current one", () => {
+    const game = createGameStore(() => 0);
+    game.setState({ user: { id: 5, name: "a" } });
+    const readings = createReadingsStore(null, () => 0);
+    const unbind = bindReadings(game, readings);
+    expect(readings.getState().userId).toBe(5);
+    game.setState({ user: null });
+    expect(readings.getState().userId).toBeNull();
+    unbind();
+    game.setState({ user: { id: 6, name: "b" } });
+    expect(readings.getState().userId).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@ import { defaultConfig, type PlayerView, type ServerMessage } from "@rave/shared
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
-import { createReadingsStore } from "../state/readings-store";
+import { bindReadings, createReadingsStore } from "../state/readings-store";
 import { createUiStore } from "../state/ui-store";
 import { GameClient, type CanvasPort } from "./client";
 import type { DetectAnswer, ToolsApi } from "./tools";
@@ -48,6 +48,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   const timers: Timers = { set: (fn) => timeouts.push(fn) - 1, clear: (handle) => void cleared.push(handle) };
   let now = NOW;
   const readings = createReadingsStore(null, () => now);
+  bindReadings(game, readings);
   const toolCalls: string[] = [];
   const tools: ToolsApi = {
     detect: async (c) => (toolCalls.push(`detect ${c.x},${c.y}`), options.detect ?? { ok: true, count: 1 }),
@@ -322,13 +323,6 @@ describe("GameClient", () => {
     expect(t.toolCalls).toEqual([]);
     expect(t.ui.getState()).toMatchObject({ tool: "defuser", selection: { x: 3, y: 3 } });
     expect(toastTexts(t.ui)).toEqual(["Дефьюзеры закончились"]);
-  });
-
-  test("readings follow the logged-in user", () => {
-    t.game.setState({ user: { id: 2, name: "other" } });
-    expect(t.readings.getState().userId).toBe(2);
-    t.game.setState({ user: null });
-    expect(t.readings.getState().userId).toBeNull();
   });
 
   test("logout or a user change brings the brush back", () => {
