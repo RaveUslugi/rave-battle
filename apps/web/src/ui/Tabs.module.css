@@ -210,3 +210,55 @@
   border-top: 1px solid var(--panel-border);
   font-variant-numeric: tabular-nums;
 }
+
+.profileName {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.badgeMe {
+  color: var(--neon-cyan);
+  font-size: 14px;
+}
+
+.badgeBanned {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+
+.stat dt {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.stat dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap {
+  display: block;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.stat .swatch {
+  display: block;
+}
