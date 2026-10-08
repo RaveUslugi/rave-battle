@@ -10,8 +10,8 @@
   backdrop-filter: blur(6px);
 }
 
-.bomb,
-.bombOn {
+.tool,
+.toolOn {
   flex: none;
   display: flex;
   gap: 6px;
@@ -27,10 +27,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-.bombOn {
+.toolOn {
   border-color: var(--neon-pink);
   background: rgba(255, 43, 214, 0.2);
   box-shadow: var(--glow-pink);
+}
+
+.tools {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }
 
 .swatches {
@@ -74,5 +80,14 @@
   .swatch {
     width: 44px;
     height: 44px;
+  }
+}
+
+/* Phones: three tool buttons plus swatches need the room. */
+@media (max-width: 480px) {
+  .tool,
+  .toolOn {
+    min-width: 48px;
+    padding: 0 8px;
   }
 }
