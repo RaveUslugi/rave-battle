@@ -8,11 +8,26 @@ const BASE_COLORS = [
   "#FF99AA", "#6D482F", "#9C6926", "#FFB470", "#515252", "#898D90", "#D4D7D9", "#FFFFFF",
 ];
 
+/** Neon extras sold in the shop (slots 32–39). */
+const SHOP_COLORS: Array<[base: string, price: number]> = [
+  ["#FF00E5", 200],
+  ["#00FFF0", 200],
+  ["#39FF14", 250],
+  ["#FFF01F", 250],
+  ["#FF5F1F", 300],
+  ["#BC13FE", 350],
+  ["#FF073A", 400],
+  ["#04D9FF", 500],
+];
+
 export const defaultConfig: GameConfig = {
   canvas: { width: 512, height: 512 },
-  palette: BASE_COLORS.map(
-    (base, id): PaletteEntry => ({ id, type: "solid", base, params: {}, unlock: "default" }),
-  ),
+  palette: [
+    ...BASE_COLORS.map((base, id): PaletteEntry => ({ id, type: "solid", base, params: {}, unlock: "default" })),
+    ...SHOP_COLORS.map(
+      ([base, price], i): PaletteEntry => ({ id: BASE_COLORS.length + i, type: "solid", base, params: {}, unlock: "shop", price }),
+    ),
+  ],
   charges: { max: 10, regenMs: 30_000 },
   coinsPerPixel: 1,
   explosion: {

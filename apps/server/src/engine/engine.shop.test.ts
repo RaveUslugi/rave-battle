@@ -52,34 +52,34 @@ describe("buyChargeBoost", () => {
 describe("buyColor", () => {
   const withShopColor = () =>
     makeEngine((cfg) => {
-      cfg.palette.push({ id: 32, type: "animated", base: "#FF00FF", params: {}, unlock: "shop", price: 200 });
-      cfg.palette.push({ id: 33, type: "solid", base: "#00FFFF", params: {}, unlock: "daily" });
+      cfg.palette.push({ id: 40, type: "animated", base: "#FF00FF", params: {}, unlock: "shop", price: 200 });
+      cfg.palette.push({ id: 41, type: "solid", base: "#00FFFF", params: {}, unlock: "daily" });
     });
 
   test("unlocks a shop color", () => {
     const { engine, addPlayer } = withShopColor();
     const a = addPlayer(1);
     a.coins = 300;
-    expect(engine.buyColor(1, 32, T0)).toEqual({ ok: true });
+    expect(engine.buyColor(1, 40, T0)).toEqual({ ok: true });
     expect(a.coins).toBe(100);
-    expect(a.unlockedColors.has(32)).toBe(true);
+    expect(a.unlockedColors.has(40)).toBe(true);
     expect(eventsOf(engine.drainEvents(), "color_unlocked")).toEqual([
-      { type: "color_unlocked", userId: 1, colorId: 32, source: "shop", at: T0 },
+      { type: "color_unlocked", userId: 1, colorId: 40, source: "shop", at: T0 },
     ]);
-    expect(engine.buyColor(1, 32, T0)).toEqual({ ok: false, code: "already_unlocked" });
+    expect(engine.buyColor(1, 40, T0)).toEqual({ ok: false, code: "already_unlocked" });
   });
 
   test("rejects colors that are not sold or do not exist", () => {
     const { engine, addPlayer } = withShopColor();
     addPlayer(1);
     expect(engine.buyColor(1, 5, T0)).toEqual({ ok: false, code: "not_for_sale" });
-    expect(engine.buyColor(1, 33, T0)).toEqual({ ok: false, code: "not_for_sale" });
+    expect(engine.buyColor(1, 41, T0)).toEqual({ ok: false, code: "not_for_sale" });
     expect(engine.buyColor(1, 99, T0)).toEqual({ ok: false, code: "invalid_color" });
   });
 
   test("rejects when coins are short", () => {
     const { engine, addPlayer } = withShopColor();
     addPlayer(1);
-    expect(engine.buyColor(1, 32, T0)).toEqual({ ok: false, code: "insufficient_coins" });
+    expect(engine.buyColor(1, 40, T0)).toEqual({ ok: false, code: "insufficient_coins" });
   });
 });
