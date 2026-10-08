@@ -62,8 +62,10 @@
   box-shadow: var(--glow-pink);
 }
 
-.buy:disabled {
+.buy:disabled,
+.armed:disabled {
   opacity: 0.45;
+  box-shadow: none;
   cursor: default;
 }
 

@@ -46,7 +46,8 @@ export function ShopTab() {
   };
 
   const row = (offer: Offer) => {
-    const disabled = busy !== null || offer.owned || (offer.kind === "boost" && offer.maxed) || !offer.affordable;
+    // Busy rows stay focusable (a real `disabled` would drop keyboard focus); `onBuy` ignores clicks meanwhile.
+    const disabled = offer.owned || (offer.kind === "boost" && offer.maxed) || !offer.affordable;
     const label = offer.owned
       ? "Есть"
       : offer.kind === "boost" && offer.maxed
@@ -62,6 +63,8 @@ export function ShopTab() {
           type="button"
           className={armed === offer.key ? styles.armed : styles.buy}
           disabled={disabled}
+          aria-disabled={busy !== null || undefined}
+          aria-busy={busy === offer.key || undefined}
           aria-label={`${offer.title}: ${label}`}
           onClick={() => void onBuy(offer)}
         >
