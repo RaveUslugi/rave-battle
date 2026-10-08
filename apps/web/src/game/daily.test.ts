@@ -1,6 +1,6 @@
 import { defaultConfig, type PlayerView } from "@rave/shared";
 import { describe, expect, test } from "bun:test";
-import { dailyState } from "./daily";
+import { dailyState, rewardText } from "./daily";
 
 // 2026-10-08 12:00 UTC = 15:00 Moscow.
 const NOON = Date.UTC(2026, 9, 8, 12);
@@ -19,5 +19,12 @@ describe("dailyState", () => {
 
   test("a step beyond a shortened reward list wraps", () => {
     expect(dailyState(player(9, null), defaultConfig, NOON).step).toBe(2);
+  });
+
+  test("reward texts", () => {
+    expect(rewardText({ item: "coins", amount: 30 })).toBe("30 🪙");
+    expect(rewardText({ item: "bomb", amount: 2 })).toBe("💣 ×2");
+    expect(rewardText({ item: "detector", amount: 5 })).toBe("🔍 +5");
+    expect(rewardText({ item: "defuser", amount: 2 })).toBe("🧯 +2");
   });
 });

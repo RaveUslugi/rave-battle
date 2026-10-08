@@ -66,3 +66,55 @@
   opacity: 0.45;
   cursor: default;
 }
+
+.calendar {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.day,
+.dayNext,
+.dayTaken {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayNext {
+  border-color: var(--neon-pink);
+  box-shadow: var(--glow-pink);
+}
+
+.dayTaken {
+  border-color: var(--neon-cyan);
+  opacity: 0.7;
+}
+
+.dayNumber {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.claim {
+  min-height: 44px;
+  margin-top: 8px;
+  background: rgba(255, 43, 214, 0.2);
+  border: 1px solid var(--neon-pink);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.claim:disabled {
+  background: none;
+  border-color: var(--panel-border);
+  opacity: 0.7;
+  cursor: default;
+}
