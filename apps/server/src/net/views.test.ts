@@ -116,4 +116,11 @@ describe("buildFeed", () => {
     ]);
     for (const message of feed) expect(Object.keys(message).sort()).toEqual(["actor", "at", "kind", "owner", "type"]);
   });
+
+  test("moderator bomb removals stay out of the feed", () => {
+    const events: EngineEvent[] = [
+      { type: "bomb_removed", x: 5, y: 5, ownerId: 1, reason: "moderated", removedBy: 2, at: T0 },
+    ];
+    expect(buildFeed(events, directory())).toEqual([]);
+  });
 });

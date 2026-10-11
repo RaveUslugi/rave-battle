@@ -117,7 +117,7 @@ async function insertPixels(tx: Tx, batch: Batch): Promise<void> {
         colorId: e.colorId,
         prevColorId: e.prevColorId,
         prevUserId: e.prevUserId || null,
-        kind: "place" as const,
+        kind: e.kind,
         createdAt: new Date(e.at),
       })),
     );

@@ -164,6 +164,20 @@ describe("writeBatch", () => {
     expect(bytesToOwners(snap!.owners)[256 + 1]).toBe(a);
   });
 
+  test("moderation pixels keep their kind and a null user; moderated bomb removal records the admin", async () => {
+    await setup();
+    const events: EngineEvent[] = [
+      { type: "bomb_added", x: 5, y: 5, ownerId: a, at: T0 },
+      { type: "pixel", kind: "mod_clear", x: 5, y: 5, userId: 0, colorId: 0, prevColorId: 3, prevUserId: a, at: T0 + 1 },
+      { type: "bomb_removed", x: 5, y: 5, ownerId: a, reason: "moderated", removedBy: b, at: T0 + 1 },
+    ];
+    await write({ events });
+    const [pixel] = await t.db.select().from(pixelEvents);
+    expect(pixel).toMatchObject({ x: 5, y: 5, userId: null, colorId: 0, prevColorId: 3, prevUserId: a, kind: "mod_clear" });
+    const [bomb] = await t.db.select().from(bombs);
+    expect(bomb).toMatchObject({ removedReason: "moderated", removedBy: b });
+  });
+
   test("removing a bomb that is not active in the database fails the batch", async () => {
     await setup();
     const removed: EngineEvent = { type: "bomb_removed", x: 5, y: 5, ownerId: a, reason: "exploded", removedBy: b, at: T0 };

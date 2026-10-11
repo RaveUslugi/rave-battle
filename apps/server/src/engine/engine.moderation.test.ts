@@ -43,6 +43,27 @@ describe("applyModeration", () => {
     expect(eventsOf(engine.drainEvents(), "pixel")).toEqual([]);
   });
 
+  test("a no-op write emits no event and counts neither as a cell nor as skipped", () => {
+    const { engine, canvas } = makeEngine();
+    canvas.set(5, 5, 7, 2);
+    const res = engine.applyModeration(
+      {
+        kind: "mod_clear",
+        writes: [
+          { x: 4, y: 4, expect: { colorId: 0, ownerId: 0 }, colorId: 0, ownerId: 0 },
+          { x: 5, y: 5, expect: { colorId: 7, ownerId: 2 }, colorId: 0, ownerId: 0 },
+        ],
+        bombs: [],
+      },
+      meta(),
+      T0,
+    );
+    expect(res).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    expect(eventsOf(engine.drainEvents(), "pixel")).toEqual([
+      { type: "pixel", kind: "mod_clear", x: 5, y: 5, userId: 0, colorId: 0, prevColorId: 7, prevUserId: 2, at: T0 },
+    ]);
+  });
+
   test("skips out-of-bounds writes", () => {
     const { engine } = makeEngine();
     const res = engine.applyModeration(
