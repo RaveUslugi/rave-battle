@@ -1,0 +1,81 @@
+/* The game root is position: fixed with body overflow hidden; the admin page scrolls inside its own fixed layer. */
+.root {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--text);
+  padding: 16px;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--neon-cyan);
+  text-shadow: var(--glow-cyan);
+}
+
+.link {
+  color: var(--neon-cyan);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.tab[aria-pressed="true"] {
+  border-color: var(--neon-pink);
+  box-shadow: var(--glow-pink);
+}
+
+.message {
+  color: var(--muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.tableWrap table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+  white-space: nowrap;
+}
