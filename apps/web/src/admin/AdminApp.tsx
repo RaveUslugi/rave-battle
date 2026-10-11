@@ -14,7 +14,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 /** A query-string value kept in sync with the address bar without adding history entries. */
-function useSearchParam(name: string): [string | null, (value: string) => void] {
+export function useSearchParam(name: string): [string | null, (value: string) => void] {
   const [value, setValue] = useState(() => new URLSearchParams(window.location.search).get(name));
   const set = (next: string) => {
     const params = new URLSearchParams(window.location.search);
