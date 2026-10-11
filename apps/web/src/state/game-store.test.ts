@@ -3,7 +3,7 @@ import { defaultConfig, type PlayerView } from "@rave/shared";
 import { createGameStore, gameStore, serverTime } from "./game-store";
 
 test("hello fills identity, config and player", () => {
-  gameStore.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: null });
+  gameStore.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: null, admin: false });
   const state = gameStore.getState();
   expect(state.bootId).toBe("b");
   expect(state.user).toEqual({ id: 1, name: "a" });
@@ -40,7 +40,7 @@ test("player views set the clock offset; serverTime applies it", () => {
   let local = 1_000;
   const store = createGameStore(() => local);
   expect(store.getState().clockOffset).toBe(0);
-  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000) });
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000), admin: false });
   expect(store.getState().clockOffset).toBe(5_000);
   local = 2_000;
   store.getState().setPlayer(view(1_500));
@@ -51,7 +51,7 @@ test("player views set the clock offset; serverTime applies it", () => {
 test("hello without a player keeps the offset", () => {
   const store = createGameStore(() => 0);
   store.getState().setPlayer(view(3_000));
-  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null });
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null, admin: false });
   expect(store.getState().clockOffset).toBe(3_000);
 });
 

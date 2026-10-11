@@ -13,6 +13,8 @@ export interface SessionUser {
   /** Epoch ms, Infinity for permanent, null when not banned. */
   bannedUntil: number | null;
   guildMember: boolean;
+  discordId: string;
+  banReason: string | null;
   /** Hash of the session token; identifies the session without exposing the token. */
   sessionId: string;
 }
@@ -40,6 +42,8 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
       discordCreatedAt: users.discordCreatedAt,
       bannedUntil: users.bannedUntil,
       guildMember: users.guildMember,
+      discordId: users.discordId,
+      banReason: users.banReason,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -52,6 +56,8 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
     discordCreatedAt: row.discordCreatedAt.getTime(),
     bannedUntil: banFromDate(row.bannedUntil),
     guildMember: row.guildMember,
+    discordId: row.discordId,
+    banReason: row.banReason,
     sessionId: sessionIdOf(token),
   };
 }

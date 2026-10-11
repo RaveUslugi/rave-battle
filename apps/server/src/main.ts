@@ -1,3 +1,4 @@
+import { isAdmin } from "./auth/admin";
 import { restoreDevAdmin } from "./auth/dev-admin";
 import { deleteExpiredSessions } from "./auth/session";
 import { createDb } from "./db/client";
@@ -29,7 +30,7 @@ async function main(): Promise<void> {
   let hub: Hub | undefined;
   const runtime = await bootGame(db, { onCommit: (events) => hub?.handleCommit(events) });
   if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
-  hub = new Hub({ runtime, users });
+  hub = new Hub({ runtime, users, isAdmin: (u) => isAdmin(u.discordId, config) });
   const stats = new StatsService(db, runtime, users);
   const server = startServer({ db, runtime, hub, users, config, stats });
   console.log(`Rave Battle server listening on :${server.port}`);

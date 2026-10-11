@@ -59,6 +59,8 @@ describe("sessions", () => {
       discordCreatedAt: Date.UTC(2015, 0, 1),
       bannedUntil: null,
       guildMember: true,
+      discordId: expect.any(String),
+      banReason: null,
       sessionId: expect.any(String),
     });
   });

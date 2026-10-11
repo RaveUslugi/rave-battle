@@ -234,6 +234,8 @@ export type ServerMessage =
       user: UserRef | null;
       config: GameConfig;
       player: PlayerView | null;
+      /** Whether to show admin links; every admin call is checked on the server. */
+      admin: boolean;
     }
   | { type: "player"; player: PlayerView }
   | { type: "placed"; reqId: number; result: PlaceResultView }

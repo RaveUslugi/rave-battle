@@ -1,6 +1,7 @@
 import { itemKeySchema } from "@rave/shared";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { isAdmin } from "../auth/admin";
 import { toPlayerView } from "../net/views";
 import { BOARDS, PERIODS } from "../stats/leaderboards";
 import { playerProcedure, publicProcedure, router } from "./init";
@@ -21,6 +22,10 @@ export const appRouter = router({
       ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id))
       : null;
     return { user: ctx.deps.users.ref(ctx.user.id), player };
+  }),
+
+  admin: router({
+    whoami: publicProcedure.query(({ ctx }) => ({ admin: ctx.user !== null && isAdmin(ctx.user.discordId, ctx.deps.config) })),
   }),
 
   shop: router({

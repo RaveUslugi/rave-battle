@@ -11,6 +11,7 @@ import {
 } from "@rave/shared";
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
+import { isAdmin } from "../auth/admin";
 import type { DiscordConfig, FetchFn } from "../auth/discord";
 import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
@@ -40,8 +41,6 @@ async function start(
   const users = await UserDirectory.load(t.db);
   let hubRef: Hub | undefined;
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {}, onCommit: (events) => hubRef?.handleCommit(events) });
-  hub = new Hub({ runtime, users, onlineDebounceMs: 10, ...options.hub });
-  hubRef = hub;
   const config: ServerConfig = {
     databaseUrl: "",
     port: 0,
@@ -50,8 +49,11 @@ async function start(
     devLogin: options.devLogin ?? true,
     secureCookies: false,
     sessionTtlMs: 86_400_000,
+    adminDiscordIds: new Set(),
     discord: options.discord ?? null,
   };
+  hub = new Hub({ runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  hubRef = hub;
   server = startServer({ db: t.db, runtime, hub, users, config, stats: new StatsService(t.db, runtime, users), fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
@@ -182,6 +184,9 @@ describe("websocket", () => {
     for (let i = 1; i <= cap + 2; i++) expect((await placed(admin, i)).result).toEqual({ ok: true, outcome: "placed" });
     const bob = await connect(await login("bob"));
     expect(hello(bob).player?.unlimited).toBe(false);
+    expect(hello(admin).admin).toBe(true);
+    expect(hello(bob).admin).toBe(false);
+    expect(hello(await connect()).admin).toBe(false);
   });
 
   test("logout closes the sockets of that session only", async () => {

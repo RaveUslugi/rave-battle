@@ -42,6 +42,8 @@ export interface HubOptions {
   messageRate?: { capacity: number; perSecond: number };
   maxConnectionsPerIp?: number;
   onlineDebounceMs?: number;
+  /** Whether to tell the client to show admin links; defaults to nobody. */
+  isAdmin?: (user: SessionUser) => boolean;
 }
 
 type Socket = ServerWebSocket<SocketData>;
@@ -168,6 +170,7 @@ export class Hub {
       user: user ? this.options.users.ref(user.id) : null,
       config: this.options.runtime.engine.config,
       player,
+      admin: user !== null && (this.options.isAdmin?.(user) ?? false),
     });
     send(ws, { type: "feed_history", entries: [...this.feedHistory] });
     // Topics only after hello, so it is always the first message the client sees.

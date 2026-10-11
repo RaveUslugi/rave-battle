@@ -23,6 +23,7 @@ const config: ServerConfig = {
   devLogin: true,
   secureCookies: false,
   sessionTtlMs: 86_400_000,
+  adminDiscordIds: new Set(["discord-admin"]),
   discord: null,
 };
 
@@ -37,6 +38,8 @@ const sessionUser = (id: number, username: string): SessionUser => ({
   discordCreatedAt: Date.UTC(2020, 0, 1),
   bannedUntil: null,
   guildMember: true,
+  discordId: `discord-${username}`,
+  banReason: null,
   sessionId: `s-${id}`,
 });
 
@@ -60,6 +63,12 @@ describe("appRouter", () => {
     const me = await as(alice).me();
     expect(me?.user).toEqual({ id: alice.id, name: "alice" });
     expect(me?.player?.coins).toBe(130);
+  });
+
+  test("admin.whoami reports admin rights from the server config", async () => {
+    expect(await as(null).admin.whoami()).toEqual({ admin: false });
+    expect(await as(alice).admin.whoami()).toEqual({ admin: false });
+    expect(await as(sessionUser(99, "admin")).admin.whoami()).toEqual({ admin: true });
   });
 
   test("player actions require a session", async () => {

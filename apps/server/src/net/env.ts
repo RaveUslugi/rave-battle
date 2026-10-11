@@ -11,6 +11,8 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /** `KEY=` in .env means "not set". */
 const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
 
+const splitList = (value: string) => value.split(",").map((s) => s.trim()).filter(Boolean);
+
 const envSchema = z
   .object({
     DATABASE_URL: z.url(),
@@ -20,6 +22,10 @@ const envSchema = z
     DEV_LOGIN: z.enum(["0", "1"]).default("0"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+    ADMIN_DISCORD_IDS: z
+      .string()
+      .default("")
+      .refine((v) => splitList(v).every((s) => /^\d+$/.test(s)), { message: "comma-separated numeric Discord ids" }),
     DISCORD_CLIENT_ID: optionalString,
     DISCORD_CLIENT_SECRET: optionalString,
     DISCORD_GUILD_ID: z.preprocess((value) => (value === "" ? undefined : value), z.string().regex(/^\d+$/).optional()),
@@ -50,6 +56,8 @@ export interface ServerConfig {
   devLogin: boolean;
   secureCookies: boolean;
   sessionTtlMs: number;
+  /** Discord ids with admin rights. */
+  adminDiscordIds: Set<string>;
   /** null when Discord login is not configured (development). */
   discord: DiscordConfig | null;
 }
@@ -77,6 +85,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     devLogin: env.DEV_LOGIN === "1",
     secureCookies: publicUrl.protocol === "https:",
     sessionTtlMs: env.SESSION_TTL_DAYS * DAY_MS,
+    adminDiscordIds: new Set(splitList(env.ADMIN_DISCORD_IDS)),
     discord:
       env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
         ? {
