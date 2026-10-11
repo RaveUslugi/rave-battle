@@ -106,8 +106,13 @@ describe("ban", () => {
     expect(runtime.engine.players.has(ann)).toBe(false);
     const { token } = await createSession(t.db, ann, 86_400_000, Date.now());
     const session = (await resolveSession(t.db, token, Date.now()))!;
-    const p = await runtime.addPlayer({ userId: ann, accountCreatedAt: session.discordCreatedAt, guildMember: true });
-    runtime.engine.setAccess(ann, { bannedUntil: session.bannedUntil, banReason: session.banReason });
+    const p = await runtime.addPlayer({
+      userId: ann,
+      accountCreatedAt: session.discordCreatedAt,
+      guildMember: session.guildMember,
+      bannedUntil: session.bannedUntil,
+      banReason: session.banReason,
+    });
     expect(p.banReason).toBe("later");
     expect(await place(ann)).toEqual({ ok: false, code: "banned" });
   });
