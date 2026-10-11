@@ -15,6 +15,17 @@ const delta = z.number().int().min(-1_000_000).max(1_000_000).optional();
 
 const cell = z.object({ x: z.number().int().nonnegative(), y: z.number().int().nonnegative() });
 
+const nat = z.number().int().nonnegative();
+const rect = z.object({ x1: nat, y1: nat, x2: nat, y2: nat });
+// A plain union: zod's discriminatedUnion cannot hold several variants with the same `kind`.
+const moderationAction = z.union([
+  z.object({ kind: z.literal("rollback_player"), userId, from: nat, to: nat, area: rect.nullable(), removeBombs: z.boolean() }),
+  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("fill") }),
+  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("to_time"), at: nat }),
+  z.object({ kind: z.literal("remove_bombs"), userId }),
+  z.object({ kind: z.literal("remove_bombs"), area: rect }),
+]);
+
 /**
  * Everything except pixels (those go over the WebSocket). Mutations run through the runtime, so
  * player updates and feed entries reach WebSocket clients via the commit hook.
@@ -47,6 +58,19 @@ export const appRouter = router({
         .mutation(({ ctx, input }) => ctx.deps.admin.adjust(ctx.user, input)),
     }),
     // `cursor` is the useInfiniteQuery input name; the service calls it `before`.
+    canvas: router({
+      inspect: adminProcedure.input(z.object({ cell })).query(async ({ ctx, input }) => {
+        const result = await ctx.deps.admin.inspect(input.cell.x, input.cell.y);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND" });
+        return result;
+      }),
+      areaOwners: adminProcedure.input(z.object({ area: rect })).query(({ ctx, input }) => ctx.deps.admin.areaOwners(input.area)),
+    }),
+    moderation: router({
+      preview: adminProcedure.input(z.object({ action: moderationAction })).query(({ ctx, input }) => ctx.deps.admin.previewModeration(input.action)),
+      // Not `apply`: tRPC reserves that name on routers.
+      execute: adminProcedure.input(z.object({ action: moderationAction })).mutation(({ ctx, input }) => ctx.deps.admin.applyModeration(ctx.user, input.action)),
+    }),
     modLog: adminProcedure
       .input(
         z.object({

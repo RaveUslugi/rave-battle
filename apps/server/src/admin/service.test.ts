@@ -220,3 +220,73 @@ describe("modLog", () => {
     expect(forAnn.entries.every((e) => e.target?.id === ann)).toBe(true);
   });
 });
+
+describe("canvas inspector and moderation", () => {
+  const NOW = Date.now();
+  const placeAt = async (userId: number, x: number, y: number, colorId: number, at: number, withBomb = false) => {
+    const res = await runtime.run((e) => e.placePixel(userId, { x, y, colorId, withBomb }, at));
+    expect(res).toMatchObject({ ok: true });
+  };
+  const joinUnlimited = async (id: number) => {
+    await join(id);
+    runtime.engine.grantUnlimited(id);
+  };
+
+  test("inspect returns owner, bomb with owner and history newest first, capped at 20", async () => {
+    await joinUnlimited(ann);
+    await joinUnlimited(bob);
+    for (let i = 0; i < 25; i++) await placeAt(i % 2 === 0 ? ann : bob, 4, 4, 3 + (i % 2), NOW - 100_000 + i * 1000, i === 24);
+    const view = (await service.inspect(4, 4))!;
+    expect(view).toMatchObject({ x: 4, y: 4, colorId: 3, owner: { id: ann, name: "ann" } });
+    expect(view.bomb).toMatchObject({ owner: { id: ann, name: "ann" } });
+    expect(view.history).toHaveLength(20);
+    expect(view.history[0]).toMatchObject({ user: { id: ann }, colorId: 3, prevColorId: 4, kind: "place" });
+    expect(view.history[0]!.at).toBeGreaterThan(view.history[1]!.at);
+    expect(await service.inspect(9, 9)).toMatchObject({ owner: null, bomb: null, history: [] });
+    expect(await service.inspect(-1, 0)).toBeNull();
+    expect(await service.inspect(1_000_000, 0)).toBeNull();
+  });
+
+  test("preview and apply a player rollback, logging the counters", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 2, 2, 3, NOW - 10_000);
+    const action = { kind: "rollback_player", userId: ann, from: NOW - 20_000, to: NOW, area: null, removeBombs: false } as const;
+    expect(await service.previewModeration(action)).toEqual({ ok: true, cells: 1, bombs: 0, bbox: { x1: 2, y1: 2, x2: 2, y2: 2 } });
+    expect(await service.applyModeration(admin, action)).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    expect(runtime.engine.canvas.get(2, 2)).toMatchObject({ colorId: 0, ownerId: 0 });
+    await runtime.flush();
+    const [row] = (await logRows()).filter((r) => r.action === "rollback_player");
+    expect(row).toMatchObject({ adminId: admin.id, targetUserId: ann });
+    expect(row!.params).toMatchObject({ cells: 1, skipped: 0, bombs: 0 });
+  });
+
+  test("apply reports plan errors", async () => {
+    expect(await service.applyModeration(admin, { kind: "clear_area", area: { x1: 0, y1: 0, x2: 9999, y2: 0 }, mode: "fill" })).toEqual({ ok: false, code: "bad_area" });
+    expect(await service.previewModeration({ kind: "remove_bombs", userId: 99999 })).toEqual({ ok: false, code: "not_found" });
+  });
+
+  test("concurrent applies run one after another", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 2, 2, 3, NOW - 10_000);
+    const action = { kind: "rollback_player", userId: ann, from: NOW - 20_000, to: NOW, area: null, removeBombs: false } as const;
+    const [a, b] = await Promise.all([service.applyModeration(admin, action), service.applyModeration(admin, action)]);
+    expect(a).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    expect(b).toEqual({ ok: true, cells: 0, skipped: 0, bombs: 0 });
+  });
+
+  test("areaOwners sorts authors by cell count", async () => {
+    await joinUnlimited(ann);
+    await joinUnlimited(bob);
+    await placeAt(bob, 1, 1, 3, NOW - 5000);
+    await placeAt(ann, 2, 1, 3, NOW - 4000);
+    await placeAt(ann, 3, 1, 3, NOW - 3000);
+    expect(service.areaOwners({ x1: 0, y1: 0, x2: 5, y2: 5 })).toEqual({
+      ok: true,
+      owners: [
+        { user: { id: ann, name: "ann" }, cells: 2 },
+        { user: { id: bob, name: "bob_x" }, cells: 1 },
+      ],
+    });
+    expect(service.areaOwners({ x1: 0, y1: 0, x2: 256, y2: 255 })).toEqual({ ok: false, code: "area_too_large" });
+  });
+});
