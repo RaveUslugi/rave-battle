@@ -95,7 +95,7 @@ function chunkResponse(deps: AppDeps, cx: number, cy: number): Response {
 
 function overviewResponse(deps: AppDeps, cache: OverviewCache): Response {
   return new Response(cache.get(deps.runtime.engine.canvas), {
-    headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/octet-stream", "Content-Encoding": "gzip", "Cache-Control": "public, max-age=5" },
   });
 }
 
@@ -135,6 +135,8 @@ async function trpc(req: Request, deps: AppDeps, limiter: UserRateLimiter): Prom
     endpoint: "/trpc",
     req,
     router: appRouter,
+    // Each call in a batch is real work; the IP limit counts HTTP requests. The client batches at most as many.
+    maxBatchSize: 10,
     createContext: () => ({ deps, user, limiter }),
     onError: ({ error, path }) => {
       if (error.code === "INTERNAL_SERVER_ERROR") console.error("tRPC error", path, error);

@@ -1,6 +1,6 @@
 import { defaultConfig, type PlayerView } from "@rave/shared";
 import { describe, expect, test } from "bun:test";
-import { dailyState, rewardText } from "./daily";
+import { claimBlocked, dailyState, rewardText } from "./daily";
 
 // 2026-10-08 12:00 UTC = 15:00 Moscow.
 const NOON = Date.UTC(2026, 9, 8, 12);
@@ -26,5 +26,15 @@ describe("dailyState", () => {
     expect(rewardText({ item: "bomb", amount: 2 })).toBe("💣 ×2");
     expect(rewardText({ item: "detector", amount: 5 })).toBe("🔍 +5");
     expect(rewardText({ item: "defuser", amount: 2 })).toBe("🧯 +2");
+  });
+});
+
+describe("claimBlocked", () => {
+  const open = { claimedToday: false, pending: false, watchOnly: false };
+  test("open only when nothing is in the way", () => {
+    expect(claimBlocked(open)).toBe(false);
+    expect(claimBlocked({ ...open, claimedToday: true })).toBe(true);
+    expect(claimBlocked({ ...open, pending: true })).toBe(true);
+    expect(claimBlocked({ ...open, watchOnly: true })).toBe(true);
   });
 });

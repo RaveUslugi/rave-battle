@@ -35,7 +35,7 @@ export function PaletteBar() {
   const onLocked = (entry: PaletteEntry) => {
     const ui = uiStore.getState();
     if (entry.unlock !== "shop") return ui.pushToast("info", "Этот цвет откроется позже");
-    if (!player) return ui.pushToast("error", rejectText("unauthorized"));
+    if (!player) return ui.pushToast("error", rejectText("login_required"));
     ui.openPanel("shop");
   };
 

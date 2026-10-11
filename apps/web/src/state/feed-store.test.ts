@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createFeedStore, feedText, FEED_LIMIT } from "./feed-store";
+import { createFeedStore, feedParts, feedText, FEED_LIMIT } from "./feed-store";
 
 const entry = (actor: string, owner: string, kind: "exploded" | "defused" = "exploded", at = 1) =>
   ({ type: "feed", kind, actor: { id: actor.length, name: actor }, owner: { id: owner.length, name: owner }, at }) as const;
@@ -23,5 +23,11 @@ describe("feed store", () => {
     expect(feedText({ ...entry("bob", "bob"), owner: { id: 3, name: "bob" }, actor: { id: 3, name: "bob" } })).toBe("💥 bob подорвался на своей бомбе");
     expect(feedText(entry("eve", "alice", "defused"))).toBe("🧯 eve обезвредил бомбу alice");
     expect(feedText({ ...entry("eve", "eve", "defused"), owner: { id: 3, name: "eve" }, actor: { id: 3, name: "eve" } })).toBe("🧯 eve снял свою бомбу");
+  });
+
+  test("parts keep names as user references", () => {
+    expect(feedParts(entry("bob", "alice"))).toEqual(["💥 ", { id: 3, name: "bob" }, " подорвался на бомбе ", { id: 5, name: "alice" }]);
+    const self = { ...entry("bob", "bob"), actor: { id: 3, name: "bob" }, owner: { id: 3, name: "bob" } };
+    expect(feedParts(self)).toEqual(["💥 ", { id: 3, name: "bob" }, " подорвался на своей бомбе"]);
   });
 });

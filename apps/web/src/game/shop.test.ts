@@ -1,6 +1,6 @@
 import { defaultConfig, type PlayerView } from "@rave/shared";
 import { describe, expect, test } from "bun:test";
-import { CONFIRM_FROM, shopOffers } from "./shop";
+import { CONFIRM_FROM, offerBlocked, shopOffers } from "./shop";
 
 // The view carries only the total cap; the bonus is `chargeCap - charges.max` (10 by default).
 const player = (overrides: Partial<PlayerView> = {}) =>
@@ -23,5 +23,15 @@ describe("shopOffers", () => {
   test("the boost is maxed at maxTotal", () => {
     const boost = shopOffers(defaultConfig, player({ coins: 9999, chargeCap: 20 })).find((o) => o.key === "boost")!;
     expect(boost).toMatchObject({ maxed: true, title: "⚡ Ёмкость зарядов +5 (10/10)" });
+  });
+});
+
+describe("offerBlocked", () => {
+  test("owned, maxed and unaffordable offers cannot be bought", () => {
+    const offers = shopOffers(defaultConfig, player({ coins: 100, chargeCap: 20 }));
+    expect(offerBlocked(offers.find((o) => o.key === "item:bomb")!)).toBe(false);
+    expect(offerBlocked(offers.find((o) => o.key === "color:33")!)).toBe(true); // owned
+    expect(offerBlocked(offers.find((o) => o.key === "item:defuser")!)).toBe(true); // 150 > 100
+    expect(offerBlocked(offers.find((o) => o.key === "boost")!)).toBe(true); // maxed
   });
 });

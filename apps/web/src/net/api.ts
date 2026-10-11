@@ -1,9 +1,7 @@
 import type { ItemKey, Reward } from "@rave/shared/client";
-import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
-import type { AppRouter } from "../../../server/src/trpc/router";
+import { TRPCClientError } from "@trpc/client";
 import type { ToolsApi } from "../game/tools";
-
-const trpc = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: "/trpc" })] });
+import { trpcClient as trpc } from "./trpc";
 
 /** Turns transport and tRPC errors into the same `{ ok: false, code }` shape the engine uses. */
 export async function call<T>(run: () => Promise<T>): Promise<T | { ok: false; code: string }> {

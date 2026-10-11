@@ -2,19 +2,26 @@ import { useEffect, useId, useRef } from "react";
 import { useGame } from "../state/game-store";
 import { uiStore, useUi, type Panel } from "../state/ui-store";
 import { DailyTab } from "./DailyTab";
+import { LeadersTab } from "./LeadersTab";
+import { ProfileTab } from "./ProfileTab";
 import { ShopTab } from "./ShopTab";
 import styles from "./SidePanel.module.css";
 
-const TABS: Array<{ panel: Panel; title: string }> = [
-  { panel: "shop", title: "Магазин" },
-  { panel: "daily", title: "Дейлик" },
+const TABS: Array<{ panel: Panel; title: string; needsLogin: boolean }> = [
+  { panel: "shop", title: "Магазин", needsLogin: true },
+  { panel: "daily", title: "Дейлик", needsLogin: true },
+  { panel: "leaders", title: "Рейтинги", needsLogin: false },
+  { panel: "profile", title: "Профиль", needsLogin: true },
 ];
 
 /** Right-hand drawer (bottom sheet on narrow screens) with one tab at a time; the canvas stays live behind it. */
 export function SidePanel() {
   const panel = useUi((s) => s.panel);
+  const profileUserId = useUi((s) => s.profileUserId);
   const user = useGame((s) => s.user);
-  const open = panel !== null && user !== null;
+  // Visitors may browse the leaderboards and other players' profiles.
+  const otherProfile = profileUserId !== null;
+  const open = panel !== null && (user !== null || panel === "leaders" || (panel === "profile" && otherProfile));
   const idPrefix = useId();
   const asideRef = useRef<HTMLElement>(null);
   /** Whether focus is in the panel; stays set when the panel is removed with focus inside. */
@@ -30,9 +37,13 @@ export function SidePanel() {
     return () => window.removeEventListener("keydown", onKey);
   }, [panel]);
 
-  // Logging out closes the panel: everything in it belongs to a player.
+  // Logging out closes the tabs that belong to the player: shop, daily and their own profile.
   useEffect(() => {
-    if (!user) uiStore.getState().closePanel();
+    if (user) return;
+    const { panel: current, profileUserId: whose, closePanel } = uiStore.getState();
+    if (current === "shop" || current === "daily" || (current === "profile" && whose === null)) closePanel();
+    // The panel stays open but the tab that had focus may be gone: keep focus in the panel.
+    else if (focusInside.current && (document.activeElement === null || document.activeElement === document.body)) asideRef.current?.focus();
   }, [user]);
 
   // Opening moves focus into the panel; closing returns it to whatever opened it (usually the menu button).
@@ -64,14 +75,15 @@ export function SidePanel() {
     >
       <header className={styles.header}>
         <div className={styles.tabs}>
-          {TABS.map((tab) => (
+          {TABS.filter((tab) => user || !tab.needsLogin || (tab.panel === "profile" && otherProfile)).map((tab) => (
             <button
               key={tab.panel}
               id={`${idPrefix}-${tab.panel}`}
               type="button"
               className={panel === tab.panel ? styles.tabOn : styles.tab}
               aria-pressed={panel === tab.panel}
-              onClick={() => uiStore.getState().openPanel(tab.panel)}
+              // Logged in, the tab means your own profile even while someone else's is open.
+              onClick={() => (tab.panel === "profile" && user ? uiStore.getState().openProfile(null) : uiStore.getState().openPanel(tab.panel))}
             >
               {tab.title}
             </button>
@@ -81,7 +93,9 @@ export function SidePanel() {
           ✕
         </button>
       </header>
-      <div className={styles.body}>{panel === "shop" ? <ShopTab /> : <DailyTab />}</div>
+      <div className={styles.body}>
+        {panel === "shop" ? <ShopTab /> : panel === "daily" ? <DailyTab /> : panel === "leaders" ? <LeadersTab /> : <ProfileTab />}
+      </div>
     </aside>
   );
 }

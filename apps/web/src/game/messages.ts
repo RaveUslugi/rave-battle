@@ -1,5 +1,6 @@
 const REJECT_TEXT: Record<string, string> = {
   unauthorized: "Войдите, чтобы рисовать",
+  login_required: "Войдите, чтобы играть",
   unavailable: "Сервер недоступен, попробуйте позже",
   timeout: "Нет ответа от сервера",
   banned: "Вы заблокированы",

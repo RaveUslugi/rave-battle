@@ -183,6 +183,7 @@ export function decodeOverview(bytes: Uint8Array): Overview | null {
   const step = view.getUint16(0, true);
   const width = view.getUint16(2, true);
   const height = view.getUint16(4, true);
+  if (step < 1 || width < 1 || height < 1 || width > OVERVIEW_MAX_SIDE || height > OVERVIEW_MAX_SIDE) return null;
   if (bytes.byteLength !== 6 + width * height) return null;
   return { step, width, height, colors: bytes.slice(6) };
 }
@@ -206,6 +207,10 @@ export interface PlayerView {
   dailyStep: number;
   dailyLastClaim: string | null;
   bannedUntil: number | "permanent" | null;
+  /** "ok", or why the player may only watch (ban, not in the guild, account too new). Freeze is separate. */
+  access: "ok" | "banned" | "not_guild_member" | "account_too_new";
+  /** For "account_too_new": when the account becomes old enough to play; otherwise null. Ban end is `bannedUntil`. */
+  playableAt: number | null;
   /** Dev account: spends nothing and cannot be frozen. */
   unlimited: boolean;
   /** Server clock when this view was built: lets the client compare server timestamps despite clock skew. */

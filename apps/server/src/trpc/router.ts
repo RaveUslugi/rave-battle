@@ -1,7 +1,11 @@
 import { itemKeySchema } from "@rave/shared";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { toPlayerView } from "../net/views";
+import { BOARDS, PERIODS } from "../stats/leaderboards";
 import { playerProcedure, publicProcedure, router } from "./init";
+
+const TOP = 50;
 
 const cell = z.object({ x: z.number().int().nonnegative(), y: z.number().int().nonnegative() });
 
@@ -42,6 +46,24 @@ export const appRouter = router({
     defuse: playerProcedure
       .input(cell)
       .mutation(({ ctx, input }) => ctx.deps.runtime.run((engine, now) => engine.defuse(ctx.user.id, input, now))),
+  }),
+
+  stats: router({
+    leaderboard: publicProcedure
+      .input(z.object({ board: z.enum(BOARDS), period: z.enum(PERIODS) }))
+      .query(async ({ ctx, input }) => {
+        const ranking = await ctx.deps.stats.leaderboards.ranking(input.board, input.period);
+        const mine = ctx.user ? ranking.find((r) => r.userId === ctx.user!.id) : undefined;
+        return {
+          top: ranking.slice(0, TOP).map((r) => ({ rank: r.rank, user: ctx.deps.users.ref(r.userId), value: r.value })),
+          me: mine ? { rank: mine.rank, value: mine.value } : null,
+        };
+      }),
+    profile: publicProcedure.input(z.object({ userId: z.number().int().positive().max(2_147_483_647) })).query(async ({ ctx, input }) => {
+      const profile = await ctx.deps.stats.profiles.profile(input.userId);
+      if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
+      return profile;
+    }),
   }),
 });
 

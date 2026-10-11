@@ -13,6 +13,11 @@ export function dailyState(
   };
 }
 
+/** The claim button does nothing when today's reward is taken, a claim is in flight or the player only watches. */
+export function claimBlocked(s: { claimedToday: boolean; pending: boolean; watchOnly: boolean }): boolean {
+  return s.claimedToday || s.pending || s.watchOnly;
+}
+
 export function rewardText(r: Reward): string {
   if (r.item === "coins") return `${r.amount} 🪙`;
   if (r.item === "bomb") return `💣 ×${r.amount}`;

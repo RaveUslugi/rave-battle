@@ -17,6 +17,7 @@ import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
 import { KeyedRateLimiter } from "./rate-limit";
@@ -51,7 +52,7 @@ async function start(
     sessionTtlMs: 86_400_000,
     discord: options.discord ?? null,
   };
-  server = startServer({ db: t.db, runtime, hub, users, config, fetch: options.fetch, ipLimiter: options.ipLimiter });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats: new StatsService(t.db, runtime, users), fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
 
@@ -136,7 +137,9 @@ describe("http", () => {
     const alice = await connect(await login("alice"));
     alice.ws.send(encodePlace({ reqId: 1, x: 2, y: 2, colorId: 5, withBomb: false }));
     await placed(alice, 1);
-    const o = decodeOverview(new Uint8Array(await (await fetch(`${base}/overview`)).arrayBuffer()))!;
+    const res = await fetch(`${base}/overview`);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=5");
+    const o = decodeOverview(new Uint8Array(await res.arrayBuffer()))!;
     expect(o).toMatchObject({ step: 2, width: 256, height: 256 });
     expect(o.colors[1 * 256 + 1]).toBe(5);
   });
@@ -556,6 +559,12 @@ describe("trpc over http", () => {
     const res = await fetch(`${base}/trpc/me`, { headers: { Cookie: cookie } });
     expect(res.status).toBe(200);
     expect((await data(res)).user.name).toBe("alice");
+  });
+
+  test("a batch is capped at 10 calls", async () => {
+    const batch = (n: number) => fetch(`${base}/trpc/${Array(n).fill("me").join(",")}?batch=1`);
+    expect((await batch(10)).status).toBe(200);
+    expect((await batch(11)).status).toBe(400);
   });
 
   test("requests are limited per ip before any session lookup", async () => {

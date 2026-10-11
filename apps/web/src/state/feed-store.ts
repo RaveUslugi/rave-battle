@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@rave/shared/client";
+import type { ServerMessage, UserRef } from "@rave/shared/client";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
@@ -24,11 +24,16 @@ export function createFeedStore() {
   }));
 }
 
+/** Feed text split into plain strings and player names (clickable in the UI). */
+export function feedParts(e: FeedMessage): Array<string | UserRef> {
+  const own = e.actor.id === e.owner.id;
+  if (e.kind === "exploded") return own ? ["💥 ", e.actor, " подорвался на своей бомбе"] : ["💥 ", e.actor, " подорвался на бомбе ", e.owner];
+  return own ? ["🧯 ", e.actor, " снял свою бомбу"] : ["🧯 ", e.actor, " обезвредил бомбу ", e.owner];
+}
+
 /** Who and whose bomb — never where. */
 export function feedText(e: FeedMessage): string {
-  const own = e.actor.id === e.owner.id;
-  if (e.kind === "exploded") return own ? `💥 ${e.actor.name} подорвался на своей бомбе` : `💥 ${e.actor.name} подорвался на бомбе ${e.owner.name}`;
-  return own ? `🧯 ${e.actor.name} снял свою бомбу` : `🧯 ${e.actor.name} обезвредил бомбу ${e.owner.name}`;
+  return feedParts(e).map((p) => (typeof p === "string" ? p : p.name)).join("");
 }
 
 export const feedStore = createFeedStore();

@@ -33,7 +33,7 @@ const view = (serverNow: number) =>
   ({
     coins: 0, charges: 0, chargesUpdatedAt: 0, chargeCap: 10, frozenUntil: 0,
     inventory: { bomb: 0, detector: 0, defuser: 0 }, unlockedColors: [], dailyStep: 0,
-    dailyLastClaim: null, bannedUntil: null, unlimited: false, serverNow,
+    dailyLastClaim: null, bannedUntil: null, access: "ok", playableAt: null, unlimited: false, serverNow,
   }) satisfies PlayerView;
 
 test("player views set the clock offset; serverTime applies it", () => {

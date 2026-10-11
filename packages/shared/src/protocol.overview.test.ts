@@ -15,4 +15,11 @@ describe("overview", () => {
     expect(decodeOverview(bytes)).toEqual({ step: 2, width: 3, height: 2, colors });
     expect(decodeOverview(bytes.slice(0, -1))).toBeNull();
   });
+
+  test("rejects zero step and sides beyond the maximum", () => {
+    expect(decodeOverview(encodeOverview({ step: 0, width: 1, height: 1, colors: new Uint8Array(1) }))).toBeNull();
+    expect(decodeOverview(encodeOverview({ step: 1, width: 0, height: 0, colors: new Uint8Array(0) }))).toBeNull();
+    const big = 257;
+    expect(decodeOverview(encodeOverview({ step: 1, width: big, height: 1, colors: new Uint8Array(big) }))).toBeNull();
+  });
 });

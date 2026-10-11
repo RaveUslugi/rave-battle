@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { useServerNow } from "../hooks/useNow";
-import { feedText, useFeed, type FeedEntry } from "../state/feed-store";
+import { feedParts, useFeed, type FeedEntry } from "../state/feed-store";
+import { uiStore } from "../state/ui-store";
 import styles from "./Feed.module.css";
 
 const COLLAPSED = 3;
@@ -35,7 +36,15 @@ function FeedPanel({ entries }: { entries: FeedEntry[] }) {
             <time className={styles.time} dateTime={new Date(e.at).toISOString()}>
               {time(e.at)}
             </time>{" "}
-            {feedText(e)}
+            {feedParts(e).map((part, i) =>
+              typeof part === "string" ? (
+                part
+              ) : (
+                <button key={i} type="button" className={styles.name} onClick={() => uiStore.getState().openProfile(part.id)}>
+                  {part.name}
+                </button>
+              ),
+            )}
           </li>
         ))}
       </ol>

@@ -1,6 +1,7 @@
 import type { FetchFn } from "../auth/discord";
 import type { Db } from "../db/client";
 import type { GameRuntime } from "../persistence/runtime";
+import type { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import type { Hub } from "./hub";
 import type { KeyedRateLimiter, UserRateLimiter } from "./rate-limit";
@@ -12,6 +13,7 @@ export interface AppDeps {
   hub: Hub;
   users: UserDirectory;
   config: ServerConfig;
+  stats: StatsService;
   /** Outbound HTTP (Discord); injectable for tests. Defaults to global fetch. */
   fetch?: FetchFn;
   /** Per-user rate limit for tRPC; the server creates one when absent. */

@@ -62,11 +62,19 @@
   box-shadow: var(--glow-pink);
 }
 
-.buy:disabled,
-.armed:disabled {
+.buy[aria-disabled="true"],
+.armed[aria-disabled="true"] {
   opacity: 0.45;
   box-shadow: none;
   cursor: default;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  font-size: 13px;
 }
 
 .calendar {
@@ -114,9 +122,155 @@
   cursor: pointer;
 }
 
-.claim:disabled {
+.claim[aria-disabled="true"] {
   background: none;
   border-color: var(--panel-border);
   opacity: 0.7;
   cursor: default;
+}
+
+.segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.segment,
+.segmentOn {
+  min-height: 36px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.segmentOn {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.ranking {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranking[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.rank,
+.rankMe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+
+.rankMe {
+  background: rgba(34, 243, 255, 0.12);
+}
+
+.place {
+  flex: none;
+  width: 2.5em;
+  text-align: right;
+  opacity: 0.7;
+}
+
+.player {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.player:hover,
+.player:focus-visible {
+  color: var(--neon-cyan);
+  text-decoration: underline;
+}
+
+.value {
+  flex: none;
+}
+
+.mine {
+  margin: 4px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.profileName {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.badgeMe {
+  color: var(--neon-cyan);
+  font-size: 14px;
+}
+
+.badgeBanned {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+
+.stat dt {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.stat dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap {
+  display: block;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.stat .swatch {
+  display: block;
 }

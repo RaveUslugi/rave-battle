@@ -51,3 +51,8 @@ export function shopOffers(config: GameConfig, player: Pick<PlayerView, "coins" 
     .map((e): Offer => ({ kind: "color", colorId: e.id, base: e.base, ...base(`color:${e.id}`, `Цвет ${e.id}`, e.price!, unlocked.has(e.id)) }));
   return [...items, boost, ...colors];
 }
+
+/** Owned, maxed or too expensive: the server would refuse it. */
+export function offerBlocked(o: Offer): boolean {
+  return o.owned || (o.kind === "boost" && o.maxed) || !o.affordable;
+}
