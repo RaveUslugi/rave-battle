@@ -17,7 +17,8 @@ export function PaletteBar() {
   const tool = useUi((s) => s.tool);
   const count = (item: "bomb" | "detector" | "defuser") => (player?.unlimited ? "∞" : (player?.inventory[item] ?? 0));
   const bombs = count("bomb");
-  const pickTool = (next: "detector" | "defuser") => uiStore.getState().setTool(tool === next ? "paint" : next);
+  const admin = useGame((s) => s.admin);
+  const pickTool = (next: "detector" | "defuser" | "inspect" | "area") => uiStore.getState().setTool(tool === next ? "paint" : next);
 
   // The stored color may not exist (or be hidden) after a config change.
   useEffect(() => {
@@ -92,6 +93,16 @@ export function PaletteBar() {
           <span aria-hidden="true">🧯</span>
           <span aria-hidden="true">{count("defuser")}</span>
         </button>
+        {admin && (
+          <>
+            <button type="button" className={tool === "inspect" ? styles.toolOn : styles.tool} aria-pressed={tool === "inspect"} aria-label="Инспектор клетки" onClick={() => pickTool("inspect")}>
+              <span aria-hidden="true">🔎</span>
+            </button>
+            <button type="button" className={tool === "area" ? styles.toolOn : styles.tool} aria-pressed={tool === "area"} aria-label="Выделить область" onClick={() => pickTool("area")}>
+              <span aria-hidden="true">▭</span>
+            </button>
+          </>
+        )}
       </div>
       <div ref={swatchesRef} className={styles.swatches} role="radiogroup" aria-label="Цвет" onKeyDown={onKeyDown}>
         {config.palette.map((entry) => {
