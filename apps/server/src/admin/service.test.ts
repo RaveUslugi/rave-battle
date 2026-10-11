@@ -4,17 +4,20 @@ import { eq } from "drizzle-orm";
 import { createSession, resolveSession, type SessionUser } from "../auth/session";
 import { gameConfig, ledger, modLog, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
+import { ensurePlayer } from "../auth/ensure-player";
 import { banFromDate } from "../persistence/codec";
 import { UserDirectory } from "../net/user-directory";
 import { bootGame } from "../persistence/boot";
 import type { GameRuntime } from "../persistence/runtime";
 import { StatsService } from "../stats/service";
+import { AccessQueue } from "./access-queue";
 import { AdminService } from "./service";
 
 const t = createTestDb();
 let runtime: GameRuntime;
 let service: AdminService;
 let stats: StatsService;
+let accessQueue: AccessQueue;
 let admin: SessionUser;
 let ann: number;
 let bob: number;
@@ -43,11 +46,13 @@ beforeEach(async () => {
   const dir = await UserDirectory.load(t.db);
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {} });
   stats = new StatsService(t.db, runtime, dir);
+  accessQueue = new AccessQueue();
   service = new AdminService({
     db: t.db,
     runtime,
     users: dir,
     stats,
+    accessQueue,
     isAdmin: (discordId) => discordId === "discord-admin",
   });
 });
@@ -101,7 +106,7 @@ describe("ban", () => {
     const other = sessionUser(ann, "ann");
     const adminTarget = await insertUser(t.db, "admin2");
     // discord-admin2 is not an admin; make the target one through the predicate.
-    const strict = new AdminService({ db: t.db, runtime, users: await UserDirectory.load(t.db), stats: stats, isAdmin: (d) => d === "discord-admin2" });
+    const strict = new AdminService({ db: t.db, runtime, users: await UserDirectory.load(t.db), stats: stats, accessQueue, isAdmin: (d) => d === "discord-admin2" });
     expect(await strict.ban(other, { userId: adminTarget, until: "permanent", reason: "x" })).toEqual({ ok: false, code: "target_is_admin" });
     expect(await service.ban(admin, { userId: ann, until: Date.now() - 1000, reason: "x" })).toEqual({ ok: false, code: "bad_until" });
     expect(await service.ban(admin, { userId: 9999, until: "permanent", reason: "x" })).toEqual({ ok: false, code: "not_found" });
@@ -142,6 +147,23 @@ describe("unban", () => {
     await t.db.update(users).set({ bannedUntil: new Date(Date.now() - 60_000), banReason: "old" }).where(eq(users.id, bob));
     expect(await service.unban(admin, { userId: bob, reason: "x" })).toEqual({ ok: false, code: "not_banned" });
     expect(await logRows()).toHaveLength(0);
+  });
+
+  test("two parallel unbans of one player write exactly one unban entry", async () => {
+    await join(bob);
+    await service.ban(admin, { userId: bob, until: "permanent", reason: "r" });
+    const results = await Promise.all([service.unban(admin, { userId: bob, reason: "a" }), service.unban(admin, { userId: bob, reason: "b" })]);
+    expect(results).toEqual([{ ok: true }, { ok: false, code: "not_banned" }]);
+    expect((await logRows()).filter((r) => r.action === "unban")).toHaveLength(1);
+  });
+
+  test("ensurePlayer and unban in parallel leave the engine and the DB in agreement", async () => {
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, bob));
+    const stale = { ...sessionUser(bob, "bob_x"), bannedUntil: Date.now() + 3_600_000, banReason: "seed" };
+    await Promise.all([ensurePlayer({ db: t.db, runtime, accessQueue }, stale), service.unban(admin, { userId: bob, reason: "x" })]);
+    const [row] = await t.db.select().from(users).where(eq(users.id, bob));
+    expect(runtime.engine.players.get(bob).bannedUntil).toBe(banFromDate(row!.bannedUntil));
+    expect(runtime.engine.players.get(bob).banReason).toBe(row!.banReason);
   });
 
   test("concurrent ban and unban leave the DB and the engine in agreement", async () => {

@@ -10,9 +10,7 @@ import {
   type ServerMessage,
 } from "@rave/shared";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
-import { ensurePlayer } from "../auth/ensure-player";
 import type { SessionUser } from "../auth/session";
-import type { Db } from "../db/client";
 import type { EngineEvent } from "../engine/types";
 import type { GameRuntime } from "../persistence/runtime";
 import { TokenBucket } from "./rate-limit";
@@ -38,7 +36,6 @@ export interface SocketData {
 }
 
 export interface HubOptions {
-  db: Db;
   runtime: GameRuntime;
   users: UserDirectory;
   now?: () => number;
@@ -47,6 +44,8 @@ export interface HubOptions {
   onlineDebounceMs?: number;
   /** Whether to tell the client to show admin links; defaults to nobody. */
   isAdmin?: (user: SessionUser) => boolean;
+  /** Puts the user's player into the engine on connect; without it, players must already be there. */
+  ensurePlayer?: (user: SessionUser) => Promise<void>;
 }
 
 type Socket = ServerWebSocket<SocketData>;
@@ -165,7 +164,7 @@ export class Hub {
     let player: PlayerView | null = null;
     if (user) {
       try {
-        await ensurePlayer(this.options, user);
+        await this.options.ensurePlayer?.(user);
         player = this.playerView(user.id);
       } catch {
         ws.close(1011, "unavailable");

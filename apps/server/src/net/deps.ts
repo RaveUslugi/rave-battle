@@ -1,3 +1,4 @@
+import type { AccessQueue } from "../admin/access-queue";
 import type { AdminService } from "../admin/service";
 import type { FetchFn } from "../auth/discord";
 import type { Db } from "../db/client";
@@ -16,6 +17,8 @@ export interface AppDeps {
   config: ServerConfig;
   stats: StatsService;
   admin: AdminService;
+  /** One chain per user for everything touching access: ban, unban, first join. */
+  accessQueue: AccessQueue;
   /** Outbound HTTP (Discord); injectable for tests. Defaults to global fetch. */
   fetch?: FetchFn;
   /** Per-user rate limit for tRPC; the server creates one when absent. */

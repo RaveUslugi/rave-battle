@@ -10,6 +10,7 @@ import type { UserDirectory } from "../net/user-directory";
 import { banFromDate, banToDate } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
 import type { StatsService } from "../stats/service";
+import type { AccessQueue } from "./access-queue";
 import { ModerationPlanner, summarize, validateArea, type ModerationAction, type PlanError } from "./moderation";
 
 const SEARCH_LIMIT = 20;
@@ -85,6 +86,7 @@ export interface AdminServiceDeps {
   runtime: GameRuntime;
   users: UserDirectory;
   stats: StatsService;
+  accessQueue: AccessQueue;
   isAdmin: (discordId: string) => boolean;
   now?: () => number;
 }
@@ -99,8 +101,6 @@ export class AdminService {
   private readonly planner: ModerationPlanner;
   /** Moderation applies run one at a time, so every plan is computed against the previous apply's result. */
   private applyQueue: Promise<unknown> = Promise.resolve();
-  /** Ban/unban writes are serialized per user so the DB and the engine always end up agreeing. */
-  private readonly accessQueues = new Map<number, Promise<void>>();
 
   constructor(private deps: AdminServiceDeps) {
     this.now = deps.now ?? Date.now;
@@ -232,23 +232,28 @@ export class AdminService {
     };
   }
 
-  async ban(admin: SessionUser, input: { userId: number; until: number | "permanent"; reason: string }): Promise<AdminActionResult> {
-    const [target] = await this.deps.db.select({ discordId: users.discordId }).from(users).where(eq(users.id, input.userId)).limit(1);
-    if (!target) return { ok: false, code: "not_found" };
-    if (input.userId === admin.id) return { ok: false, code: "self" };
-    if (this.deps.isAdmin(target.discordId)) return { ok: false, code: "target_is_admin" };
-    const until = input.until === "permanent" ? Number.POSITIVE_INFINITY : input.until;
-    if (until <= this.now()) return { ok: false, code: "bad_until" };
-    await this.writeAccess(admin, input.userId, until, input.reason, "ban", { until: input.until, reason: input.reason });
-    return { ok: true };
+  ban(admin: SessionUser, input: { userId: number; until: number | "permanent"; reason: string }): Promise<AdminActionResult> {
+    // Checks and the write share one queue slot, so a concurrent ban/unban/first join cannot slip in between.
+    return this.deps.accessQueue.run(input.userId, async (): Promise<AdminActionResult> => {
+      const [target] = await this.deps.db.select({ discordId: users.discordId }).from(users).where(eq(users.id, input.userId)).limit(1);
+      if (!target) return { ok: false, code: "not_found" };
+      if (input.userId === admin.id) return { ok: false, code: "self" };
+      if (this.deps.isAdmin(target.discordId)) return { ok: false, code: "target_is_admin" };
+      const until = input.until === "permanent" ? Number.POSITIVE_INFINITY : input.until;
+      if (until <= this.now()) return { ok: false, code: "bad_until" };
+      await this.writeAccess(admin, input.userId, until, input.reason, "ban", { until: input.until, reason: input.reason });
+      return { ok: true };
+    });
   }
 
-  async unban(admin: SessionUser, input: { userId: number; reason: string }): Promise<AdminActionResult> {
-    const [target] = await this.deps.db.select({ bannedUntil: users.bannedUntil }).from(users).where(eq(users.id, input.userId)).limit(1);
-    if (!target) return { ok: false, code: "not_found" };
-    if (target.bannedUntil === null || target.bannedUntil.getTime() <= this.now()) return { ok: false, code: "not_banned" };
-    await this.writeAccess(admin, input.userId, null, null, "unban", { reason: input.reason });
-    return { ok: true };
+  unban(admin: SessionUser, input: { userId: number; reason: string }): Promise<AdminActionResult> {
+    return this.deps.accessQueue.run(input.userId, async (): Promise<AdminActionResult> => {
+      const [target] = await this.deps.db.select({ bannedUntil: users.bannedUntil }).from(users).where(eq(users.id, input.userId)).limit(1);
+      if (!target) return { ok: false, code: "not_found" };
+      if (target.bannedUntil === null || target.bannedUntil.getTime() <= this.now()) return { ok: false, code: "not_banned" };
+      await this.writeAccess(admin, input.userId, null, null, "unban", { reason: input.reason });
+      return { ok: true };
+    });
   }
 
   async adjust(
@@ -345,26 +350,8 @@ export class AdminService {
     return this.deps.runtime.run((engine, now) => engine.applyConfig(parsed.data, { ...change, adminId: admin.id }, now));
   }
 
-  /** Persists a ban/unban with its log row, then pushes it to the engine and drops cached rankings. */
-  private writeAccess(
-    admin: SessionUser,
-    userId: number,
-    until: number | null,
-    reason: string | null,
-    action: "ban" | "unban",
-    params: Record<string, unknown>,
-  ): Promise<void> {
-    const previous = this.accessQueues.get(userId) ?? Promise.resolve();
-    const job = previous.then(() => this.writeAccessNow(admin, userId, until, reason, action, params));
-    const tail = job.catch(() => {});
-    this.accessQueues.set(userId, tail);
-    void tail.then(() => {
-      if (this.accessQueues.get(userId) === tail) this.accessQueues.delete(userId);
-    });
-    return job;
-  }
-
-  private async writeAccessNow(
+  /** Persists a ban/unban with its log row, then pushes it to the engine and drops cached rankings. Runs inside the access queue. */
+  private async writeAccess(
     admin: SessionUser,
     userId: number,
     until: number | null,

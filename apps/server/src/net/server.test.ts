@@ -18,6 +18,8 @@ import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { AccessQueue } from "../admin/access-queue";
+import { ensurePlayer } from "../auth/ensure-player";
 import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
@@ -54,11 +56,19 @@ async function start(
     discord: options.discord ?? null,
     trustProxy: options.trustProxy ?? false,
   };
-  hub = new Hub({ db: t.db, runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  const accessQueue = new AccessQueue();
+  hub = new Hub({
+    runtime,
+    users,
+    onlineDebounceMs: 10,
+    isAdmin: (u) => isAdmin(u.discordId, config),
+    ensurePlayer: (u) => ensurePlayer({ db: t.db, runtime, accessQueue }, u),
+    ...options.hub,
+  });
   hubRef = hub;
   const stats = new StatsService(t.db, runtime, users);
-  const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, fetch: options.fetch, ipLimiter: options.ipLimiter, staticLimiter: options.staticLimiter });
+  const admin = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, accessQueue, fetch: options.fetch, ipLimiter: options.ipLimiter, staticLimiter: options.staticLimiter });
   base = `http://localhost:${server.port}`;
 }
 

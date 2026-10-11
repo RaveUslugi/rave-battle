@@ -1,5 +1,7 @@
+import { AccessQueue } from "./admin/access-queue";
 import { AdminService } from "./admin/service";
 import { isAdmin } from "./auth/admin";
+import { ensurePlayer } from "./auth/ensure-player";
 import { restoreDevAdmin } from "./auth/dev-admin";
 import { deleteExpiredSessions } from "./auth/session";
 import { createDb } from "./db/client";
@@ -31,10 +33,16 @@ async function main(): Promise<void> {
   let hub: Hub | undefined;
   const runtime = await bootGame(db, { onCommit: (events) => hub?.handleCommit(events) });
   if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
-  hub = new Hub({ db, runtime, users, isAdmin: (u) => isAdmin(u.discordId, config) });
+  const accessQueue = new AccessQueue();
+  hub = new Hub({
+    runtime,
+    users,
+    isAdmin: (u) => isAdmin(u.discordId, config),
+    ensurePlayer: (u) => ensurePlayer({ db, runtime, accessQueue }, u),
+  });
   const stats = new StatsService(db, runtime, users);
-  const admin = new AdminService({ db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  const server = startServer({ db, runtime, hub, users, config, stats, admin });
+  const admin = new AdminService({ db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
+  const server = startServer({ db, runtime, hub, users, config, stats, admin, accessQueue });
   console.log(`Rave Battle server listening on :${server.port}`);
 
   let shuttingDown = false;

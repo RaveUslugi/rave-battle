@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+import { AccessQueue } from "../admin/access-queue";
 import { users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
@@ -24,7 +25,7 @@ test("a ban committed between resolveSession and ensurePlayer is applied", async
   expect(session.bannedUntil).toBeNull();
   // The ban lands in the DB after the session was resolved; the player is not in the engine yet.
   await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" }).where(eq(users.id, id));
-  await ensurePlayer({ db: t.db, runtime }, session);
+  await ensurePlayer({ db: t.db, runtime, accessQueue: new AccessQueue() }, session);
   const player = runtime.engine.players.get(id);
   expect(player.banReason).toBe("raced");
   expect(player.bannedUntil).toBeGreaterThan(Date.now());
@@ -36,6 +37,6 @@ test("an unchanged row leaves the player as created", async () => {
   const id = await insertUser(t.db, "calm");
   const { token } = await createSession(t.db, id, 86_400_000, Date.now());
   const session = (await resolveSession(t.db, token, Date.now()))!;
-  await ensurePlayer({ db: t.db, runtime }, session);
+  await ensurePlayer({ db: t.db, runtime, accessQueue: new AccessQueue() }, session);
   expect(runtime.engine.players.get(id).bannedUntil).toBeNull();
 });
