@@ -89,7 +89,8 @@ export function createUiStore(storage: StorageLike | null) {
     profileUserId: null,
     moderation: { cell: null, area: null, corner: null },
     // The pending selection meant something else under the previous tool.
-    setTool: (tool) => set({ tool, selection: null }),
+    // A half-made area corner belongs to the previous tool too.
+    setTool: (tool) => set((s) => ({ tool, selection: null, ...(s.moderation.corner ? { moderation: { ...s.moderation, corner: null } } : {}) })),
     selectColor: (id) => {
       try {
         storage?.setItem(COLOR_KEY, String(id));
@@ -100,7 +101,7 @@ export function createUiStore(storage: StorageLike | null) {
     },
     setBombMode: (bombMode) => set({ bombMode }),
     select: (selection) => set({ selection }),
-    inspectCell: (cell) => set((s) => ({ panel: "moderation", moderation: { ...s.moderation, cell, area: null } })),
+    inspectCell: (cell) => set((s) => ({ panel: "moderation", moderation: { cell, area: null, corner: null } })),
     setArea: (area) => set({ panel: "moderation", moderation: { cell: null, area, corner: null } }),
     setCorner: (corner) => set((s) => ({ moderation: { ...s.moderation, corner } })),
     pushToast: (kind, text) => {

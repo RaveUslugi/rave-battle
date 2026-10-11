@@ -30,6 +30,8 @@ export interface SessionCallbacks {
   areaDrag?(pointerType: string): boolean;
   /** Reports the dragged rectangle corners; `done` on release. */
   onAreaDrag?(from: { x: number; y: number }, to: { x: number; y: number }, done: boolean): void;
+  /** A drag ended without producing a rectangle (cancelled, capture lost or released off the canvas): restore the stored frame. */
+  onAreaDragEnd?(): void;
   onPlaced?(message: Extract<ServerMessage, { type: "placed" }>): void;
 }
 
@@ -55,6 +57,7 @@ export class CanvasSession implements CanvasPort {
   private readonly pointers = new Map<number, Point>();
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
   private moved = false;
+  private areaPreview = false;
   private readonly resizeObserver: ResizeObserver;
   private unsubscribeReadings: (() => void) | null = null;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
@@ -294,7 +297,10 @@ export class CanvasSession implements CanvasPort {
         }
         if (this.moved && this.tapStart && this.callbacks.areaDrag?.(this.tapStart.pointerType)) {
           const cells = this.dragCells(this.tapStart, point);
-          if (cells) this.callbacks.onAreaDrag?.(cells.from, cells.to, false);
+          if (cells) {
+            this.areaPreview = true;
+            this.callbacks.onAreaDrag?.(cells.from, cells.to, false);
+          }
         } else if (this.moved) this.camera = pan(this.camera, point.x - previous.x, point.y - previous.y);
       } else if (this.pointers.size === 2) {
         const other = [...this.pointers.entries()].find(([id]) => id !== event.pointerId)?.[1];
@@ -317,11 +323,15 @@ export class CanvasSession implements CanvasPort {
       if (this.pointers.size > 0) return;
       const tap = this.tapStart;
       this.tapStart = null;
+      const preview = this.areaPreview;
+      this.areaPreview = false;
       if (event.type === "pointerup" && this.moved && tap && this.callbacks.areaDrag?.(tap.pointerType)) {
         const cells = this.dragCells(tap, this.local(event));
         if (cells) this.callbacks.onAreaDrag?.(cells.from, cells.to, true);
+        else if (preview) this.callbacks.onAreaDragEnd?.();
         return;
       }
+      if (preview) this.callbacks.onAreaDragEnd?.();
       if (event.type !== "pointerup" || this.moved || !tap || performance.now() - tap.at > TAP_MAX_MS) return;
       if (!this.camera || !this.canvas) return;
       const cell = cellAt(this.camera, this.renderer.screenSize(), tap.x, tap.y, this.canvas);

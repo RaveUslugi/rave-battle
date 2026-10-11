@@ -131,6 +131,19 @@ describe("ui store", () => {
     expect(store.getState().moderation.area).toBeNull();
   });
 
+  test("inspecting a cell and switching tools drop a stale touch corner", () => {
+    const store = createUiStore(null);
+    store.getState().setCorner({ x: 5, y: 6 });
+    store.getState().inspectCell({ x: 1, y: 1 });
+    expect(store.getState().moderation).toEqual({ cell: { x: 1, y: 1 }, area: null, corner: null });
+    store.getState().setCorner({ x: 5, y: 6 });
+    store.getState().setTool("paint");
+    expect(store.getState().moderation.corner).toBeNull();
+    const before = store.getState().moderation;
+    store.getState().setTool("detector");
+    expect(store.getState().moderation).toBe(before);
+  });
+
   test("the corner is remembered and cleared without touching the panel", () => {
     const store = createUiStore(null);
     store.getState().setCorner({ x: 5, y: 6 });

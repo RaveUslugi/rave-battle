@@ -104,6 +104,13 @@ describe("GameClient", () => {
     expect(t.areas.at(-1)).toEqual({ x1: 6, y1: 7, x2: 6, y2: 7 });
   });
 
+  test("attaching pushes the current moderation frame to the new port", () => {
+    t.ui.getState().inspectCell({ x: 9, y: 9 });
+    const frames: Array<Rect | null> = [];
+    t.client.attach({ sendPlace: () => true, setPending: () => {}, setSelection: () => {}, setArea: (r) => void frames.push(r), flash: () => {} });
+    expect(frames).toEqual([{ x1: 9, y1: 9, x2: 9, y2: 9 }]);
+  });
+
   test("the area tool: a mouse click frames one cell", () => {
     t.ui.getState().setTool("area");
     t.client.onCellTap({ x: 2, y: 3 }, "mouse");

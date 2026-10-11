@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { normalizeRect } from "@rave/shared/client";
-import type { GameClient } from "../game/client";
+import { moderationFrame, type GameClient } from "../game/client";
 import { uiStore } from "../state/ui-store";
 import styles from "./CanvasView.module.css";
 import { CanvasSession } from "./session";
@@ -20,6 +20,7 @@ export function CanvasView({ client }: { client: GameClient }) {
         if (done) uiStore.getState().setArea(normalizeRect(a, b));
         else session.setArea(normalizeRect(a, b));
       },
+      onAreaDragEnd: () => session.setArea(moderationFrame(uiStore.getState().moderation)),
     });
     client.attach(session);
     return () => {

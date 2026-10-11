@@ -43,7 +43,7 @@ const defaultTimers: Timers = {
 };
 
 /** The rectangle to frame: the area, else the inspected cell, else the first touch corner. */
-function moderationFrame(m: UiState["moderation"]): Rect | null {
+export function moderationFrame(m: UiState["moderation"]): Rect | null {
   if (m.area) return m.area;
   const cell = m.cell ?? m.corner;
   return cell ? normalizeRect(cell, cell) : null;
@@ -95,6 +95,8 @@ export class GameClient {
         if (state.moderation !== prev.moderation) this.port?.setArea(moderationFrame(state.moderation));
       }),
     ];
+    // A port that attaches late (remount) must show the current frame at once.
+    port.setArea(moderationFrame(this.deps.ui.getState().moderation));
   }
 
   detach(): void {
