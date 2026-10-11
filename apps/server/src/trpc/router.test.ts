@@ -29,6 +29,7 @@ const config: ServerConfig = {
   sessionTtlMs: 86_400_000,
   adminDiscordIds: new Set(["discord-admin"]),
   discord: null,
+  trustProxy: false,
 };
 
 let runtime: GameRuntime;

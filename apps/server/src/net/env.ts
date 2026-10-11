@@ -20,6 +20,7 @@ const envSchema = z
     PORT: z.coerce.number().int().min(0).max(65_535).default(3000),
     ALLOWED_ORIGINS: z.string().default(""),
     DEV_LOGIN: z.enum(["0", "1"]).default("0"),
+    TRUST_PROXY: z.enum(["0", "1"]).default("0"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
     ADMIN_DISCORD_IDS: z
@@ -55,6 +56,8 @@ export interface ServerConfig {
   allowedOrigins: Set<string>;
   devLogin: boolean;
   secureCookies: boolean;
+  /** True only behind our own reverse proxy: the client address is then taken from X-Forwarded-For. */
+  trustProxy: boolean;
   sessionTtlMs: number;
   /** Discord ids with admin rights. */
   adminDiscordIds: Set<string>;
@@ -84,6 +87,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     allowedOrigins: new Set([publicUrl.origin, ...extra]),
     devLogin: env.DEV_LOGIN === "1",
     secureCookies: publicUrl.protocol === "https:",
+    trustProxy: env.TRUST_PROXY === "1",
     sessionTtlMs: env.SESSION_TTL_DAYS * DAY_MS,
     adminDiscordIds: new Set(splitList(env.ADMIN_DISCORD_IDS)),
     discord:

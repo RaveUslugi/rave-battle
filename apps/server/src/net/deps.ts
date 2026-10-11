@@ -22,4 +22,6 @@ export interface AppDeps {
   limiter?: UserRateLimiter;
   /** Per-IP rate limit for all /trpc requests; the server creates one when absent. */
   ipLimiter?: KeyedRateLimiter<string>;
+  /** Per-IP rate limit for GET /chunk/* and /overview; the server creates one when absent. */
+  staticLimiter?: KeyedRateLimiter<string>;
 }

@@ -64,3 +64,9 @@ test("production requires discord", () => {
   expect(() => loadEnv({ ...base, NODE_ENV: "production" })).toThrow();
   expect(loadEnv({ ...base, NODE_ENV: "production", DISCORD_CLIENT_ID: "c", DISCORD_CLIENT_SECRET: "s" }).discord?.guildId).toBeNull();
 });
+
+test("trust proxy is off by default and opt-in", () => {
+  expect(loadEnv(base).trustProxy).toBe(false);
+  expect(loadEnv({ ...base, TRUST_PROXY: "1" }).trustProxy).toBe(true);
+  expect(() => loadEnv({ ...base, TRUST_PROXY: "yes" })).toThrow();
+});
