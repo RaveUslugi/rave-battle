@@ -18,6 +18,7 @@ import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
@@ -54,7 +55,9 @@ async function start(
   };
   hub = new Hub({ runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
   hubRef = hub;
-  server = startServer({ db: t.db, runtime, hub, users, config, stats: new StatsService(t.db, runtime, users), fetch: options.fetch, ipLimiter: options.ipLimiter });
+  const stats = new StatsService(t.db, runtime, users);
+  const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
 

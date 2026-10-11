@@ -1,5 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { TRPCError } from "@trpc/server";
+import { gameConfigSchema } from "@rave/shared";
+import { AdminService } from "../admin/service";
+import { isAdmin } from "../auth/admin";
 import type { SessionUser } from "../auth/session";
 import { statsDaily } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
@@ -32,6 +35,7 @@ let runtime: GameRuntime;
 let deps: AppDeps;
 let alice: SessionUser;
 let bob: SessionUser;
+let admin: SessionUser;
 
 const sessionUser = (id: number, username: string): SessionUser => ({
   id,
@@ -48,9 +52,12 @@ beforeEach(async () => {
   await t.reset();
   alice = sessionUser(await insertUser(t.db, "alice"), "alice");
   bob = sessionUser(await insertUser(t.db, "bob"), "bob");
+  admin = sessionUser(await insertUser(t.db, "admin"), "admin");
   const users = await UserDirectory.load(t.db);
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {} });
-  deps = { db: t.db, runtime, hub: new Hub({ runtime, users }), users, config, stats: new StatsService(t.db, runtime, users) };
+  const stats = new StatsService(t.db, runtime, users);
+  const adminService = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
+  deps = { db: t.db, runtime, hub: new Hub({ runtime, users }), users, config, stats, admin: adminService };
 });
 afterEach(() => runtime.stop());
 afterAll(() => t.close());
@@ -145,5 +152,39 @@ describe("appRouter", () => {
     await expect(as(null).stats.profile({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(as(null).stats.profile({ userId: 3e9 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(null).stats.leaderboard({ board: "nope" as never, period: "all" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  test("admin procedures: anonymous is UNAUTHORIZED, a regular player FORBIDDEN", async () => {
+    await expect(as(null).admin.players.search({ q: "a" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(as(alice).admin.players.search({ q: "a" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.config.save({ baseVersion: 1, config: {}, comment: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  test("an admin bans bob and bob's own view shows the block and the reason", async () => {
+    await as(bob).daily.claim();
+    expect(await as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "spam" })).toEqual({ ok: true });
+    const me = await as(bob).me();
+    expect(me?.player?.blocks).toEqual(["banned"]);
+    expect(me?.player?.banReason).toBe("spam");
+    expect(await as(admin).admin.players.search({ q: "bob" })).toEqual([
+      { id: bob.id, name: "bob", discordId: "discord-bob", banned: true },
+    ]);
+    await expect(as(admin).admin.players.get({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
+    await expect(as(admin).admin.players.adjust({ userId: bob.id, changes: { coins: 1.5 }, comment: "x" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "  " })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(as(admin).admin.players.get({ userId: 3e9 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  test("config.current is a valid config and the mod log is paged by cursor", async () => {
+    const { version, config: current } = await as(admin).admin.config.current();
+    expect(version).toBe(1);
+    expect(() => gameConfigSchema.parse(current)).not.toThrow();
+    await as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "r" });
+    const log = await as(admin).admin.modLog({ cursor: null });
+    expect(log.entries.map((e) => e.action)).toEqual(["ban"]);
+    expect(log.next).toBeNull();
   });
 });

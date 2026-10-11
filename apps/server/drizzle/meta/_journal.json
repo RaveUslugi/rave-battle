@@ -15,6 +15,13 @@
       "when": 1791400468184,
       "tag": "0001_guild_member",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791711652362,
+      "tag": "0002_rare_amazoness",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import type { AdminService } from "../admin/service";
 import type { FetchFn } from "../auth/discord";
 import type { Db } from "../db/client";
 import type { GameRuntime } from "../persistence/runtime";
@@ -14,6 +15,7 @@ export interface AppDeps {
   users: UserDirectory;
   config: ServerConfig;
   stats: StatsService;
+  admin: AdminService;
   /** Outbound HTTP (Discord); injectable for tests. Defaults to global fetch. */
   fetch?: FetchFn;
   /** Per-user rate limit for tRPC; the server creates one when absent. */

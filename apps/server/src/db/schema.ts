@@ -183,11 +183,15 @@ export const gameConfig = pgTable("game_config", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
-export const modLog = pgTable("mod_log", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id").notNull().references(() => users.id),
-  action: text("action").$type<ModAction>().notNull(),
-  targetUserId: integer("target_user_id").references(() => users.id),
-  params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
-  createdAt: ts("created_at").notNull().defaultNow(),
-});
+export const modLog = pgTable(
+  "mod_log",
+  {
+    id: serial("id").primaryKey(),
+    adminId: integer("admin_id").notNull().references(() => users.id),
+    action: text("action").$type<ModAction>().notNull(),
+    targetUserId: integer("target_user_id").references(() => users.id),
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("mod_log_target_idx").on(t.targetUserId, t.id), index("mod_log_action_idx").on(t.action, t.id)],
+);
