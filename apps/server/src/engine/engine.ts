@@ -4,10 +4,12 @@ import type { AntiFarm } from "./anti-farm";
 import type { Bomb, BombStore } from "./bomb-store";
 import type { CanvasStore } from "./canvas-store";
 import { settleCharges } from "./charges";
+import { configChangeIssues } from "./config-change";
 import type { PlayerRegistry } from "./player";
 import type {
   AdjustResult,
   BuyResult,
+  ConfigResult,
   DailyResult,
   DefuseResult,
   DetectResult,
@@ -40,10 +42,42 @@ export class GameEngine {
     readonly bombs: BombStore,
     readonly players: PlayerRegistry,
     private antiFarm: AntiFarm,
+    private _configVersion = 1,
   ) {}
 
   get config(): GameConfig {
     return this.cfg;
+  }
+
+  get configVersion(): number {
+    return this._configVersion;
+  }
+
+  /**
+   * Swaps the live config. `next` must already pass gameConfigSchema; this adds the rules that depend on
+   * the running game, and rejects saves based on an outdated version. Persisted with the same batch as pixels.
+   */
+  applyConfig(
+    next: GameConfig,
+    change: { baseVersion: number; adminId: UserId; comment: string; action: "config_save" | "config_rollback"; fromVersion?: number },
+    now: number,
+  ): ConfigResult {
+    if (change.baseVersion !== this._configVersion) return { ok: false, code: "stale", currentVersion: this._configVersion };
+    const issues = configChangeIssues(this.cfg, next, this.canvas);
+    if (issues.length > 0) return { ok: false, code: "invalid", issues };
+    this.canvas.resize(next.canvas.width, next.canvas.height);
+    this.cfg = next;
+    const version = ++this._configVersion;
+    this.emit({ type: "config_changed", version, config: next, createdBy: change.adminId, comment: change.comment, at: now });
+    this.emit({
+      type: "mod_log",
+      adminId: change.adminId,
+      action: change.action,
+      targetUserId: null,
+      params: { version, comment: change.comment, ...(change.fromVersion !== undefined ? { fromVersion: change.fromVersion } : {}) },
+      at: now,
+    });
+    return { ok: true, version };
   }
 
   drainEvents(): EngineEvent[] {

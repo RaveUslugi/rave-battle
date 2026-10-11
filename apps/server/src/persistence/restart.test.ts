@@ -69,6 +69,23 @@ describe("restart", () => {
     expect(third.engine.canvas.territoryOf(a)).toBe(3);
   });
 
+  test("a grown canvas and the config version survive a restart", async () => {
+    const first = await bootWithPlayers();
+    const next = structuredClone(first.engine.config);
+    next.canvas.width = 768;
+    const res = await first.runtime.run((e, now) =>
+      e.applyConfig(next, { baseVersion: 1, adminId: b, comment: "grow", action: "config_save" }, now),
+    );
+    expect(res).toEqual({ ok: true, version: 2 });
+    await place(first.runtime, 700, 9, 4);
+    await first.runtime.stop();
+
+    const second = await boot();
+    expect(second.engine.config.canvas.width).toBe(768);
+    expect(second.engine.configVersion).toBe(2);
+    expect(second.engine.canvas.get(700, 9)).toEqual({ colorId: 4, ownerId: a });
+  });
+
   test("players, canvas and bombs survive a restart", async () => {
     const first = await bootWithPlayers();
     const run = first.runtime.run.bind(first.runtime);

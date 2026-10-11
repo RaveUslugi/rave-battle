@@ -1,4 +1,5 @@
-import type { ItemKey, Reward } from "@rave/shared";
+import type { GameConfig, ItemKey, Reward } from "@rave/shared";
+import type { ConfigIssue } from "./config-change";
 
 export type UserId = number;
 export type Inventory = Record<ItemKey, number>;
@@ -70,6 +71,7 @@ export type EngineEvent =
   | { type: "stat"; userId: UserId; day: string; stat: StatKey; delta: number }
   | { type: "color_unlocked"; userId: UserId; colorId: number; source: "shop"; at: number }
   | { type: "mod_log"; adminId: UserId; action: ModAction; targetUserId: UserId | null; params: Record<string, unknown>; at: number }
+  | { type: "config_changed"; version: number; config: GameConfig; createdBy: UserId; comment: string; at: number }
   /** Player state changed; the persister upserts the current snapshot. */
   | { type: "player"; userId: UserId };
 
@@ -89,3 +91,8 @@ export type DetectResult = Rejected | { ok: true; count: number };
 export type DefuseResult = Rejected | { ok: true; found: boolean; reward: number };
 export type BuyResult = Rejected | { ok: true };
 export type DailyResult = Rejected | { ok: true; reward: Reward };
+
+export type ConfigResult =
+  | { ok: true; version: number }
+  | { ok: false; code: "stale"; currentVersion: number }
+  | { ok: false; code: "invalid"; issues: ConfigIssue[] };

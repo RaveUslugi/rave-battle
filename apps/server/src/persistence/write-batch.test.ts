@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { asc, eq, ne } from "drizzle-orm";
-import { bombs, chunkSnapshots, inventory, ledger, modLog, pixelEvents, playerState, seasons, statsDaily, unlockedColors } from "../db/schema";
+import { bombs, chunkSnapshots, gameConfig, inventory, ledger, modLog, pixelEvents, playerState, seasons, statsDaily, unlockedColors } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import { makeEngine, T0 } from "../engine/test-utils";
 import type { EngineEvent } from "../engine/types";
@@ -48,6 +48,21 @@ describe("writeBatch", () => {
     expect(rows[0]!.createdAt.getTime()).toBe(T0);
     const admin = await t.db.select().from(ledger).where(eq(ledger.reason, "admin"));
     expect(admin).toHaveLength(1);
+  });
+
+  test("config_changed rows are written and the version sequence moves past them", async () => {
+    const { engine, cfg } = await setup();
+    engine.drainEvents();
+    const next = structuredClone(cfg);
+    next.canvas.width = 768;
+    engine.applyConfig(next, { baseVersion: 1, adminId: b, comment: "grow", action: "config_save" }, T0);
+    await write({ events: engine.drainEvents() });
+    const [row] = await t.db.select().from(gameConfig).where(eq(gameConfig.version, 2));
+    expect(row).toMatchObject({ version: 2, createdBy: b, comment: "grow" });
+    expect((row!.data as typeof next).canvas.width).toBe(768);
+    expect(row!.createdAt.getTime()).toBe(T0);
+    const [after] = await t.db.insert(gameConfig).values({ data: next }).returning({ version: gameConfig.version });
+    expect(after!.version).toBe(3);
   });
 
   test("new players get state, inventory and starting ledger rows", async () => {
