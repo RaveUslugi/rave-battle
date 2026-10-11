@@ -26,7 +26,7 @@
 ## 3. Discord
 
 1. https://discord.com/developers/applications -> New Application.
-2. OAuth2 -> Redirects -> добавить `https://<домен>/auth/discord/callback` (точно такой, без слеша в конце: сервер строит его из `PUBLIC_URL`).
+2. OAuth2 -> Redirects -> добавить `https://<домен>/auth/discord/callback` (точно такой, без слеша в конце: сервер строит его из `PUBLIC_URL`, а compose задаёт его как `https://$DOMAIN`).
 3. Со страницы OAuth2 взять Client ID и Client Secret (Reset Secret, если секрета ещё нет). Это `DISCORD_CLIENT_ID` и `DISCORD_CLIENT_SECRET`; задаются только вместе, в production обязательны.
 4. `DISCORD_GUILD_ID` (необязательно, ограничивает вход участниками сервера): в Discord включить режим разработчика (Настройки -> Расширенные), ПКМ по серверу -> Копировать ID сервера.
 5. `ADMIN_DISCORD_IDS`: свой Discord ID (ПКМ по себе -> Копировать ID пользователя). Несколько ID через запятую, только цифры.
@@ -45,7 +45,7 @@ nano .env.production
 | Переменная | Значение |
 |---|---|
 | `DOMAIN` | домен без схемы, например `rave.example.com` |
-| `PUBLIC_URL` | `https://<домен>` |
+| `PUBLIC_URL` | не задаётся: compose выводит его из `DOMAIN` (`https://$DOMAIN`) |
 | `POSTGRES_PASSWORD` | вывод `openssl rand -hex 32` |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | из шага 3 |
 | `DISCORD_GUILD_ID` | из шага 3 или пусто |

@@ -25,7 +25,7 @@ COPY packages/shared packages/shared
 COPY apps/server apps/server
 USER bun
 EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD bun -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=120s --start-interval=2s CMD bun -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["bun", "apps/server/src/main.ts"]
 
 FROM caddy:2.10 AS web

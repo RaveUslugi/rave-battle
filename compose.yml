@@ -32,6 +32,7 @@ services:
     env_file: .env.production
     environment:
       DATABASE_URL: postgres://rave:${POSTGRES_PASSWORD}@postgres:5432/rave
+      PUBLIC_URL: https://${DOMAIN:?}
       TRUST_PROXY: "1"
       PORT: "3000"
     depends_on:
