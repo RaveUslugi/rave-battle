@@ -15,7 +15,7 @@ export function StatusBar() {
   const dotClass = status === "open" ? styles.open : status === "reconnecting" ? styles.reconnecting : "";
   return (
     <div className={styles.bar}>
-      <span role="status" className={styles.connection}>
+      <span role="status" data-testid="status" className={styles.connection}>
         <span className={`${styles.dot} ${dotClass}`} />
         <span>{status === "open" && online > 0 ? `${online} онлайн` : LABELS[status]}</span>
       </span>

@@ -3,18 +3,22 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "test": "bun test",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json",
+    "test": "bun test apps packages",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json && tsc -p e2e/tsconfig.json",
     "dev:web": "bun run --cwd apps/web dev",
     "build:web": "bun run --cwd apps/web build",
     "dev:server": "bun --watch apps/server/src/main.ts",
     "start:server": "bun apps/server/src/main.ts",
     "db:up": "docker compose -f compose.dev.yml up -d --wait",
     "db:down": "docker compose -f compose.dev.yml down",
-    "config:defaults": "bun apps/server/src/scripts/push-default-config.ts"
+    "config:defaults": "bun apps/server/src/scripts/push-default-config.ts",
+    "e2e": "sh scripts/e2e.sh"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@types/bun": "^1.4.2",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
     "typescript": "^7.0.2"
   }
 }
