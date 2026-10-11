@@ -4,6 +4,7 @@ import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers
 import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
+import { applyConfigMessage } from "./config-message";
 import { fetchChunk } from "./chunk-loader";
 import { CanvasController } from "./controller";
 import { PixiRenderer } from "./pixi-renderer";
@@ -175,10 +176,12 @@ export class CanvasSession implements CanvasPort {
     const store = gameStore.getState();
     if (message.type === "player") store.setPlayer(message.player);
     else if (message.type === "config") {
-      store.setConfig(message.config);
-      this.canvas = message.config.canvas;
-      this.controller?.onConfig(message.config);
-      this.applyCamera(true);
+      applyConfigMessage(message.config, {
+        setConfig: store.setConfig,
+        setCanvas: (canvas) => (this.canvas = canvas),
+        controller: this.controller,
+        applyCamera: (force) => this.applyCamera(force),
+      });
     } else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);

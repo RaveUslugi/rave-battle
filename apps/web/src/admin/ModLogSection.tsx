@@ -54,10 +54,10 @@ export function ModLogSection() {
           {badPlayer && <span className={styles.error}>Неверный id</span>}
         </label>
       </div>
-      {log.isError && <p className={styles.error}>Не удалось загрузить журнал</p>}
-      {log.isPending && <p className={styles.message}>Загрузка…</p>}
-      {log.data && entries.length === 0 && <p className={styles.message}>Записей нет</p>}
-      {entries.length > 0 && (
+      {!badPlayer && log.isError && <p className={styles.error}>Не удалось загрузить журнал</p>}
+      {!badPlayer && log.isPending && <p className={styles.message}>Загрузка…</p>}
+      {!badPlayer && log.data && entries.length === 0 && <p className={styles.message}>Записей нет</p>}
+      {!badPlayer && entries.length > 0 && (
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -96,7 +96,7 @@ export function ModLogSection() {
           </table>
         </div>
       )}
-      {log.hasNextPage && (
+      {!badPlayer && log.hasNextPage && (
         <button type="button" className={styles.button} disabled={log.isFetchingNextPage} onClick={() => void log.fetchNextPage()}>
           Показать ещё
         </button>

@@ -14,6 +14,19 @@ describe("configChangeIssues", () => {
     expect(configChangeIssues(prev, next, canvas).map((i) => i.path)).toEqual(["canvas.width"]);
   });
 
+  test("shrinking the canvas height is rejected with a path", () => {
+    const { prev, next, canvas } = setup();
+    next.canvas.height = 256;
+    expect(configChangeIssues(prev, next, canvas).map((i) => i.path)).toEqual(["canvas.height"]);
+  });
+
+  test("color 0 cannot be removed even on an empty canvas", () => {
+    const { prev, next, canvas } = setup();
+    expect(canvas.colorCount(0)).toBe(canvas.width * canvas.height);
+    next.palette = next.palette.filter((e) => e.id !== 0);
+    expect(configChangeIssues(prev, next, canvas).map((i) => i.path)).toEqual(["palette"]);
+  });
+
   test("growing or keeping the canvas is fine", () => {
     const { prev, next, canvas } = setup();
     next.canvas.height = 768;
