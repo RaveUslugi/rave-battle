@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createSession, resolveSession, type SessionUser } from "../auth/session";
 import { gameConfig, ledger, modLog, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
+import { banFromDate } from "../persistence/codec";
 import { UserDirectory } from "../net/user-directory";
 import { bootGame } from "../persistence/boot";
 import type { GameRuntime } from "../persistence/runtime";
@@ -66,6 +67,12 @@ describe("search", () => {
     expect((await service.search("bo_")).map((r) => r.id)).toEqual([]);
     expect((await service.search("bob_x")).map((r) => r.id)).toEqual([bob]);
   });
+
+  test("a backslash in the query is literal and does not break the query", async () => {
+    const slash = await insertUser(t.db, "a\\b");
+    expect((await service.search("a\\b")).map((r) => r.id)).toEqual([slash]);
+    expect(await service.search("\\")).toHaveLength(1);
+  });
 });
 
 describe("ban", () => {
@@ -106,7 +113,7 @@ describe("ban", () => {
     expect(runtime.engine.players.has(ann)).toBe(false);
     const { token } = await createSession(t.db, ann, 86_400_000, Date.now());
     const session = (await resolveSession(t.db, token, Date.now()))!;
-    const p = await runtime.addPlayer({
+    const { player: p } = await runtime.addPlayer({
       userId: ann,
       accountCreatedAt: session.discordCreatedAt,
       guildMember: session.guildMember,
@@ -129,6 +136,27 @@ describe("unban", () => {
     expect((await logRows())[1]!.params).toEqual({ reason: "sorry" });
     expect(runtime.engine.players.get(bob).bannedUntil).toBeNull();
     expect(await service.unban(admin, { userId: bob, reason: "again" })).toEqual({ ok: false, code: "not_banned" });
+  });
+
+  test("an already expired ban is not_banned", async () => {
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() - 60_000), banReason: "old" }).where(eq(users.id, bob));
+    expect(await service.unban(admin, { userId: bob, reason: "x" })).toEqual({ ok: false, code: "not_banned" });
+    expect(await logRows()).toHaveLength(0);
+  });
+
+  test("concurrent ban and unban leave the DB and the engine in agreement", async () => {
+    await join(bob);
+    for (const order of ["ban-first", "unban-first"]) {
+      const ban = () => service.ban(admin, { userId: bob, until: "permanent", reason: "r" });
+      const unban = () => service.unban(admin, { userId: bob, reason: "r" });
+      // unban needs an active ban to be accepted
+      await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, bob));
+      await Promise.all(order === "ban-first" ? [ban(), unban()] : [unban(), ban()]);
+      const [row] = await t.db.select().from(users).where(eq(users.id, bob));
+      const inDb = banFromDate(row!.bannedUntil);
+      expect(runtime.engine.players.get(bob).bannedUntil).toBe(inDb);
+      expect(runtime.engine.players.get(bob).banReason).toBe(row!.banReason);
+    }
   });
 });
 
@@ -199,6 +227,16 @@ describe("config", () => {
     expect((await service.history()).map((h) => h.version)).toEqual([3, 2, 1]);
     expect(await service.rollbackConfig(admin, { version: 99, baseVersion: 3, comment: "x" })).toEqual({ ok: false, code: "not_found" });
   });
+
+  test("an old version that no longer passes the schema is invalid for get and rollback", async () => {
+    const { palette: _palette, ...old } = draft();
+    await t.db.insert(gameConfig).values({ version: 2, data: old, comment: "legacy" });
+    const got = await service.configVersion(2);
+    expect(got).toMatchObject({ ok: false, code: "invalid" });
+    if (!got.ok && got.code === "invalid") expect(got.issues.map((i) => i.path)).toContain("palette");
+    expect(await service.rollbackConfig(admin, { version: 2, baseVersion: 1, comment: "x" })).toMatchObject({ ok: false, code: "invalid" });
+    expect(await service.configVersion(99)).toEqual({ ok: false, code: "not_found" });
+  });
 });
 
 describe("modLog", () => {
@@ -218,5 +256,81 @@ describe("modLog", () => {
     const forAnn = await service.modLog({ targetUserId: ann });
     expect(forAnn.entries).toHaveLength(10);
     expect(forAnn.entries.every((e) => e.target?.id === ann)).toBe(true);
+  });
+});
+
+describe("canvas inspector and moderation", () => {
+  const NOW = Date.now();
+  const placeAt = async (userId: number, x: number, y: number, colorId: number, at: number, withBomb = false) => {
+    const res = await runtime.run((e) => e.placePixel(userId, { x, y, colorId, withBomb }, at));
+    expect(res).toMatchObject({ ok: true });
+  };
+  const joinUnlimited = async (id: number) => {
+    await join(id);
+    runtime.engine.grantUnlimited(id);
+  };
+
+  test("inspect returns owner, bomb with owner and history newest first, capped at 20", async () => {
+    await joinUnlimited(ann);
+    await joinUnlimited(bob);
+    for (let i = 0; i < 25; i++) await placeAt(i % 2 === 0 ? ann : bob, 4, 4, 3 + (i % 2), NOW - 100_000 + i * 1000, i === 24);
+    const view = (await service.inspect(4, 4))!;
+    expect(view).toMatchObject({ x: 4, y: 4, colorId: 3, owner: { id: ann, name: "ann" } });
+    expect(view.bomb).toMatchObject({ owner: { id: ann, name: "ann" } });
+    expect(view.history).toHaveLength(20);
+    expect(view.history[0]).toMatchObject({ user: { id: ann }, colorId: 3, prevColorId: 4, kind: "place" });
+    expect(view.history[0]!.at).toBeGreaterThan(view.history[1]!.at);
+    expect(await service.inspect(9, 9)).toMatchObject({ owner: null, bomb: null, history: [] });
+    expect(await service.inspect(-1, 0)).toBeNull();
+    expect(await service.inspect(1_000_000, 0)).toBeNull();
+  });
+
+  test("preview and apply a player rollback, logging the counters", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 2, 2, 3, NOW - 10_000);
+    const action = { kind: "rollback_player", userId: ann, from: NOW - 20_000, to: NOW, area: null, removeBombs: false } as const;
+    expect(await service.previewModeration(action)).toEqual({ ok: true, cells: 1, bombs: 0, bbox: { x1: 2, y1: 2, x2: 2, y2: 2 } });
+    expect(await service.applyModeration(admin, action)).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    expect(runtime.engine.canvas.get(2, 2)).toMatchObject({ colorId: 0, ownerId: 0 });
+    await runtime.flush();
+    const [row] = (await logRows()).filter((r) => r.action === "rollback_player");
+    expect(row).toMatchObject({ adminId: admin.id, targetUserId: ann });
+    expect(row!.params).toMatchObject({ cells: 1, skipped: 0, bombs: 0 });
+  });
+
+  test("remove_bombs preview reports the count but no bbox", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 6, 6, 3, NOW - 5000, true);
+    expect(await service.previewModeration({ kind: "remove_bombs", userId: ann })).toEqual({ ok: true, cells: 0, bombs: 1, bbox: null });
+  });
+
+  test("apply reports plan errors", async () => {
+    expect(await service.applyModeration(admin, { kind: "clear_area", area: { x1: 0, y1: 0, x2: 9999, y2: 0 }, mode: "fill" })).toEqual({ ok: false, code: "bad_area" });
+    expect(await service.previewModeration({ kind: "remove_bombs", userId: 99999 })).toEqual({ ok: false, code: "not_found" });
+  });
+
+  test("concurrent applies run one after another", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 2, 2, 3, NOW - 10_000);
+    const action = { kind: "rollback_player", userId: ann, from: NOW - 20_000, to: NOW, area: null, removeBombs: false } as const;
+    const [a, b] = await Promise.all([service.applyModeration(admin, action), service.applyModeration(admin, action)]);
+    expect(a).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    expect(b).toEqual({ ok: true, cells: 0, skipped: 0, bombs: 0 });
+  });
+
+  test("areaOwners sorts authors by cell count", async () => {
+    await joinUnlimited(ann);
+    await joinUnlimited(bob);
+    await placeAt(bob, 1, 1, 3, NOW - 5000);
+    await placeAt(ann, 2, 1, 3, NOW - 4000);
+    await placeAt(ann, 3, 1, 3, NOW - 3000);
+    expect(service.areaOwners({ x1: 0, y1: 0, x2: 5, y2: 5 })).toEqual({
+      ok: true,
+      owners: [
+        { user: { id: ann, name: "ann" }, cells: 2 },
+        { user: { id: bob, name: "bob_x" }, cells: 1 },
+      ],
+    });
+    expect(service.areaOwners({ x1: 0, y1: 0, x2: 256, y2: 255 })).toEqual({ ok: false, code: "area_too_large" });
   });
 });

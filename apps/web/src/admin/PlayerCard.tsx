@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTRPC } from "../net/trpc";
+import { describeAction, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, resultText } from "../ui/moderation-format";
 import { BAN_PRESETS, banUntil, parseDelta, type BanPresetKey } from "./ban";
 import { ACTION_LABEL, ITEM_LABEL, adminErrorText } from "./labels";
+import { details } from "./log-format";
 import styles from "./admin.module.css";
 
 const FAILED = "Не удалось выполнить действие";
@@ -203,6 +205,7 @@ export function PlayerCard({ userId }: { userId: number }) {
                     aria-invalid={parseDelta(deltas[k]) === null}
                     onChange={(e) => setDeltas({ ...deltas, [k]: e.target.value })}
                   />
+                  {parseDelta(deltas[k]) === null && <span className={styles.error}>целое число, не больше 1 000 000</span>}
                 </label>
               ))}
             </div>
@@ -218,6 +221,8 @@ export function PlayerCard({ userId }: { userId: number }) {
         </>
       )}
 
+      <PixelRollback userId={userId} name={user.name} />
+
       <h3 className={styles.subtitle}>История модерации игрока</h3>
       {log.length === 0 ? (
         <p className={styles.message}>Записей нет</p>
@@ -226,12 +231,149 @@ export function PlayerCard({ userId }: { userId: number }) {
           {log.map((e) => (
             <li key={e.id}>
               {fmt(e.at)} · {ACTION_LABEL[e.action]} · {e.admin.name}
-              {typeof e.params.reason === "string" && ` · ${e.params.reason}`}
-              {typeof e.params.comment === "string" && ` · ${e.params.comment}`}
+              {` · ${details(e)}`}
             </li>
           ))}
         </ul>
       )}
     </article>
+  );
+}
+
+type PixelAction =
+  | { kind: "rollback_player"; userId: number; from: number; to: number; area: null; removeBombs: boolean }
+  | { kind: "remove_bombs"; userId: number };
+
+/** Pixel rollback and bomb removal for one player: preview first, apply only what was previewed. */
+function PixelRollback({ userId, name }: { userId: number; name: string }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [period, setPeriod] = useState<string>("24h");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [removeBombs, setRemoveBombs] = useState(true);
+  const [staged, setStaged] = useState<{ action: PixelAction; text: string; what: string } | null>(null);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+
+  /** Bumped by every request and by every change of its inputs; a late answer with an older token is dropped. */
+  const requestToken = useRef(0);
+  // A preview describes one exact action: any change to what it depends on invalidates it.
+  useEffect(() => {
+    requestToken.current++;
+    setStaged(null);
+    setMessage(null);
+  }, [userId, period, customFrom, customTo, removeBombs]);
+
+  type Request = { action: PixelAction; what: string; token: number };
+  const preview = useMutation({
+    mutationFn: ({ action }: Request) => queryClient.fetchQuery({ ...trpc.admin.moderation.preview.queryOptions({ action }), staleTime: 0 }),
+    onSuccess: (res, { action, what, token }) => {
+      if (token !== requestToken.current) return;
+      if (res.ok) {
+        setStaged({ action, text: previewText(res), what });
+        setMessage(null);
+      } else {
+        setStaged(null);
+        setMessage({ text: moderationErrorText(res.code), error: true });
+      }
+    },
+    onError: (_error, { token }) => {
+      if (token !== requestToken.current) return;
+      setStaged(null);
+      setMessage({ text: moderationErrorText(undefined), error: true });
+    },
+  });
+  const apply = useMutation({
+    ...trpc.admin.moderation.execute.mutationOptions(),
+    onSuccess: (res) => {
+      setStaged(null);
+      if (res.ok) {
+        setMessage({ text: resultText(res), error: false });
+        void queryClient.invalidateQueries({ queryKey: trpc.admin.players.get.pathKey() });
+        void queryClient.invalidateQueries({ queryKey: trpc.admin.modLog.pathKey() });
+      } else setMessage({ text: moderationErrorText(res.code), error: true });
+    },
+    onError: () => {
+      setStaged(null);
+      setMessage({ text: moderationErrorText(undefined), error: true });
+    },
+  });
+  const busy = preview.isPending || apply.isPending;
+
+  const preset = PERIOD_PRESETS.find((p) => p.id === period);
+  const custom = { from: customFrom ? new Date(customFrom).getTime() : Number.NaN, to: customTo ? new Date(customTo).getTime() : Number.NaN };
+  const rollbackReady = preset !== undefined || (Number.isFinite(custom.from) && Number.isFinite(custom.to) && custom.from <= custom.to);
+
+  const calc = (action: PixelAction) => {
+    setMessage(null);
+    // The description is fixed now, from the same inputs as the action, so it always matches it.
+    const what = describeAction(action, { fmt, player: name, ...(preset && action.kind === "rollback_player" ? { period: preset.label } : {}) });
+    preview.mutate({ action, what, token: ++requestToken.current });
+  };
+  const calcRollback = () => {
+    // Preset ranges are taken at click time and sent as-is, so the applied action equals the previewed one.
+    const range = preset ? presetRange(preset, Date.now()) : custom;
+    calc({ kind: "rollback_player", userId, from: range.from, to: range.to, area: null, removeBombs });
+  };
+
+  return (
+    <>
+      <h3 className={styles.subtitle}>Откат пикселей</h3>
+      <div className={styles.form}>
+        <div className={styles.radios} role="radiogroup" aria-label="Период отката">
+          {PERIOD_PRESETS.map((p) => (
+            <label key={p.id} className={styles.radio}>
+              <input type="radio" name="rollback-period" checked={period === p.id} onChange={() => setPeriod(p.id)} /> {p.label}
+            </label>
+          ))}
+          <label className={styles.radio}>
+            <input type="radio" name="rollback-period" checked={period === "custom"} onChange={() => setPeriod("custom")} /> Своё
+          </label>
+        </div>
+        {period === "custom" && (
+          <>
+            <label className={styles.field}>
+              с
+              <input className={styles.input} type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+            </label>
+            <label className={styles.field}>
+              по
+              <input className={styles.input} type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+            </label>
+          </>
+        )}
+        <label className={styles.radio}>
+          <input type="checkbox" checked={removeBombs} onChange={(e) => setRemoveBombs(e.target.checked)} /> Также снять все бомбы игрока
+        </label>
+        <p className={styles.muted}>Откат игрока не трогает клетки, восстановленные прошлой модерацией; для рейда используйте «Очистка → Откатить к моменту».</p>
+        <div className={styles.radios}>
+          <button type="button" className={styles.button} disabled={busy || !rollbackReady} onClick={calcRollback}>
+            Посчитать
+          </button>
+          <button type="button" className={styles.button} disabled={busy} onClick={() => calc({ kind: "remove_bombs", userId })}>
+            Снять все бомбы игрока
+          </button>
+        </div>
+      </div>
+      {staged && (
+        <div className={styles.staged} role="status">
+          <p>{staged.what}</p>
+          <p>{staged.text}</p>
+          <div className={styles.radios}>
+            <button type="button" className={styles.button} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>
+              Применить
+            </button>
+            <button type="button" className={styles.button} disabled={busy} onClick={() => setStaged(null)}>
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+      {message && (
+        <p className={message.error ? styles.error : styles.toast} role={message.error ? "alert" : "status"}>
+          {message.text}
+        </p>
+      )}
+    </>
   );
 }

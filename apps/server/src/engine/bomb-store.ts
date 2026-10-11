@@ -1,3 +1,4 @@
+import type { Rect } from "@rave/shared";
 import type { UserId } from "./types";
 
 export interface Bomb {
@@ -34,6 +35,15 @@ export class BombStore {
     if (left === 0) this.perOwner.delete(bomb.ownerId);
     else this.perOwner.set(bomb.ownerId, left);
     return bomb;
+  }
+
+  ownedBy(ownerId: UserId): Bomb[] {
+    return [...this.byCell.values()].filter((b) => b.ownerId === ownerId);
+  }
+
+  /** Bombs inside the rectangle, bounds inclusive. */
+  inRect(r: Rect): Bomb[] {
+    return [...this.byCell.values()].filter((b) => b.x >= r.x1 && b.x <= r.x2 && b.y >= r.y1 && b.y <= r.y2);
   }
 
   activeCount(ownerId: UserId): number {

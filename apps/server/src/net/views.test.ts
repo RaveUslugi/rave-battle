@@ -88,7 +88,7 @@ describe("toPlaceResultView", () => {
 
 describe("buildChunkDeltas", () => {
   const pixel = (x: number, y: number, colorId: number): EngineEvent => ({
-    type: "pixel", x, y, userId: 1, colorId, prevColorId: 0, prevUserId: 0, at: T0,
+    type: "pixel", kind: "place", x, y, userId: 1, colorId, prevColorId: 0, prevUserId: 0, at: T0,
   });
 
   test("groups pixels by chunk, keeps the last color per cell and bumps versions", () => {
@@ -115,5 +115,12 @@ describe("buildFeed", () => {
       { type: "feed", kind: "defused", actor: { id: 1, name: "alice" }, owner: { id: 2, name: "bob" }, at: T0 + 1 },
     ]);
     for (const message of feed) expect(Object.keys(message).sort()).toEqual(["actor", "at", "kind", "owner", "type"]);
+  });
+
+  test("moderator bomb removals stay out of the feed", () => {
+    const events: EngineEvent[] = [
+      { type: "bomb_removed", x: 5, y: 5, ownerId: 1, reason: "moderated", removedBy: 2, at: T0 },
+    ];
+    expect(buildFeed(events, directory())).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { initTRPC, TRPCError, type TRPCDefaultErrorShape } from "@trpc/server";
 import { isAdmin } from "../auth/admin";
+import { ensurePlayer } from "../auth/ensure-player";
 import type { SessionUser } from "../auth/session";
 import type { AppDeps } from "../net/deps";
 import type { UserRateLimiter } from "../net/rate-limit";
@@ -36,13 +37,7 @@ export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
   const user = ctx.user;
   if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
   if (!ctx.limiter.take(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
-  await ctx.deps.runtime.addPlayer({
-    userId: user.id,
-    accountCreatedAt: user.discordCreatedAt,
-    guildMember: user.guildMember,
-    bannedUntil: user.bannedUntil,
-    banReason: user.banReason,
-  });
+  await ensurePlayer(ctx.deps, user);
   return next({ ctx: { ...ctx, user } });
 });
 

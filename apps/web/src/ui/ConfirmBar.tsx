@@ -11,7 +11,8 @@ export function ConfirmBar({ client }: { client: GameClient }) {
   const bombMode = useUi((s) => s.bombMode);
   const tool = useUi((s) => s.tool);
   const player = useGame((s) => s.player);
-  if (!selection) return null;
+  // Admin tools act on the tap itself, so they never leave a selection to confirm.
+  if (!selection || tool === "inspect" || tool === "area") return null;
   const left = player?.unlimited ? "∞" : (player?.inventory.defuser ?? 0);
   return (
     <div className={styles.bar} role="group" aria-label="Подтверждение клетки">

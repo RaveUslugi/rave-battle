@@ -57,7 +57,7 @@ beforeEach(async () => {
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {} });
   const stats = new StatsService(t.db, runtime, users);
   const adminService = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  deps = { db: t.db, runtime, hub: new Hub({ runtime, users }), users, config, stats, admin: adminService };
+  deps = { db: t.db, runtime, hub: new Hub({ db: t.db, runtime, users }), users, config, stats, admin: adminService };
 });
 afterEach(() => runtime.stop());
 afterAll(() => t.close());
@@ -172,6 +172,11 @@ describe("appRouter", () => {
     await expect(as(admin).admin.players.get({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  test("moderation actions with mixed variant fields are rejected", async () => {
+    const area = { x1: 0, y1: 0, x2: 1, y2: 1 };
+    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
     await expect(as(admin).admin.players.adjust({ userId: bob.id, changes: { coins: 1.5 }, comment: "x" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "  " })).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -187,5 +192,17 @@ describe("appRouter", () => {
     const log = await as(admin).admin.modLog({ cursor: null });
     expect(log.entries.map((e) => e.action)).toEqual(["ban"]);
     expect(log.next).toBeNull();
+  });
+
+  test("canvas and moderation procedures are admin-only; bad areas are rejected with a code", async () => {
+    const action = { kind: "clear_area", area: { x1: 0, y1: 0, x2: 1, y2: 1 }, mode: "fill" } as const;
+    await expect(as(alice).admin.canvas.inspect({ cell: { x: 0, y: 0 } })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.moderation.execute({ action })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(admin).admin.canvas.inspect({ cell: { x: 1_000_000, y: 0 } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await as(admin).admin.canvas.inspect({ cell: { x: 0, y: 0 } })).toMatchObject({ owner: null, bomb: null, history: [] });
+    const wide = { kind: "clear_area", area: { x1: 0, y1: 0, x2: 256, y2: 255 }, mode: "fill" } as const;
+    expect(await as(admin).admin.moderation.preview({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
+    expect(await as(admin).admin.moderation.execute({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
+    expect(await as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: alice.id } })).toEqual({ ok: true, cells: 0, bombs: 0, bbox: null });
   });
 });

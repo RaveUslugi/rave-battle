@@ -1,4 +1,5 @@
-import type { GameConfig, ItemKey, Reward } from "@rave/shared";
+import type { GameConfig, ItemKey, ModAction, Reward } from "@rave/shared";
+export { MOD_ACTIONS, type ModAction } from "@rave/shared";
 import type { ConfigIssue } from "./config-change";
 
 export type UserId = number;
@@ -52,8 +53,6 @@ export type Rejected = { ok: false; code: RejectCode };
 
 export type LedgerItem = "coins" | ItemKey;
 export type LedgerReason = "shop" | "daily" | "explosion" | "bomb_bonus" | "defuse" | "use" | "admin";
-export const MOD_ACTIONS = ["ban", "unban", "player_edit", "config_save", "config_rollback"] as const;
-export type ModAction = (typeof MOD_ACTIONS)[number];
 export type AdjustResult = { ok: true } | { ok: false; code: "nothing_to_change" | "negative_balance" };
 export type StatKey =
   | "pixels"
@@ -63,10 +62,12 @@ export type StatKey =
   | "selfExplosions"
   | "defused";
 
+export type PixelKind = "place" | "mod_rollback" | "mod_clear";
+
 export type EngineEvent =
-  | { type: "pixel"; x: number; y: number; userId: UserId; colorId: number; prevColorId: number; prevUserId: UserId; at: number }
+  | { type: "pixel"; kind: PixelKind; x: number; y: number; userId: UserId; colorId: number; prevColorId: number; prevUserId: UserId; at: number }
   | { type: "bomb_added"; x: number; y: number; ownerId: UserId; at: number }
-  | { type: "bomb_removed"; x: number; y: number; ownerId: UserId; reason: "exploded" | "defused"; removedBy: UserId; at: number }
+  | { type: "bomb_removed"; x: number; y: number; ownerId: UserId; reason: "exploded" | "defused" | "moderated"; removedBy: UserId; at: number }
   | { type: "ledger"; userId: UserId; item: LedgerItem; delta: number; balanceAfter: number; reason: LedgerReason; ref: Record<string, unknown>; at: number }
   | { type: "stat"; userId: UserId; day: string; stat: StatKey; delta: number }
   | { type: "color_unlocked"; userId: UserId; colorId: number; source: "shop"; at: number }
@@ -74,6 +75,31 @@ export type EngineEvent =
   | { type: "config_changed"; version: number; config: GameConfig; createdBy: UserId; comment: string; at: number }
   /** Player state changed; the persister upserts the current snapshot. */
   | { type: "player"; userId: UserId };
+
+export interface CellWrite {
+  x: number;
+  y: number;
+  /** State the planner saw; the write is skipped if the cell differs now. */
+  expect: { colorId: number; ownerId: UserId };
+  colorId: number;
+  ownerId: UserId;
+}
+
+export interface ModerationPlan {
+  kind: Exclude<PixelKind, "place">;
+  writes: CellWrite[];
+  /** Cells whose active bomb is removed (if one is still there). */
+  bombs: Array<{ x: number; y: number }>;
+}
+
+export interface ModerationMeta {
+  adminId: UserId;
+  action: "rollback_player" | "clear_area" | "remove_bombs";
+  targetUserId: UserId | null;
+  params: Record<string, unknown>;
+}
+
+export type ModerationResult = { ok: true; cells: number; skipped: number; bombs: number };
 
 export interface PlaceCommand {
   x: number;

@@ -108,6 +108,28 @@ describe("restart", () => {
     }
   });
 
+  test("a moderated cell stays cleared after a restart", async () => {
+    const first = await bootWithPlayers();
+    await place(first.runtime, 0, 0, 5);
+    const res = await first.runtime.run((e, now) =>
+      e.applyModeration(
+        {
+          kind: "mod_clear",
+          writes: [{ x: 0, y: 0, expect: { colorId: 5, ownerId: a }, colorId: 0, ownerId: 0 }],
+          bombs: [],
+        },
+        { adminId: b, action: "clear_area", targetUserId: null, params: {} },
+        now,
+      ),
+    );
+    expect(res).toEqual({ ok: true, cells: 1, skipped: 0, bombs: 0 });
+    await first.runtime.stop();
+
+    const second = await boot();
+    expect(second.engine.canvas.get(0, 0)).toEqual({ colorId: 0, ownerId: 0 });
+    expect(second.engine.canvas.territoryOf(a)).toBe(0);
+  });
+
   test("snapshot plus log replay restores every pixel", async () => {
     const first = await bootWithPlayers();
     const run = first.runtime.run.bind(first.runtime);

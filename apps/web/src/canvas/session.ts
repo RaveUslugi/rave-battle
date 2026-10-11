@@ -1,9 +1,10 @@
-import { encodePlace, type PlaceMessage, type ServerMessage } from "@rave/shared/client";
+import { encodePlace, normalizeRect, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
+import { applyConfigMessage } from "./config-message";
 import { fetchChunk } from "./chunk-loader";
 import { CanvasController } from "./controller";
 import { PixiRenderer } from "./pixi-renderer";
@@ -26,6 +27,12 @@ import {
 export interface SessionCallbacks {
   /** A tap/click on a canvas cell. `pointerType` is "mouse", "pen" or "touch". */
   onCellTap?(cell: { x: number; y: number }, pointerType: string): void;
+  /** True when a drag should select an area instead of panning (area tool with a mouse). */
+  areaDrag?(pointerType: string): boolean;
+  /** Reports the dragged rectangle corners; `done` on release. */
+  onAreaDrag?(from: { x: number; y: number }, to: { x: number; y: number }, done: boolean): void;
+  /** A drag ended without producing a rectangle (cancelled, capture lost or released off the canvas): restore the stored frame. */
+  onAreaDragEnd?(): void;
   onPlaced?(message: Extract<ServerMessage, { type: "placed" }>): void;
 }
 
@@ -51,6 +58,7 @@ export class CanvasSession implements CanvasPort {
   private readonly pointers = new Map<number, Point>();
   private tapStart: (Point & { at: number; pointerType: string }) | null = null;
   private moved = false;
+  private areaPreview = false;
   private readonly resizeObserver: ResizeObserver;
   private unsubscribeReadings: (() => void) | null = null;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
@@ -102,6 +110,10 @@ export class CanvasSession implements CanvasPort {
 
   setSelection(cell: { x: number; y: number } | null): void {
     this.renderer.setSelection(cell);
+  }
+
+  setArea(rect: Rect | null): void {
+    this.renderer.setArea(rect);
   }
 
   flash(cell: { x: number; y: number }): void {
@@ -164,10 +176,12 @@ export class CanvasSession implements CanvasPort {
     const store = gameStore.getState();
     if (message.type === "player") store.setPlayer(message.player);
     else if (message.type === "config") {
-      store.setConfig(message.config);
-      this.canvas = message.config.canvas;
-      this.controller?.onConfig(message.config);
-      this.applyCamera(true);
+      applyConfigMessage(message.config, {
+        setConfig: store.setConfig,
+        setCanvas: (canvas) => (this.canvas = canvas),
+        controller: this.controller,
+        applyCamera: (force) => this.applyCamera(force),
+      });
     } else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
@@ -243,6 +257,14 @@ export class CanvasSession implements CanvasPort {
     if (cell?.x !== current?.x || cell?.y !== current?.y) gameStore.getState().setHover(cell);
   }
 
+  private dragCells(start: Point, end: Point): { from: Point; to: Point } | null {
+    if (!this.camera || !this.canvas) return null;
+    const screen = this.renderer.screenSize();
+    const from = cellAt(this.camera, screen, start.x, start.y, this.canvas);
+    const to = cellAt(this.camera, screen, end.x, end.y, this.canvas);
+    return from && to ? { from, to } : null;
+  }
+
   private attachPointerHandlers(element: HTMLCanvasElement): void {
     element.style.touchAction = "none";
 
@@ -276,7 +298,13 @@ export class CanvasSession implements CanvasPort {
         if (!this.moved && this.tapStart && Math.hypot(point.x - this.tapStart.x, point.y - this.tapStart.y) > TAP_MAX_MOVE) {
           this.moved = true;
         }
-        if (this.moved) this.camera = pan(this.camera, point.x - previous.x, point.y - previous.y);
+        if (this.moved && this.tapStart && this.callbacks.areaDrag?.(this.tapStart.pointerType)) {
+          const cells = this.dragCells(this.tapStart, point);
+          if (cells) {
+            this.areaPreview = true;
+            this.callbacks.onAreaDrag?.(cells.from, cells.to, false);
+          }
+        } else if (this.moved) this.camera = pan(this.camera, point.x - previous.x, point.y - previous.y);
       } else if (this.pointers.size === 2) {
         const other = [...this.pointers.entries()].find(([id]) => id !== event.pointerId)?.[1];
         if (other && this.canvas) {
@@ -298,6 +326,15 @@ export class CanvasSession implements CanvasPort {
       if (this.pointers.size > 0) return;
       const tap = this.tapStart;
       this.tapStart = null;
+      const preview = this.areaPreview;
+      this.areaPreview = false;
+      if (event.type === "pointerup" && this.moved && tap && this.callbacks.areaDrag?.(tap.pointerType)) {
+        const cells = this.dragCells(tap, this.local(event));
+        if (cells) this.callbacks.onAreaDrag?.(cells.from, cells.to, true);
+        else if (preview) this.callbacks.onAreaDragEnd?.();
+        return;
+      }
+      if (preview) this.callbacks.onAreaDragEnd?.();
       if (event.type !== "pointerup" || this.moved || !tap || performance.now() - tap.at > TAP_MAX_MS) return;
       if (!this.camera || !this.canvas) return;
       const cell = cellAt(this.camera, this.renderer.screenSize(), tap.x, tap.y, this.canvas);

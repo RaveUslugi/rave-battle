@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@rave/shared/client";
+import { normalizeRect, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { StoreApi } from "zustand/vanilla";
 import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";
@@ -6,6 +6,7 @@ import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
 import { rejectText } from "./messages";
 import { PendingPlacements } from "./pending";
+import { tapCorner } from "./area";
 import { planPlacement } from "./placement";
 import { SapperTools, type Tool, type ToolsApi } from "./tools";
 
@@ -18,6 +19,8 @@ export interface CanvasPort {
   sendPlace(message: { reqId: number; x: number; y: number; colorId: number; withBomb: boolean }): boolean;
   setPending(cells: Array<{ x: number; y: number; colorId: number }>): void;
   setSelection(cell: Cell | null): void;
+  /** Moderation frame around an inclusive rectangle; null hides it. */
+  setArea(rect: Rect | null): void;
   flash(cell: Cell): void;
 }
 
@@ -38,6 +41,13 @@ const defaultTimers: Timers = {
   set: (fn, ms) => setTimeout(fn, ms),
   clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
+
+/** The rectangle to frame: the area, else the inspected cell, else the first touch corner. */
+export function moderationFrame(m: UiState["moderation"]): Rect | null {
+  if (m.area) return m.area;
+  const cell = m.cell ?? m.corner;
+  return cell ? normalizeRect(cell, cell) : null;
+}
 
 /** Turns taps into placements and server answers into UI feedback. */
 export class GameClient {
@@ -82,8 +92,11 @@ export class GameClient {
       }),
       this.deps.ui.subscribe((state, prev) => {
         if (state.selection !== prev.selection) this.port?.setSelection(state.selection);
+        if (state.moderation !== prev.moderation) this.port?.setArea(moderationFrame(state.moderation));
       }),
     ];
+    // A port that attaches late (remount) must show the current frame at once.
+    port.setArea(moderationFrame(this.deps.ui.getState().moderation));
   }
 
   detach(): void {
@@ -101,6 +114,20 @@ export class GameClient {
       this.toast("unauthorized");
       return;
     }
+    // Admin tools act on the tap itself: they only read or select, and the server checks the rights.
+    if (ui.tool === "inspect") {
+      ui.inspectCell(cell);
+      return;
+    }
+    if (ui.tool === "area") {
+      if (pointerType === "mouse") ui.setArea(normalizeRect(cell, cell));
+      else {
+        const next = tapCorner(ui.moderation.corner, cell);
+        if (next.area) ui.setArea(next.area);
+        else ui.setCorner(next.corner);
+      }
+      return;
+    }
     // Touch always confirms; the defuser is expensive, so it confirms for every pointer.
     if (pointerType === "touch" || ui.tool === "defuser") {
       ui.select(cell);
@@ -116,6 +143,7 @@ export class GameClient {
     const ui = this.deps.ui.getState();
     const selection = ui.selection;
     if (!selection) return;
+    if (ui.tool === "inspect" || ui.tool === "area") return;
     const done = ui.tool === "paint" ? this.place(selection) : this.useTool(ui.tool, selection);
     if (done) this.deps.ui.getState().select(null);
   };

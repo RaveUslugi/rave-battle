@@ -80,7 +80,8 @@ type FeedMessage = Extract<ServerMessage, { type: "feed" }>;
 export function buildFeed(events: EngineEvent[], users: UserDirectory): FeedMessage[] {
   const feed: FeedMessage[] = [];
   for (const e of events) {
-    if (e.type !== "bomb_removed") continue;
+    // Moderator removals are not a player action; they stay out of the public feed.
+    if (e.type !== "bomb_removed" || e.reason === "moderated") continue;
     feed.push({ type: "feed", kind: e.reason, actor: users.ref(e.removedBy), owner: users.ref(e.ownerId), at: e.at });
   }
   return feed;

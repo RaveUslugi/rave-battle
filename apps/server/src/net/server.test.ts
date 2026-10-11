@@ -53,7 +53,7 @@ async function start(
     adminDiscordIds: new Set(),
     discord: options.discord ?? null,
   };
-  hub = new Hub({ runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  hub = new Hub({ db: t.db, runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
   hubRef = hub;
   const stats = new StatsService(t.db, runtime, users);
   const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
@@ -279,6 +279,34 @@ describe("websocket", () => {
     const next = await waitFor(() => viewer.deltas[1]);
     expect(next).toEqual({ cx: 0, cy: 0, fromVersion: 1, toVersion: 2, cells: [{ index: 6 * CHUNK_SIZE + 6, colorId: 4 }] });
     expect(viewer.deltas).toHaveLength(2);
+  });
+
+  test("moderation edits reach chunk subscribers as a delta without a feed entry", async () => {
+    const alice = await connect(await login("alice"));
+    const adminId = hello(alice).user!.id;
+    const viewer = await connect();
+    viewer.ws.send(encodeSubscribe([{ cx: 0, cy: 0 }]));
+    await Bun.sleep(20);
+
+    alice.ws.send(encodePlace({ reqId: 1, x: 3, y: 4, colorId: 5, withBomb: true }));
+    await placed(alice, 1);
+    await waitFor(() => viewer.deltas[0]);
+
+    await runtime.run((e, now) =>
+      e.applyModeration(
+        {
+          kind: "mod_clear",
+          writes: [{ x: 3, y: 4, expect: { colorId: 5, ownerId: adminId }, colorId: 0, ownerId: 0 }],
+          bombs: [{ x: 3, y: 4 }],
+        },
+        { adminId, action: "clear_area", targetUserId: null, params: {} },
+        now,
+      ),
+    );
+    const delta = await waitFor(() => viewer.deltas[1]);
+    expect(delta).toEqual({ cx: 0, cy: 0, fromVersion: 1, toVersion: 2, cells: [{ index: 4 * CHUNK_SIZE + 3, colorId: 0 }] });
+    await Bun.sleep(50);
+    expect(viewer.json.some((m) => m.type === "feed")).toBe(false);
   });
 
   test("new connections get the recent feed right after hello", async () => {

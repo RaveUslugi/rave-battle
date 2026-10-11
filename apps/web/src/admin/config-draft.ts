@@ -1,7 +1,8 @@
 import { gameConfigSchema, type GameConfig, type PaletteEntry } from "@rave/shared";
 
 export const SECTIONS = ["canvas", "charges", "coinsPerPixel", "explosion", "bombs", "antiFarm", "defuse", "shop", "starting", "daily", "access"] as const;
-export type Section = (typeof SECTIONS)[number] | "palette";
+/** "general" collects issues whose path does not belong to any section. */
+export type Section = (typeof SECTIONS)[number] | "palette" | "general";
 export type Issues = Partial<Record<Section, string[]>>;
 
 export interface Draft {
@@ -28,8 +29,8 @@ function formatPath(path: ReadonlyArray<PropertyKey>): string {
 
 function addIssue(issues: Issues, path: ReadonlyArray<PropertyKey>, message: string): void {
   const [head, ...rest] = path;
-  const section = (ALL_SECTIONS.includes(String(head)) ? head : "canvas") as Section;
-  const where = section === "palette" ? formatPath(path) : formatPath(rest);
+  const section = (ALL_SECTIONS.includes(String(head)) ? head : "general") as Section;
+  const where = section === "palette" ? formatPath(path) : section === "general" ? formatPath(path) : formatPath(rest);
   if (where === "palette") return void (issues.palette ??= []).push(message);
   (issues[section] ??= []).push(where === "" ? message : `${where}: ${message}`);
 }

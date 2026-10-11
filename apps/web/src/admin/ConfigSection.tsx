@@ -88,7 +88,7 @@ export function ConfigSection() {
   const { version, config: live } = current.data;
   const dirty = checked.config === null || diff.length > 0;
   const issues: Issues = {};
-  for (const section of [...SECTIONS, "palette"] as Section[]) {
+  for (const section of [...SECTIONS, "palette", "general"] as Section[]) {
     const all = [...(checked.issues[section] ?? []), ...(remote[section] ?? [])];
     if (all.length > 0) issues[section] = all;
   }
@@ -153,6 +153,8 @@ export function ConfigSection() {
         <PaletteTable value={draft.palette} onChange={(palette) => edit({ ...draft, palette })} />
         <IssueList issues={issues.palette} />
       </section>
+
+      <IssueList issues={issues.general} />
 
       <div className={styles.saveBar}>
         {!open ? (

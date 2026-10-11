@@ -1,4 +1,4 @@
-import { CHUNK_SIZE } from "@rave/shared/client";
+import { CHUNK_SIZE, type Rect } from "@rave/shared/client";
 import { Application, BufferImageSource, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import { readingAlpha, type Reading } from "../state/readings-store";
 import type { Renderer } from "./controller";
@@ -49,6 +49,7 @@ export class PixiRenderer implements Renderer {
   private readings: Reading[] = [];
   private pendingCells: Array<Cell & { colorId: number }> = [];
   private selectedCell: Cell | null = null;
+  private areaRect: Rect | null = null;
   private flashes: Array<Cell & { start: number; still: boolean }> = [];
   private fxDrawn = false;
   private readonly chunks = new Map<string, ChunkView>();
@@ -186,6 +187,12 @@ export class PixiRenderer implements Renderer {
     this.drawOverlay();
   }
 
+  /** Moderation frame around an inclusive rectangle; null hides it. Stored before init too. */
+  setArea(rect: Rect | null): void {
+    this.areaRect = rect;
+    this.drawOverlay();
+  }
+
   /** Detector readings to show; call again to refresh their fading. Stored before init too. */
   setReadings(readings: Reading[]): void {
     this.readings = readings;
@@ -243,6 +250,12 @@ export class PixiRenderer implements Renderer {
       const x = origin.x + (sel.x + 0.5) * zoom - size / 2;
       const y = origin.y + (sel.y + 0.5) * zoom - size / 2;
       this.overlay.rect(x, y, size, size).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
+    }
+    const area = this.areaRect;
+    if (area) {
+      const x = origin.x + area.x1 * zoom;
+      const y = origin.y + area.y1 * zoom;
+      this.overlay.rect(x, y, (area.x2 + 1 - area.x1) * zoom, (area.y2 + 1 - area.y1) * zoom).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
     }
   }
 

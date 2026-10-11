@@ -3,6 +3,7 @@ import { useGame } from "../state/game-store";
 import { uiStore, useUi, type Panel } from "../state/ui-store";
 import { DailyTab } from "./DailyTab";
 import { LeadersTab } from "./LeadersTab";
+import { ModerationTab } from "./ModerationTab";
 import { ProfileTab } from "./ProfileTab";
 import { ShopTab } from "./ShopTab";
 import styles from "./SidePanel.module.css";
@@ -12,6 +13,8 @@ const TABS: Array<{ panel: Panel; title: string; needsLogin: boolean }> = [
   { panel: "daily", title: "Дейлик", needsLogin: true },
   { panel: "leaders", title: "Рейтинги", needsLogin: false },
   { panel: "profile", title: "Профиль", needsLogin: true },
+  // Opened by the admin tools on the canvas; hidden from everyone else.
+  { panel: "moderation", title: "Модерация", needsLogin: true },
 ];
 
 /** Right-hand drawer (bottom sheet on narrow screens) with one tab at a time; the canvas stays live behind it. */
@@ -19,9 +22,10 @@ export function SidePanel() {
   const panel = useUi((s) => s.panel);
   const profileUserId = useUi((s) => s.profileUserId);
   const user = useGame((s) => s.user);
+  const admin = useGame((s) => s.admin);
   // Visitors may browse the leaderboards and other players' profiles.
   const otherProfile = profileUserId !== null;
-  const open = panel !== null && (user !== null || panel === "leaders" || (panel === "profile" && otherProfile));
+  const open = panel !== null && (user !== null || panel === "leaders" || (panel === "profile" && otherProfile)) && (panel !== "moderation" || admin);
   const idPrefix = useId();
   const asideRef = useRef<HTMLElement>(null);
   /** Whether focus is in the panel; stays set when the panel is removed with focus inside. */
@@ -41,10 +45,15 @@ export function SidePanel() {
   useEffect(() => {
     if (user) return;
     const { panel: current, profileUserId: whose, closePanel } = uiStore.getState();
-    if (current === "shop" || current === "daily" || (current === "profile" && whose === null)) closePanel();
+    if (current === "shop" || current === "daily" || current === "moderation" || (current === "profile" && whose === null)) closePanel();
     // The panel stays open but the tab that had focus may be gone: keep focus in the panel.
     else if (focusInside.current && (document.activeElement === null || document.activeElement === document.body)) asideRef.current?.focus();
   }, [user]);
+
+  // Losing admin rights closes the moderation tab.
+  useEffect(() => {
+    if (!admin && uiStore.getState().panel === "moderation") uiStore.getState().closePanel();
+  }, [admin]);
 
   // Opening moves focus into the panel; closing returns it to whatever opened it (usually the menu button).
   useEffect(() => {
@@ -75,7 +84,7 @@ export function SidePanel() {
     >
       <header className={styles.header}>
         <div className={styles.tabs}>
-          {TABS.filter((tab) => user || !tab.needsLogin || (tab.panel === "profile" && otherProfile)).map((tab) => (
+          {TABS.filter((tab) => (user || !tab.needsLogin || (tab.panel === "profile" && otherProfile)) && (tab.panel !== "moderation" || admin)).map((tab) => (
             <button
               key={tab.panel}
               id={`${idPrefix}-${tab.panel}`}
@@ -94,7 +103,7 @@ export function SidePanel() {
         </button>
       </header>
       <div className={styles.body}>
-        {panel === "shop" ? <ShopTab /> : panel === "daily" ? <DailyTab /> : panel === "leaders" ? <LeadersTab /> : <ProfileTab />}
+        {panel === "shop" ? <ShopTab /> : panel === "daily" ? <DailyTab /> : panel === "leaders" ? <LeadersTab /> : panel === "moderation" ? <ModerationTab /> : <ProfileTab />}
       </div>
     </aside>
   );

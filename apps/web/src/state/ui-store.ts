@@ -1,12 +1,20 @@
+import type { Rect } from "@rave/shared/client";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import type { Tool } from "../game/tools";
 
-export type ActiveTool = "paint" | Tool;
+export type ActiveTool = "paint" | Tool | "inspect" | "area";
 
-export type Panel = "shop" | "daily" | "leaders" | "profile";
+export type Panel = "shop" | "daily" | "leaders" | "profile" | "moderation";
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
+
+/** What the admin moderation panel works on. `corner` is the first tap of an area on a touch screen. */
+export interface ModerationTarget {
+  cell: { x: number; y: number } | null;
+  area: Rect | null;
+  corner: { x: number; y: number } | null;
+}
 
 export interface Toast {
   id: number;
@@ -36,7 +44,11 @@ export interface UiState {
   panel: Panel | null;
   /** Whose profile the profile tab shows; null = the logged-in player. */
   profileUserId: number | null;
+  moderation: ModerationTarget;
   setTool(tool: ActiveTool): void;
+  inspectCell(cell: { x: number; y: number }): void;
+  setArea(area: Rect | null): void;
+  setCorner(corner: { x: number; y: number } | null): void;
   selectColor(id: number): void;
   setBombMode(on: boolean): void;
   select(cell: { x: number; y: number } | null): void;
@@ -75,8 +87,10 @@ export function createUiStore(storage: StorageLike | null) {
     tool: "paint",
     panel: null,
     profileUserId: null,
+    moderation: { cell: null, area: null, corner: null },
     // The pending selection meant something else under the previous tool.
-    setTool: (tool) => set({ tool, selection: null }),
+    // A half-made area corner belongs to the previous tool too.
+    setTool: (tool) => set((s) => ({ tool, selection: null, ...(s.moderation.corner ? { moderation: { ...s.moderation, corner: null } } : {}) })),
     selectColor: (id) => {
       try {
         storage?.setItem(COLOR_KEY, String(id));
@@ -87,6 +101,9 @@ export function createUiStore(storage: StorageLike | null) {
     },
     setBombMode: (bombMode) => set({ bombMode }),
     select: (selection) => set({ selection }),
+    inspectCell: (cell) => set({ panel: "moderation", moderation: { cell, area: null, corner: null } }),
+    setArea: (area) => set({ panel: "moderation", moderation: { cell: null, area, corner: null } }),
+    setCorner: (corner) => set((s) => ({ moderation: { ...s.moderation, corner } })),
     pushToast: (kind, text) => {
       const id = nextId++;
       // Repeated clicks must not stack copies; the new id restarts the dismiss timer.

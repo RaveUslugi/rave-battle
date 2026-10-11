@@ -14,7 +14,7 @@ describe("placePixel: plain pixels", () => {
 
     const events = engine.drainEvents();
     expect(eventsOf(events, "pixel")).toEqual([
-      { type: "pixel", x: 10, y: 20, userId: 1, colorId: 3, prevColorId: 0, prevUserId: 0, at: T0 },
+      { type: "pixel", kind: "place", x: 10, y: 20, userId: 1, colorId: 3, prevColorId: 0, prevUserId: 0, at: T0 },
     ]);
     expect(eventsOf(events, "stat").map((e) => [e.stat, e.delta, e.day])).toEqual([
       ["pixels", 1, "2026-10-07"],
