@@ -5,3 +5,5 @@ dist/
 !.env.example
 tmp/
 .DS_Store
+backups/
+!.env.production.example
