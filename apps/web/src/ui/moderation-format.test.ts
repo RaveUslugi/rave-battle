@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { describeAction, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
+import { describeAction, pluralCells, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
 
 describe("moderation-format", () => {
+  test("pluralCells", () => {
+    const expected: Array<[number, string]> = [[1, "1 клетка"], [2, "2 клетки"], [5, "5 клеток"], [11, "11 клеток"], [12, "12 клеток"], [21, "21 клетка"], [22, "22 клетки"], [25, "25 клеток"], [111, "111 клеток"]];
+    for (const [n, text] of expected) expect(pluralCells(n)).toBe(text);
+  });
+
   test("rectText", () => {
-    expect(rectText({ x1: 10, y1: 20, x2: 30, y2: 40 })).toBe("(10, 20) — (30, 40), 21×21 = 441 клеток");
-    expect(rectText({ x1: 0, y1: 0, x2: 0, y2: 0 })).toBe("(0, 0) — (0, 0), 1×1 = 1 клеток");
+    expect(rectText({ x1: 10, y1: 20, x2: 30, y2: 40 })).toBe("(10, 20) — (30, 40), 21×21 = 441 клетка");
+    expect(rectText({ x1: 0, y1: 0, x2: 0, y2: 0 })).toBe("(0, 0) — (0, 0), 1×1 = 1 клетка");
   });
 
   test("kindText", () => {
@@ -14,13 +19,13 @@ describe("moderation-format", () => {
   });
 
   test("previewText", () => {
-    expect(previewText({ cells: 5, bombs: 2 })).toBe("Изменится клеток: 5 · бомб будет снято: 2");
-    expect(previewText({ cells: 0, bombs: 1 })).toBe("Изменится клеток: 0 · бомб будет снято: 1");
+    expect(previewText({ cells: 5, bombs: 2 })).toBe("Изменится: 5 клеток · бомб будет снято: 2");
+    expect(previewText({ cells: 0, bombs: 1 })).toBe("Изменится: 0 клеток · бомб будет снято: 1");
     expect(previewText({ cells: 0, bombs: 0 })).toBe("Ничего не изменится");
   });
 
   test("resultText", () => {
-    expect(resultText({ cells: 5, skipped: 1, bombs: 2 })).toBe("Готово: клеток 5, пропущено 1 (изменились после расчёта), бомб 2");
+    expect(resultText({ cells: 5, skipped: 1, bombs: 2 })).toBe("Готово: 5 клеток, пропущено 1 (изменились после расчёта), бомб 2");
   });
 
   test("period presets", () => {

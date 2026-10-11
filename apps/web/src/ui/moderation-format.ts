@@ -2,9 +2,17 @@ import { rectCells, type Rect } from "@rave/shared/client";
 
 export type PixelKind = "place" | "mod_rollback" | "mod_clear";
 
+/** "1 клетка", "2 клетки", "5 клеток" (Russian plural rules). */
+export function pluralCells(n: number): string {
+  const last = n % 10;
+  const tail = n % 100;
+  const word = last === 1 && tail !== 11 ? "клетка" : last >= 2 && last <= 4 && (tail < 12 || tail > 14) ? "клетки" : "клеток";
+  return `${n} ${word}`;
+}
+
 export function rectText(r: Rect): string {
   const cells = rectCells(r);
-  return `(${r.x1}, ${r.y1}) — (${r.x2}, ${r.y2}), ${r.x2 - r.x1 + 1}×${r.y2 - r.y1 + 1} = ${cells} клеток`;
+  return `(${r.x1}, ${r.y1}) — (${r.x2}, ${r.y2}), ${r.x2 - r.x1 + 1}×${r.y2 - r.y1 + 1} = ${pluralCells(cells)}`;
 }
 
 export function kindText(kind: PixelKind): string {
@@ -12,11 +20,11 @@ export function kindText(kind: PixelKind): string {
 }
 
 export function previewText({ cells, bombs }: { cells: number; bombs: number }): string {
-  return cells === 0 && bombs === 0 ? "Ничего не изменится" : `Изменится клеток: ${cells} · бомб будет снято: ${bombs}`;
+  return cells === 0 && bombs === 0 ? "Ничего не изменится" : `Изменится: ${pluralCells(cells)} · бомб будет снято: ${bombs}`;
 }
 
 export function resultText({ cells, skipped, bombs }: { cells: number; skipped: number; bombs: number }): string {
-  return `Готово: клеток ${cells}, пропущено ${skipped} (изменились после расчёта), бомб ${bombs}`;
+  return `Готово: ${pluralCells(cells)}, пропущено ${skipped} (изменились после расчёта), бомб ${bombs}`;
 }
 
 const HOUR = 3_600_000;
