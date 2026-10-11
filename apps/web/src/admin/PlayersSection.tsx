@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTRPC } from "../net/trpc";
-import { useSearchParam } from "./AdminApp";
 import styles from "./admin.module.css";
 import { PlayerCard } from "./PlayerCard";
+import { useSearchParam } from "./useSearchParam";
 
 const DEBOUNCE_MS = 300;
 

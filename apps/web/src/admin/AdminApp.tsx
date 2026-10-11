@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { useTRPC } from "../net/trpc";
 import styles from "./admin.module.css";
 import { ConfigSection } from "./ConfigSection";
 import { ModLogSection } from "./ModLogSection";
 import { PlayersSection } from "./PlayersSection";
+import { useSearchParam } from "./useSearchParam";
 
 const TABS = [
   { id: "players", label: "Игроки" },
@@ -12,18 +12,6 @@ const TABS = [
   { id: "log", label: "Журнал" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
-
-/** A query-string value kept in sync with the address bar without adding history entries. */
-export function useSearchParam(name: string): [string | null, (value: string) => void] {
-  const [value, setValue] = useState(() => new URLSearchParams(window.location.search).get(name));
-  const set = (next: string) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set(name, next);
-    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
-    setValue(next);
-  };
-  return [value, set];
-}
 
 export default function AdminApp() {
   const trpc = useTRPC();
