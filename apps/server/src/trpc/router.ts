@@ -19,11 +19,11 @@ const nat = z.number().int().nonnegative();
 const rect = z.object({ x1: nat, y1: nat, x2: nat, y2: nat });
 // A plain union: zod's discriminatedUnion cannot hold several variants with the same `kind`.
 const moderationAction = z.union([
-  z.object({ kind: z.literal("rollback_player"), userId, from: nat, to: nat, area: rect.nullable(), removeBombs: z.boolean() }),
-  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("fill") }),
-  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("to_time"), at: nat }),
-  z.object({ kind: z.literal("remove_bombs"), userId }),
-  z.object({ kind: z.literal("remove_bombs"), area: rect }),
+  z.object({ kind: z.literal("rollback_player"), userId, from: nat, to: nat, area: rect.nullable(), removeBombs: z.boolean() }).strict(),
+  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("fill") }).strict(),
+  z.object({ kind: z.literal("clear_area"), area: rect, mode: z.literal("to_time"), at: nat }).strict(),
+  z.object({ kind: z.literal("remove_bombs"), userId }).strict(),
+  z.object({ kind: z.literal("remove_bombs"), area: rect }).strict(),
 ]);
 
 /**

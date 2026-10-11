@@ -149,6 +149,19 @@ describe("rollback_player", () => {
     expect(runtime.engine.canvas.get(11, 10)).toEqual({ colorId: 0, ownerId: 0 });
   });
 
+  test("a cell restored to the target by an earlier moderation is not rolled back again — use clear to_time for multi-player raids", async () => {
+    await place(ann, 10, 10, 5, t0);
+    await place(target, 10, 10, 7, t2);
+    await place(ben, 10, 10, 4, t2_5);
+    // Rolling back ben restores target's pixel through a mod_rollback event.
+    const pb = await plan({ kind: "rollback_player", userId: ben, from: t1, to: t3, area: null, removeBombs: false });
+    expect(pb.plan.writes).toEqual([{ x: 10, y: 10, expect: { colorId: 4, ownerId: ben }, colorId: 7, ownerId: target }]);
+    await runtime.run((e) => e.applyModeration(pb.plan, { ...pb.meta, adminId: admin }, t4));
+    expect(runtime.engine.canvas.get(10, 10)).toEqual({ colorId: 7, ownerId: target });
+    // Documented limitation: the last event is the mod_rollback, so the cell is not planned for target.
+    expect((await plan(rollback())).plan.writes).toEqual([]);
+  });
+
   test("an applied rollback is not rolled back again", async () => {
     await place(ann, 10, 10, 5, t0);
     await place(target, 10, 10, 7, t2);

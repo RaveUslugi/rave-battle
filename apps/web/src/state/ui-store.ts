@@ -101,7 +101,7 @@ export function createUiStore(storage: StorageLike | null) {
     },
     setBombMode: (bombMode) => set({ bombMode }),
     select: (selection) => set({ selection }),
-    inspectCell: (cell) => set((s) => ({ panel: "moderation", moderation: { cell, area: null, corner: null } })),
+    inspectCell: (cell) => set({ panel: "moderation", moderation: { cell, area: null, corner: null } }),
     setArea: (area) => set({ panel: "moderation", moderation: { cell: null, area, corner: null } }),
     setCorner: (corner) => set((s) => ({ moderation: { ...s.moderation, corner } })),
     pushToast: (kind, text) => {

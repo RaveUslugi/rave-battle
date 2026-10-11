@@ -172,6 +172,11 @@ describe("appRouter", () => {
     await expect(as(admin).admin.players.get({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  test("moderation actions with mixed variant fields are rejected", async () => {
+    const area = { x1: 0, y1: 0, x2: 1, y2: 1 };
+    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
     await expect(as(admin).admin.players.adjust({ userId: bob.id, changes: { coins: 1.5 }, comment: "x" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "  " })).rejects.toMatchObject({ code: "BAD_REQUEST" });

@@ -345,6 +345,7 @@ function PixelRollback({ userId, name }: { userId: number; name: string }) {
         <label className={styles.radio}>
           <input type="checkbox" checked={removeBombs} onChange={(e) => setRemoveBombs(e.target.checked)} /> Также снять все бомбы игрока
         </label>
+        <p className={styles.muted}>Откат игрока не трогает клетки, восстановленные прошлой модерацией; для рейда используйте «Очистка → Откатить к моменту».</p>
         <div className={styles.radios}>
           <button type="button" className={styles.button} disabled={busy || !rollbackReady} onClick={calcRollback}>
             Посчитать

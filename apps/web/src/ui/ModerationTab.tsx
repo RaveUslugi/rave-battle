@@ -169,8 +169,13 @@ function AreaTools({ area }: { area: Rect }) {
   const clearTime = clearAt ? new Date(clearAt).getTime() : Number.NaN;
   const customRange = { from: customFrom ? new Date(customFrom).getTime() : Number.NaN, to: customTo ? new Date(customTo).getTime() : Number.NaN };
   const preset = PERIOD_PRESETS.find((p) => p.id === period);
-  const range = preset ? presetRange(preset, Date.now()) : customRange;
-  const rollbackReady = owner !== null && Number.isFinite(range.from) && Number.isFinite(range.to);
+  const rollbackReady = owner !== null && (preset !== undefined || (Number.isFinite(customRange.from) && Number.isFinite(customRange.to)));
+  const calcRollback = () => {
+    if (owner === null) return;
+    // Preset ranges are taken at click time and sent as-is, so the applied action equals the previewed one.
+    const range = preset ? presetRange(preset, Date.now()) : customRange;
+    calc({ kind: "rollback_player", userId: owner, from: range.from, to: range.to, area, removeBombs });
+  };
 
   return (
     <div className={styles.tab}>
@@ -258,10 +263,11 @@ function AreaTools({ area }: { area: Rect }) {
         type="button"
         className={styles.buy}
         disabled={blocked || busy || !rollbackReady}
-        onClick={() => owner !== null && calc({ kind: "rollback_player", userId: owner, from: range.from, to: range.to, area, removeBombs })}
+        onClick={calcRollback}
       >
         Посчитать
       </button>
+      <p className={styles.hint}>Для рейда нескольких игроков надёжнее «Очистка → Откатить к моменту»: откат игрока не трогает клетки, восстановленные прошлой модерацией.</p>
 
       {staged && (
         <div className={styles.notice} role="status">
