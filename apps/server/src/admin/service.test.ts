@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createSession, resolveSession, type SessionUser } from "../auth/session";
 import { gameConfig, ledger, modLog, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
+import { banFromDate } from "../persistence/codec";
 import { UserDirectory } from "../net/user-directory";
 import { bootGame } from "../persistence/boot";
 import type { GameRuntime } from "../persistence/runtime";
@@ -66,6 +67,12 @@ describe("search", () => {
     expect((await service.search("bo_")).map((r) => r.id)).toEqual([]);
     expect((await service.search("bob_x")).map((r) => r.id)).toEqual([bob]);
   });
+
+  test("a backslash in the query is literal and does not break the query", async () => {
+    const slash = await insertUser(t.db, "a\\b");
+    expect((await service.search("a\\b")).map((r) => r.id)).toEqual([slash]);
+    expect(await service.search("\\")).toHaveLength(1);
+  });
 });
 
 describe("ban", () => {
@@ -106,7 +113,7 @@ describe("ban", () => {
     expect(runtime.engine.players.has(ann)).toBe(false);
     const { token } = await createSession(t.db, ann, 86_400_000, Date.now());
     const session = (await resolveSession(t.db, token, Date.now()))!;
-    const p = await runtime.addPlayer({
+    const { player: p } = await runtime.addPlayer({
       userId: ann,
       accountCreatedAt: session.discordCreatedAt,
       guildMember: session.guildMember,
@@ -129,6 +136,27 @@ describe("unban", () => {
     expect((await logRows())[1]!.params).toEqual({ reason: "sorry" });
     expect(runtime.engine.players.get(bob).bannedUntil).toBeNull();
     expect(await service.unban(admin, { userId: bob, reason: "again" })).toEqual({ ok: false, code: "not_banned" });
+  });
+
+  test("an already expired ban is not_banned", async () => {
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() - 60_000), banReason: "old" }).where(eq(users.id, bob));
+    expect(await service.unban(admin, { userId: bob, reason: "x" })).toEqual({ ok: false, code: "not_banned" });
+    expect(await logRows()).toHaveLength(0);
+  });
+
+  test("concurrent ban and unban leave the DB and the engine in agreement", async () => {
+    await join(bob);
+    for (const order of ["ban-first", "unban-first"]) {
+      const ban = () => service.ban(admin, { userId: bob, until: "permanent", reason: "r" });
+      const unban = () => service.unban(admin, { userId: bob, reason: "r" });
+      // unban needs an active ban to be accepted
+      await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, bob));
+      await Promise.all(order === "ban-first" ? [ban(), unban()] : [unban(), ban()]);
+      const [row] = await t.db.select().from(users).where(eq(users.id, bob));
+      const inDb = banFromDate(row!.bannedUntil);
+      expect(runtime.engine.players.get(bob).bannedUntil).toBe(inDb);
+      expect(runtime.engine.players.get(bob).banReason).toBe(row!.banReason);
+    }
   });
 });
 
@@ -198,6 +226,16 @@ describe("config", () => {
     expect(runtime.engine.config.charges.max).toBe(defaultConfig.charges.max);
     expect((await service.history()).map((h) => h.version)).toEqual([3, 2, 1]);
     expect(await service.rollbackConfig(admin, { version: 99, baseVersion: 3, comment: "x" })).toEqual({ ok: false, code: "not_found" });
+  });
+
+  test("an old version that no longer passes the schema is invalid for get and rollback", async () => {
+    const { palette: _palette, ...old } = draft();
+    await t.db.insert(gameConfig).values({ version: 2, data: old, comment: "legacy" });
+    const got = await service.configVersion(2);
+    expect(got).toMatchObject({ ok: false, code: "invalid" });
+    if (!got.ok && got.code === "invalid") expect(got.issues.map((i) => i.path)).toContain("palette");
+    expect(await service.rollbackConfig(admin, { version: 2, baseVersion: 1, comment: "x" })).toMatchObject({ ok: false, code: "invalid" });
+    expect(await service.configVersion(99)).toEqual({ ok: false, code: "not_found" });
   });
 });
 

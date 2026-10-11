@@ -26,6 +26,12 @@ export type AdminActionResult =
 
 export type ConfigAnswer = ConfigResult | { ok: false; code: "not_found" };
 
+/** A stored config version, re-validated against the current schema (old versions may no longer pass). */
+export type ConfigVersionAnswer =
+  | { ok: true; config: GameConfig }
+  | { ok: false; code: "not_found" }
+  | { ok: false; code: "invalid"; issues: ConfigIssue[] };
+
 export interface ModLogEntry {
   id: number;
   admin: UserRef;
@@ -83,6 +89,9 @@ export interface AdminServiceDeps {
   now?: () => number;
 }
 
+const toIssues = (issues: Array<{ path: PropertyKey[]; message: string }>): ConfigIssue[] =>
+  issues.map((i) => ({ path: i.path.join("."), message: i.message }));
+
 const escapeLike = (q: string) => q.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export class AdminService {
@@ -90,6 +99,8 @@ export class AdminService {
   private readonly planner: ModerationPlanner;
   /** Moderation applies run one at a time, so every plan is computed against the previous apply's result. */
   private applyQueue: Promise<unknown> = Promise.resolve();
+  /** Ban/unban writes are serialized per user so the DB and the engine always end up agreeing. */
+  private readonly accessQueues = new Map<number, Promise<void>>();
 
   constructor(private deps: AdminServiceDeps) {
     this.now = deps.now ?? Date.now;
@@ -235,7 +246,7 @@ export class AdminService {
   async unban(admin: SessionUser, input: { userId: number; reason: string }): Promise<AdminActionResult> {
     const [target] = await this.deps.db.select({ bannedUntil: users.bannedUntil }).from(users).where(eq(users.id, input.userId)).limit(1);
     if (!target) return { ok: false, code: "not_found" };
-    if (target.bannedUntil === null) return { ok: false, code: "not_banned" };
+    if (target.bannedUntil === null || target.bannedUntil.getTime() <= this.now()) return { ok: false, code: "not_banned" };
     await this.writeAccess(admin, input.userId, null, null, "unban", { reason: input.reason });
     return { ok: true };
   }
@@ -298,9 +309,12 @@ export class AdminService {
     }));
   }
 
-  async configVersion(version: number): Promise<GameConfig | null> {
+  async configVersion(version: number): Promise<ConfigVersionAnswer> {
     const [row] = await this.deps.db.select({ data: gameConfig.data }).from(gameConfig).where(eq(gameConfig.version, version)).limit(1);
-    return row ? (row.data as GameConfig) : null;
+    if (!row) return { ok: false, code: "not_found" };
+    const parsed = gameConfigSchema.safeParse(row.data);
+    if (!parsed.success) return { ok: false, code: "invalid", issues: toIssues(parsed.error.issues) };
+    return { ok: true, config: parsed.data };
   }
 
   async saveConfig(admin: SessionUser, input: { baseVersion: number; config: unknown; comment: string }): Promise<ConfigAnswer> {
@@ -309,8 +323,8 @@ export class AdminService {
 
   async rollbackConfig(admin: SessionUser, input: { version: number; baseVersion: number; comment: string }): Promise<ConfigAnswer> {
     const old = await this.configVersion(input.version);
-    if (old === null) return { ok: false, code: "not_found" };
-    return this.applyParsed(admin, old, {
+    if (!old.ok) return old;
+    return this.applyParsed(admin, old.config, {
       baseVersion: input.baseVersion,
       comment: input.comment,
       action: "config_rollback",
@@ -325,15 +339,32 @@ export class AdminService {
   ): Promise<ConfigResult> {
     const parsed = gameConfigSchema.safeParse(raw);
     if (!parsed.success) {
-      const issues: ConfigIssue[] = parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
-      return Promise.resolve({ ok: false, code: "invalid", issues });
+      return Promise.resolve({ ok: false, code: "invalid", issues: toIssues(parsed.error.issues) });
     }
     // The engine keeps the parsed object as the live config, so it must not be shared with anything else.
     return this.deps.runtime.run((engine, now) => engine.applyConfig(parsed.data, { ...change, adminId: admin.id }, now));
   }
 
   /** Persists a ban/unban with its log row, then pushes it to the engine and drops cached rankings. */
-  private async writeAccess(
+  private writeAccess(
+    admin: SessionUser,
+    userId: number,
+    until: number | null,
+    reason: string | null,
+    action: "ban" | "unban",
+    params: Record<string, unknown>,
+  ): Promise<void> {
+    const previous = this.accessQueues.get(userId) ?? Promise.resolve();
+    const job = previous.then(() => this.writeAccessNow(admin, userId, until, reason, action, params));
+    const tail = job.catch(() => {});
+    this.accessQueues.set(userId, tail);
+    void tail.then(() => {
+      if (this.accessQueues.get(userId) === tail) this.accessQueues.delete(userId);
+    });
+    return job;
+  }
+
+  private async writeAccessNow(
     admin: SessionUser,
     userId: number,
     until: number | null,

@@ -53,7 +53,7 @@ async function start(
     adminDiscordIds: new Set(),
     discord: options.discord ?? null,
   };
-  hub = new Hub({ runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  hub = new Hub({ db: t.db, runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
   hubRef = hub;
   const stats = new StatsService(t.db, runtime, users);
   const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });

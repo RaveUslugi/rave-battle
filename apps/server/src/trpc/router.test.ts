@@ -57,7 +57,7 @@ beforeEach(async () => {
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {} });
   const stats = new StatsService(t.db, runtime, users);
   const adminService = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  deps = { db: t.db, runtime, hub: new Hub({ runtime, users }), users, config, stats, admin: adminService };
+  deps = { db: t.db, runtime, hub: new Hub({ db: t.db, runtime, users }), users, config, stats, admin: adminService };
 });
 afterEach(() => runtime.stop());
 afterAll(() => t.close());

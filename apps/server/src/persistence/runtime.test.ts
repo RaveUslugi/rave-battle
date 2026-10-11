@@ -38,7 +38,8 @@ const pixel = (x: number, y: number, colorId = 3) => ({ x, y, colorId, withBomb:
 describe("GameRuntime", () => {
   test("addPlayer persists the new player", async () => {
     const { runtime } = await boot();
-    const player = await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+    const { player, created } = await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+    expect(created).toBe(true);
     expect(player.coins).toBe(100);
     const rows = await t.db.select().from(playerState);
     expect(rows.map((r) => [r.userId, r.coins])).toEqual([[a, 100]]);
@@ -170,9 +171,10 @@ describe("GameRuntime hooks and lifecycle", () => {
 
   test("addPlayer returns the existing player instead of recreating it", async () => {
     const runtime = await bootWith();
-    const first = await join(runtime);
+    const { player: first } = await join(runtime);
     await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
-    const second = await join(runtime);
+    const { player: second, created } = await join(runtime);
+    expect(created).toBe(false);
     expect(second).toBe(first);
     expect(second.coins).toBe(101);
     const start = await t.db.select().from(ledger).where(eq(ledger.reason, "start"));
@@ -181,8 +183,8 @@ describe("GameRuntime hooks and lifecycle", () => {
 
   test("addPlayer never overwrites the access of a running player", async () => {
     const runtime = await bootWith();
-    const first = await join(runtime);
-    const second = await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: false });
+    const { player: first } = await join(runtime);
+    const { player: second } = await runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: false });
     expect(second).toBe(first);
     expect(second.guildMember).toBe(true);
   });
@@ -193,12 +195,13 @@ describe("GameRuntime hooks and lifecycle", () => {
     const rowCount = async () => (await t.db.select().from(playerState).where(eq(playerState.userId, a))).length;
     const [first, second] = await Promise.all([
       runtime.addPlayer(init),
-      runtime.addPlayer(init).then(async (player) => {
+      runtime.addPlayer(init).then(async (res) => {
         expect(await rowCount()).toBe(1);
-        return player;
+        return res;
       }),
     ]);
-    expect(second).toBe(first);
+    expect(second.player).toBe(first.player);
+    expect([first.created, second.created]).toEqual([true, false]);
   });
 
   test("after stop() new commands and players are rejected", async () => {

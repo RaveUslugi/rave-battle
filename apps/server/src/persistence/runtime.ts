@@ -87,20 +87,23 @@ export class GameRuntime {
   /**
    * Returns the existing player, or creates one; always resolves only once the player is persisted.
    * Access flags of an existing player are not touched; use engine.setAccess.
+   * `created` is true only for the call that created the player.
    */
-  addPlayer(init: Omit<NewPlayer, "now">): Promise<PlayerState> {
+  addPlayer(init: Omit<NewPlayer, "now">): Promise<{ player: PlayerState; created: boolean }> {
     const unavailable = this.unavailableError();
     if (unavailable) return Promise.reject(unavailable);
     if (this.engine.players.has(init.userId)) {
       const existing = this.engine.players.get(init.userId);
       const pending = this.newPlayers.some((entry) => entry.player.userId === init.userId);
-      return pending ? this.afterCommit().then(() => existing) : Promise.resolve(existing);
+      return pending
+        ? this.afterCommit().then(() => ({ player: existing, created: false }))
+        : Promise.resolve({ player: existing, created: false });
     }
     const now = this.now();
     const player = createPlayer({ ...init, now }, this.engine.config);
     this.engine.players.add(player);
     this.newPlayers.push({ player: snapshotPlayer(player), at: now });
-    return this.afterCommit().then(() => player);
+    return this.afterCommit().then(() => ({ player, created: true }));
   }
 
   /**

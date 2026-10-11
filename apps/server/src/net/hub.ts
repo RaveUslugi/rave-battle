@@ -10,7 +10,9 @@ import {
   type ServerMessage,
 } from "@rave/shared";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
+import { ensurePlayer } from "../auth/ensure-player";
 import type { SessionUser } from "../auth/session";
+import type { Db } from "../db/client";
 import type { EngineEvent } from "../engine/types";
 import type { GameRuntime } from "../persistence/runtime";
 import { TokenBucket } from "./rate-limit";
@@ -36,6 +38,7 @@ export interface SocketData {
 }
 
 export interface HubOptions {
+  db: Db;
   runtime: GameRuntime;
   users: UserDirectory;
   now?: () => number;
@@ -162,13 +165,7 @@ export class Hub {
     let player: PlayerView | null = null;
     if (user) {
       try {
-        await this.options.runtime.addPlayer({
-          userId: user.id,
-          accountCreatedAt: user.discordCreatedAt,
-          guildMember: user.guildMember,
-          bannedUntil: user.bannedUntil,
-          banReason: user.banReason,
-        });
+        await ensurePlayer(this.options, user);
         player = this.playerView(user.id);
       } catch {
         ws.close(1011, "unavailable");
