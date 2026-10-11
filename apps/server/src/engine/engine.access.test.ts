@@ -15,12 +15,23 @@ describe("setAccess", () => {
     expect(engine.placePixel(1, place, T0)).toEqual({ ok: true, outcome: "placed" });
   });
 
-  test("omitted fields stay unchanged and no events are emitted", () => {
+  test("a ban with a reason pushes one player event and can be lifted", () => {
+    const { engine, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    engine.setAccess(1, { bannedUntil: T0 + 1000, banReason: "spam" });
+    expect(p.banReason).toBe("spam");
+    expect(engine.drainEvents()).toEqual([{ type: "player", userId: 1 }]);
+    expect(engine.placePixel(1, place, T0)).toEqual({ ok: false, code: "banned" });
+    engine.setAccess(1, { bannedUntil: null, banReason: null });
+    expect(engine.placePixel(1, place, T0)).toEqual({ ok: true, outcome: "placed" });
+  });
+
+  test("omitted fields stay unchanged and only a player event is emitted", () => {
     const { engine, addPlayer } = makeEngine();
     const p = addPlayer(1);
     p.bannedUntil = T0 + 1;
     engine.setAccess(1, { guildMember: false });
     expect(p.bannedUntil).toBe(T0 + 1);
-    expect(engine.drainEvents()).toEqual([]);
+    expect(engine.drainEvents()).toEqual([{ type: "player", userId: 1 }]);
   });
 });

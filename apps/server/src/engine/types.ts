@@ -20,6 +20,8 @@ export interface PlayerState {
   dailyLastClaim: string | null;
   /** Epoch ms; null = not banned, Infinity = permanent. */
   bannedUntil: number | null;
+  /** Why the player is banned; shown to them. */
+  banReason: string | null;
   /** Discord account creation time, epoch ms. */
   accountCreatedAt: number;
   /** True when the guild check is disabled or the user is a member. */

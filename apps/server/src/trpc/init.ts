@@ -41,6 +41,7 @@ export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
     accountCreatedAt: user.discordCreatedAt,
     guildMember: user.guildMember,
     bannedUntil: user.bannedUntil,
+    banReason: user.banReason,
   });
   return next({ ctx: { ...ctx, user } });
 });

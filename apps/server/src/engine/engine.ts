@@ -190,11 +190,13 @@ export class GameEngine {
     return { ok: true };
   }
 
-  /** Login and moderation update access flags. They live in `users`, so no events are emitted. */
-  setAccess(userId: UserId, access: { guildMember?: boolean; bannedUntil?: number | null }): void {
+  /** Login and moderation update access flags. Flags live in `users`; the `player` event only pushes the new view (the persister upserts unchanged state). */
+  setAccess(userId: UserId, access: { guildMember?: boolean; bannedUntil?: number | null; banReason?: string | null }): void {
     const p = this.players.get(userId);
     if (access.guildMember !== undefined) p.guildMember = access.guildMember;
     if (access.bannedUntil !== undefined) p.bannedUntil = access.bannedUntil;
+    if (access.banReason !== undefined) p.banReason = access.banReason;
+    this.emit({ type: "player", userId });
   }
 
   claimDaily(userId: UserId, now: number): DailyResult {

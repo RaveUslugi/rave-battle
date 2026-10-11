@@ -156,6 +156,7 @@ export class Hub {
           accountCreatedAt: user.discordCreatedAt,
           guildMember: user.guildMember,
           bannedUntil: user.bannedUntil,
+          banReason: user.banReason,
         });
         player = this.playerView(user.id);
       } catch {
