@@ -6,6 +6,7 @@ import type { CanvasStore } from "./canvas-store";
 import { settleCharges } from "./charges";
 import type { PlayerRegistry } from "./player";
 import type {
+  AdjustResult,
   BuyResult,
   DailyResult,
   DefuseResult,
@@ -267,6 +268,23 @@ export class GameEngine {
 
   private stat(userId: UserId, day: string, stat: StatKey, delta: number): void {
     if (delta !== 0) this.emit({ type: "stat", userId, day, stat, delta });
+  }
+
+  /** Moderator balance change. All deltas apply or none; balances never go below zero. */
+  adminAdjust(userId: UserId, changes: Partial<Record<LedgerItem, number>>, now: number, meta: { adminId: UserId; comment: string }): AdjustResult {
+    const p = this.players.get(userId);
+    const entries = (Object.entries(changes) as Array<[LedgerItem, number]>).filter(([, delta]) => delta !== 0);
+    if (entries.length === 0) return { ok: false, code: "nothing_to_change" };
+    const balance = (item: LedgerItem) => (item === "coins" ? p.coins : p.inventory[item]);
+    if (entries.some(([item, delta]) => balance(item) + delta < 0)) return { ok: false, code: "negative_balance" };
+    for (const [item, delta] of entries) {
+      if (item === "coins") p.coins += delta;
+      else p.inventory[item] += delta;
+      this.ledger(p, item, delta, "admin", now, { adminId: meta.adminId, comment: meta.comment });
+    }
+    this.emit({ type: "mod_log", adminId: meta.adminId, action: "player_edit", targetUserId: userId, params: { changes: Object.fromEntries(entries), comment: meta.comment }, at: now });
+    this.emit({ type: "player", userId });
+    return { ok: true };
   }
 
   /** Call after mutating the balance: records the new balance. */

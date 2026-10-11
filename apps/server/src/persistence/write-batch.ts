@@ -1,7 +1,7 @@
 import { ITEM_KEYS } from "@rave/shared";
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { Tx } from "../db/client";
-import { bombs, chunkSnapshots, inventory, ledger, pixelEvents, playerState, statsDaily, unlockedColors } from "../db/schema";
+import { bombs, chunkSnapshots, inventory, ledger, modLog, pixelEvents, playerState, statsDaily, unlockedColors } from "../db/schema";
 import type { EngineEvent, StatKey } from "../engine/types";
 import type { Batch, PlayerSnapshot } from "./batch";
 import { ownersToBytes } from "./codec";
@@ -22,6 +22,7 @@ export async function writeBatch(tx: Tx, batch: Batch): Promise<void> {
   await insertPixels(tx, batch);
   await applyBombEvents(tx, batch);
   await insertLedger(tx, batch);
+  await insertModLog(tx, batch);
   await addStats(tx, batch);
   await insertColorUnlocks(tx, batch);
   for (const player of batch.players) await upsertPlayer(tx, batch.seasonId, player);
@@ -38,6 +39,7 @@ function assertKnownEvents(events: EngineEvent[]): void {
       case "ledger":
       case "stat":
       case "color_unlocked":
+      case "mod_log":
       case "player":
         break;
       default: {
@@ -144,6 +146,14 @@ async function insertLedger(tx: Tx, batch: Batch): Promise<void> {
       })),
     );
   }
+}
+
+async function insertModLog(tx: Tx, batch: Batch): Promise<void> {
+  const rows = ofType(batch.events, "mod_log");
+  if (rows.length === 0) return;
+  await tx.insert(modLog).values(
+    rows.map((e) => ({ adminId: e.adminId, action: e.action, targetUserId: e.targetUserId, params: e.params, createdAt: new Date(e.at) })),
+  );
 }
 
 async function addStats(tx: Tx, batch: Batch): Promise<void> {

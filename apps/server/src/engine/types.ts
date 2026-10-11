@@ -50,7 +50,10 @@ export type RejectCode =
 export type Rejected = { ok: false; code: RejectCode };
 
 export type LedgerItem = "coins" | ItemKey;
-export type LedgerReason = "shop" | "daily" | "explosion" | "bomb_bonus" | "defuse" | "use";
+export type LedgerReason = "shop" | "daily" | "explosion" | "bomb_bonus" | "defuse" | "use" | "admin";
+export const MOD_ACTIONS = ["ban", "unban", "player_edit", "config_save", "config_rollback"] as const;
+export type ModAction = (typeof MOD_ACTIONS)[number];
+export type AdjustResult = { ok: true } | { ok: false; code: "nothing_to_change" | "negative_balance" };
 export type StatKey =
   | "pixels"
   | "coinsFromPixels"
@@ -66,6 +69,7 @@ export type EngineEvent =
   | { type: "ledger"; userId: UserId; item: LedgerItem; delta: number; balanceAfter: number; reason: LedgerReason; ref: Record<string, unknown>; at: number }
   | { type: "stat"; userId: UserId; day: string; stat: StatKey; delta: number }
   | { type: "color_unlocked"; userId: UserId; colorId: number; source: "shop"; at: number }
+  | { type: "mod_log"; adminId: UserId; action: ModAction; targetUserId: UserId | null; params: Record<string, unknown>; at: number }
   /** Player state changed; the persister upserts the current snapshot. */
   | { type: "player"; userId: UserId };
 

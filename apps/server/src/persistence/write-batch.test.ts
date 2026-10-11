@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { asc, eq, ne } from "drizzle-orm";
-import { bombs, chunkSnapshots, inventory, ledger, pixelEvents, playerState, seasons, statsDaily, unlockedColors } from "../db/schema";
+import { bombs, chunkSnapshots, inventory, ledger, modLog, pixelEvents, playerState, seasons, statsDaily, unlockedColors } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import { makeEngine, T0 } from "../engine/test-utils";
 import type { EngineEvent } from "../engine/types";
@@ -37,6 +37,19 @@ async function setup() {
 }
 
 describe("writeBatch", () => {
+  test("mod_log events are written with action, target and params", async () => {
+    const { engine, pa } = await setup();
+    engine.adminAdjust(a, { coins: 5 }, T0, { adminId: b, comment: "c" });
+    await write({ events: engine.drainEvents(), players: [snapshotPlayer(pa)] });
+    const rows = await t.db.select().from(modLog);
+    expect(rows.map((r) => [r.adminId, r.action, r.targetUserId, r.params])).toEqual([
+      [b, "player_edit", a, { changes: { coins: 5 }, comment: "c" }],
+    ]);
+    expect(rows[0]!.createdAt.getTime()).toBe(T0);
+    const admin = await t.db.select().from(ledger).where(eq(ledger.reason, "admin"));
+    expect(admin).toHaveLength(1);
+  });
+
   test("new players get state, inventory and starting ledger rows", async () => {
     await setup();
     const [state] = await t.db.select().from(playerState).where(eq(playerState.userId, a));
