@@ -99,6 +99,8 @@ export class AdminService {
   async inspect(x: number, y: number): Promise<CellInspection | null> {
     const { engine, season } = this.deps.runtime;
     if (!Number.isInteger(x) || !Number.isInteger(y) || !engine.canvas.inBounds(x, y)) return null;
+    // Commit first so the history matches the live cell.
+    await this.deps.runtime.flush();
     const dir = this.deps.users;
     const cell = engine.canvas.get(x, y);
     const bomb = engine.bombs.get(x, y);

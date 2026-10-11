@@ -217,7 +217,7 @@ describe("remove_bombs", () => {
     const byArea = await plan({ kind: "remove_bombs", area });
     expect(byArea.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([{ x: 10, y: 10 }, { x: 12, y: 12 }]);
     expect(byArea.meta).toEqual({ action: "remove_bombs", targetUserId: null, params: { area } });
-    expect(summarize(byArea)).toEqual({ cells: 0, bombs: 2, bbox: { x1: 10, y1: 10, x2: 12, y2: 12 } });
+    expect(summarize(byArea)).toEqual({ cells: 0, bombs: 2, bbox: null });
 
     const res = await runtime.run((e, now) => e.applyModeration(byArea.plan, { ...byArea.meta, adminId: admin }, now));
     expect(res).toEqual({ ok: true, cells: 0, skipped: 0, bombs: 2 });

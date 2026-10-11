@@ -17,7 +17,7 @@ export type PlanError = "bad_area" | "area_too_large" | "bad_period" | "not_foun
 export interface PlannedAction {
   plan: ModerationPlan;
   meta: Omit<ModerationMeta, "adminId">;
-  /** Bounding box of the planned writes and bombs, or null when nothing would change. */
+  /** Bounding box of the planned cell writes only (bomb positions must not leak), or null when there are none. */
   bbox: Rect | null;
 }
 
@@ -120,7 +120,7 @@ export class ModerationPlanner {
   }
 
   private planned(kind: ModerationPlan["kind"], writes: CellWrite[], bombs: ModerationPlan["bombs"], meta: PlannedAction["meta"]): PlannedAction {
-    return { plan: { kind, writes, bombs }, meta, bbox: boundingBox([...writes, ...bombs]) };
+    return { plan: { kind, writes, bombs }, meta, bbox: boundingBox(writes) };
   }
 
   /**

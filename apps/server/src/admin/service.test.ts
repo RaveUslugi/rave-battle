@@ -260,6 +260,12 @@ describe("canvas inspector and moderation", () => {
     expect(row!.params).toMatchObject({ cells: 1, skipped: 0, bombs: 0 });
   });
 
+  test("remove_bombs preview reports the count but no bbox", async () => {
+    await joinUnlimited(ann);
+    await placeAt(ann, 6, 6, 3, NOW - 5000, true);
+    expect(await service.previewModeration({ kind: "remove_bombs", userId: ann })).toEqual({ ok: true, cells: 0, bombs: 1, bbox: null });
+  });
+
   test("apply reports plan errors", async () => {
     expect(await service.applyModeration(admin, { kind: "clear_area", area: { x1: 0, y1: 0, x2: 9999, y2: 0 }, mode: "fill" })).toEqual({ ok: false, code: "bad_area" });
     expect(await service.previewModeration({ kind: "remove_bombs", userId: 99999 })).toEqual({ ok: false, code: "not_found" });
