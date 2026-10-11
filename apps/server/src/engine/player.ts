@@ -46,6 +46,10 @@ export class PlayerRegistry {
     return this.players.has(userId);
   }
 
+  all(): IterableIterator<PlayerState> {
+    return this.players.values();
+  }
+
   get(userId: UserId): PlayerState {
     const p = this.players.get(userId);
     if (!p) throw new Error(`Player ${userId} is not loaded`);

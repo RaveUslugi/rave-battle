@@ -65,6 +65,12 @@ export class GameEngine {
     if (change.baseVersion !== this._configVersion) return { ok: false, code: "stale", currentVersion: this._configVersion };
     const issues = configChangeIssues(this.cfg, next, this.canvas);
     if (issues.length > 0) return { ok: false, code: "invalid", issues };
+    // Settle charges under the old config so new regen/max settings only affect the future.
+    for (const p of this.players.all()) {
+      const { charges, chargesUpdatedAt } = p;
+      settleCharges(p, this.cfg, now);
+      if (p.charges !== charges || p.chargesUpdatedAt !== chargesUpdatedAt) this.emit({ type: "player", userId: p.userId });
+    }
     this.canvas.resize(next.canvas.width, next.canvas.height);
     this.cfg = next;
     const version = ++this._configVersion;

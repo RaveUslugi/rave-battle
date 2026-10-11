@@ -39,7 +39,7 @@ export const appRouter = router({
         return player;
       }),
       ban: adminProcedure
-        .input(z.object({ userId, until: z.union([z.number().int().positive(), z.literal("permanent")]), reason: note }))
+        .input(z.object({ userId, until: z.union([z.number().int().positive().max(8_640_000_000_000_000), z.literal("permanent")]), reason: note }))
         .mutation(({ ctx, input }) => ctx.deps.admin.ban(ctx.user, input)),
       unban: adminProcedure.input(z.object({ userId, reason: note })).mutation(({ ctx, input }) => ctx.deps.admin.unban(ctx.user, input)),
       adjust: adminProcedure

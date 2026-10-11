@@ -175,6 +175,7 @@ describe("appRouter", () => {
   test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
     await expect(as(admin).admin.players.adjust({ userId: bob.id, changes: { coins: 1.5 }, comment: "x" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(admin).admin.players.ban({ userId: bob.id, until: "permanent", reason: "  " })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(as(admin).admin.players.ban({ userId: bob.id, until: 1e300, reason: "r" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(as(admin).admin.players.get({ userId: 3e9 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 

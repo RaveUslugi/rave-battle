@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import type { GameConfig } from "@rave/shared";
 import { useTRPC } from "../net/trpc";
 import { configDiff } from "./config-draft";
+import { adminErrorText } from "./labels";
 import styles from "./admin.module.css";
 
 export type ConfigAnswer =
@@ -31,16 +32,22 @@ interface Props {
   current: { version: number; config: GameConfig };
   /** Version the editor draft was built from; rollbacks go against it so a concurrent change stays stale. */
   baseVersion: number;
+  /** The editor draft has unsaved changes that a successful rollback would replace. */
+  dirty: boolean;
+  /** Called with a successful rollback only; failed answers are shown next to the rollback form. */
   onAnswer: (res: ConfigAnswer) => void;
+  /** Refetches current config, history and log after a stale answer. */
+  onRefresh: () => void;
   onFailed: () => void;
 }
 
-export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Props) {
+export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh, onFailed }: Props) {
   const trpc = useTRPC();
   const history = useQuery(trpc.admin.config.history.queryOptions());
   const [selected, setSelected] = useState<number | null>(null);
   const [rolling, setRolling] = useState<number | null>(null);
   const [comment, setComment] = useState("");
+  const [problems, setProblems] = useState<string[]>([]);
 
   const preview = useQuery({
     ...trpc.admin.config.get.queryOptions({ version: selected ?? 1 }),
@@ -53,8 +60,16 @@ export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Prop
         setRolling(null);
         setSelected(null);
         setComment("");
+        setProblems([]);
+        onAnswer(res);
+      } else if (res.code === "invalid") {
+        setProblems(res.issues.map((i) => `${i.path}: ${i.message}`));
+      } else if (res.code === "stale") {
+        setProblems([`Конфиг уже изменили (версия ${res.currentVersion}). Обновите страницу и повторите откат`]);
+        onRefresh();
+      } else {
+        setProblems([adminErrorText(res.code)]);
       }
-      onAnswer(res);
     },
     onError: onFailed,
   });
@@ -62,6 +77,8 @@ export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Prop
   const submit = (e: FormEvent, version: number) => {
     e.preventDefault();
     if (comment.trim().length === 0) return;
+    if (dirty && !window.confirm("Откат заменит несохранённый черновик. Продолжить?")) return;
+    setProblems([]);
     rollback.mutate({ version, baseVersion, comment: comment.trim() });
   };
 
@@ -99,7 +116,10 @@ export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Prop
                         Показать
                       </button>{" "}
                       {!isCurrent && (
-                        <button type="button" className={styles.button} onClick={() => setRolling(h.version)}>
+                        <button type="button" className={styles.button} onClick={() => {
+                            setRolling(h.version);
+                            setProblems([]);
+                          }}>
                           Откатить к этой
                         </button>
                       )}
@@ -126,6 +146,7 @@ export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Prop
           <h4 className={styles.subtitle}>
             Откат к версии {rolling}: появится новая версия {current.version + 1}
           </h4>
+          <p className={styles.message}>Версии до роста холста восстановить нельзя — холст может только расти</p>
           <label className={styles.field}>
             Комментарий
             <input className={styles.input} value={comment} maxLength={COMMENT_MAX} onChange={(e) => setComment(e.target.value)} />
@@ -138,6 +159,15 @@ export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Prop
               Отмена
             </button>
           </div>
+          {problems.length > 0 && (
+            <ul className={styles.issues} role="alert">
+              {problems.map((m, i) => (
+                <li key={i} className={styles.error}>
+                  {m}
+                </li>
+              ))}
+            </ul>
+          )}
         </form>
       )}
     </section>

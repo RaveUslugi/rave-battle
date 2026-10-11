@@ -191,7 +191,7 @@ export function ConfigSection() {
         )}
       </div>
 
-      <ConfigHistory current={current.data} baseVersion={draftBase ?? version} onAnswer={onAnswer} onFailed={onFailed} />
+      <ConfigHistory current={current.data} baseVersion={draftBase ?? version} dirty={dirty} onAnswer={onAnswer} onRefresh={refresh} onFailed={onFailed} />
     </div>
   );
 }

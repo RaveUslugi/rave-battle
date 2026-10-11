@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { settleCharges } from "./charges";
 import { eventsOf, makeEngine, T0 } from "./test-utils";
 
 const admin = 99;
@@ -72,5 +73,46 @@ describe("applyConfig", () => {
     engine.applyConfig(structuredClone(cfg), { ...change(1, "back"), action: "config_rollback", fromVersion: 1 }, T0);
     const [log] = eventsOf(engine.drainEvents(), "mod_log");
     expect(log).toMatchObject({ action: "config_rollback", params: { version: 2, comment: "back", fromVersion: 1 } });
+  });
+
+  test("a regen change does not apply retroactively and regen continues at the new rate", () => {
+    const { engine, cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    p.charges = 0;
+    p.chargesUpdatedAt = T0;
+    engine.drainEvents();
+    const next = structuredClone(cfg);
+    next.charges.regenMs = 1000;
+    expect(engine.applyConfig(next, change(1), T0 + 60_000).ok).toBe(true);
+    expect(p.charges).toBe(2);
+    expect(eventsOf(engine.drainEvents(), "player")).toEqual([{ type: "player", userId: 1 }]);
+    settleCharges(p, engine.config, T0 + 65_000);
+    expect(p.charges).toBe(7);
+  });
+
+  test("raising charges.max does not grant charges for time before the change", () => {
+    const { engine, cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    p.charges = cfg.charges.max;
+    p.chargesUpdatedAt = T0;
+    const next = structuredClone(cfg);
+    next.charges.max = cfg.charges.max + 20;
+    expect(engine.applyConfig(next, change(1), T0 + 600_000).ok).toBe(true);
+    expect(p.charges).toBe(cfg.charges.max);
+  });
+
+  test("stale and invalid changes emit no player events", () => {
+    const { engine, cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    p.charges = 0;
+    p.chargesUpdatedAt = T0;
+    engine.drainEvents();
+    const next = structuredClone(cfg);
+    next.charges.regenMs = 1000;
+    expect(engine.applyConfig(next, change(0), T0 + 60_000).ok).toBe(false);
+    next.canvas.width = 256;
+    expect(engine.applyConfig(next, change(1), T0 + 60_000).ok).toBe(false);
+    expect(engine.drainEvents()).toEqual([]);
+    expect(p.charges).toBe(0);
   });
 });
