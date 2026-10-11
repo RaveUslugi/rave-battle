@@ -34,13 +34,18 @@ export function ConfigSection() {
   const [comment, setComment] = useState("");
   const [remote, setRemote] = useState<Issues>({});
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-  const [stale, setStale] = useState(false);
+  // The version the draft was built from; every save stays against it until the admin reloads explicitly.
+  const [draftBase, setDraftBase] = useState<number | null>(null);
 
   // The draft is created once and survives refetches; only an explicit reload (or a saved version) replaces it.
-  if (draft === null && current.data) setDraft(draftFrom(current.data.config));
+  if (draft === null && current.data) {
+    setDraft(draftFrom(current.data.config));
+    setDraftBase(current.data.version);
+  }
   useEffect(() => {
-    if (expectVersion !== null && current.data?.version === expectVersion) {
+    if (expectVersion !== null && current.data && current.data.version >= expectVersion) {
       setDraft(draftFrom(current.data.config));
+      setDraftBase(current.data.version);
       setExpectVersion(null);
     }
   }, [expectVersion, current.data]);
@@ -55,7 +60,6 @@ export function ConfigSection() {
   };
 
   const onAnswer = (res: ConfigAnswer) => {
-    setStale(false);
     if (res.ok) {
       setRemote({});
       setOpen(false);
@@ -65,7 +69,6 @@ export function ConfigSection() {
       refresh();
     } else if (res.code === "stale") {
       setStatus({ kind: "error", text: `Конфиг уже изменили (версия ${res.currentVersion}). Ваш черновик сохранён` });
-      setStale(true);
       refresh();
     } else if (res.code === "invalid") {
       setRemote(serverIssues(res.issues));
@@ -90,6 +93,7 @@ export function ConfigSection() {
     if (all.length > 0) issues[section] = all;
   }
   const hasErrors = checked.config === null;
+  const staleNow = draftBase !== null && draftBase !== version;
 
   const edit = (next: Draft) => {
     setDraft(next);
@@ -99,7 +103,7 @@ export function ConfigSection() {
     if (dirty && !window.confirm("Черновик пропадёт. Загрузить текущую версию?")) return;
     setDraft(draftFrom(live));
     setRemote({});
-    setStale(false);
+    setDraftBase(version);
     setStatus(null);
     setOpen(false);
   };
@@ -107,7 +111,7 @@ export function ConfigSection() {
     e.preventDefault();
     if (!checked.config || comment.trim().length === 0) return;
     setStatus(null);
-    save.mutate({ baseVersion: version, config: checked.config, comment: comment.trim() });
+    save.mutate({ baseVersion: draftBase ?? version, config: checked.config, comment: comment.trim() });
   };
 
   return (
@@ -163,7 +167,7 @@ export function ConfigSection() {
               <input className={styles.input} value={comment} maxLength={COMMENT_MAX} onChange={(e) => setComment(e.target.value)} />
             </label>
             <div className={styles.row}>
-              <button type="submit" className={styles.button} disabled={save.isPending || hasErrors || diff.length === 0 || comment.trim().length === 0}>
+              <button type="submit" className={styles.button} disabled={save.isPending || staleNow || hasErrors || diff.length === 0 || comment.trim().length === 0}>
                 Сохранить как версию {version + 1}
               </button>
               <button type="button" className={styles.button} onClick={() => setOpen(false)}>
@@ -177,14 +181,17 @@ export function ConfigSection() {
             {status.text}
           </p>
         )}
-        {stale && (
+        {staleNow && (
+          <p className={styles.error}>Конфиг уже изменили (версия {version}), а черновик собран на версии {draftBase}. Сохранить его нельзя — загрузите текущую версию.</p>
+        )}
+        {staleNow && (
           <button type="button" className={styles.button} onClick={reload}>
             Загрузить текущую версию
           </button>
         )}
       </div>
 
-      <ConfigHistory current={current.data} onAnswer={onAnswer} onFailed={onFailed} />
+      <ConfigHistory current={current.data} baseVersion={draftBase ?? version} onAnswer={onAnswer} onFailed={onFailed} />
     </div>
   );
 }

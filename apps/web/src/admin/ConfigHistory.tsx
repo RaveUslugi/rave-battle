@@ -29,11 +29,13 @@ const COMMENT_MAX = 200;
 
 interface Props {
   current: { version: number; config: GameConfig };
+  /** Version the editor draft was built from; rollbacks go against it so a concurrent change stays stale. */
+  baseVersion: number;
   onAnswer: (res: ConfigAnswer) => void;
   onFailed: () => void;
 }
 
-export function ConfigHistory({ current, onAnswer, onFailed }: Props) {
+export function ConfigHistory({ current, baseVersion, onAnswer, onFailed }: Props) {
   const trpc = useTRPC();
   const history = useQuery(trpc.admin.config.history.queryOptions());
   const [selected, setSelected] = useState<number | null>(null);
@@ -60,7 +62,7 @@ export function ConfigHistory({ current, onAnswer, onFailed }: Props) {
   const submit = (e: FormEvent, version: number) => {
     e.preventDefault();
     if (comment.trim().length === 0) return;
-    rollback.mutate({ version, baseVersion: current.version, comment: comment.trim() });
+    rollback.mutate({ version, baseVersion, comment: comment.trim() });
   };
 
   return (
