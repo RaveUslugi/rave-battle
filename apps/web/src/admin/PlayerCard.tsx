@@ -354,7 +354,7 @@ function PixelRollback({ userId, name }: { userId: number; name: string }) {
         </div>
       </div>
       {staged && (
-        <div role="status">
+        <div className={styles.staged} role="status">
           <p>{staged.what}</p>
           <p>{staged.text}</p>
           <div className={styles.radios}>

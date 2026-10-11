@@ -47,5 +47,7 @@ describe("moderation-format", () => {
     expect(describeAction({ kind: "clear_area", mode: "fill" }, { fmt })).toBe("Очистка: залить фоном");
     expect(describeAction({ kind: "clear_area", mode: "to_time", at: 9 }, { fmt })).toBe("Очистка: откат к t9");
     expect(describeAction({ kind: "remove_bombs" }, { fmt })).toBe("Снятие бомб в области");
+    expect(describeAction({ kind: "remove_bombs", userId: 3 }, { player: "Вася", fmt })).toBe("Снятие всех бомб игрока Вася");
+    expect(describeAction({ kind: "remove_bombs", userId: 3 }, { fmt })).toBe("Снятие всех бомб игрока #3");
   });
 });

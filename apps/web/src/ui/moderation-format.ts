@@ -51,7 +51,7 @@ export type DescribableAction =
   | { kind: "rollback_player"; userId: number; from: number; to: number; removeBombs: boolean }
   | { kind: "clear_area"; mode: "fill" }
   | { kind: "clear_area"; mode: "to_time"; at: number }
-  | { kind: "remove_bombs" };
+  | { kind: "remove_bombs"; userId?: number };
 
 /** One line saying what a previewed action will do. `period` is its label ("24 ч"), `fmt` formats a timestamp. */
 export function describeAction(action: DescribableAction, ctx: { player?: string; period?: string; fmt: (ms: number) => string }): string {
@@ -64,6 +64,6 @@ export function describeAction(action: DescribableAction, ctx: { player?: string
     case "clear_area":
       return action.mode === "fill" ? "Очистка: залить фоном" : `Очистка: откат к ${ctx.fmt(action.at)}`;
     case "remove_bombs":
-      return "Снятие бомб в области";
+      return action.userId === undefined ? "Снятие бомб в области" : `Снятие всех бомб игрока ${ctx.player ?? `#${action.userId}`}`;
   }
 }

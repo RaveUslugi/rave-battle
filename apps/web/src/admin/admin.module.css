@@ -114,6 +114,13 @@
   color: var(--neon-cyan);
 }
 
+.staged {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--neon-cyan);
+}
+
 .muted {
   color: var(--muted);
 }
