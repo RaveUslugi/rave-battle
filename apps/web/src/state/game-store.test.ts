@@ -75,3 +75,11 @@ test("hello stores the admin flag; setConfig replaces the config only", () => {
   expect(store.getState().config?.canvas.width).toBe(1024);
   expect(store.getState().player).toBe(player);
 });
+
+test("the outdated status is final: later socket statuses do not overwrite it", () => {
+  const { setStatus } = gameStore.getState();
+  setStatus("outdated");
+  setStatus("closed");
+  setStatus("reconnecting");
+  expect(gameStore.getState().status).toBe("outdated");
+});

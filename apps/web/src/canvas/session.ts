@@ -1,6 +1,8 @@
 import { encodePlace, normalizeRect, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { onProtocolMismatch } from "../net/version";
+import { uiStore } from "../state/ui-store";
 import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
@@ -75,6 +77,7 @@ export class CanvasSession implements CanvasPort {
       message: (m) => !this.disposed && this.onMessage(m),
       delta: (d) => !this.disposed && this.controller?.onDelta(d),
       status: (s) => !this.disposed && gameStore.getState().setStatus(s),
+      outdated: () => !this.disposed && this.onOutdated(),
     });
     this.resizeObserver = new ResizeObserver(() => {
       this.renderer.resize();
@@ -160,6 +163,21 @@ export class CanvasSession implements CanvasPort {
     this.attachPointerHandlers(this.renderer.canvasElement);
     this.resizeObserver.observe(this.host);
     this.socket.connect();
+  }
+
+  private onOutdated(): void {
+    let storage: Storage | null = null;
+    try {
+      storage = window.sessionStorage;
+    } catch {
+      // Storage may be blocked; without it the guard cannot loop anyway, the new bundle matches.
+    }
+    if (onProtocolMismatch(storage, Date.now()) === "ask") {
+      gameStore.getState().setStatus("outdated");
+      return;
+    }
+    uiStore.getState().pushToast("info", "Игра обновилась — перезагружаем…");
+    setTimeout(() => window.location.reload(), 1500);
   }
 
   private onHello(message: HelloMessage): void {

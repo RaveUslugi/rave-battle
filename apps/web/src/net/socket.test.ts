@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { decodeClientMessage, defaultConfig, encodeChunkDelta, encodePlace, type ChunkDelta, type ServerMessage } from "@rave/shared";
+import { decodeClientMessage, defaultConfig, PROTOCOL_VERSION, encodeChunkDelta, encodePlace, type ChunkDelta, type ServerMessage } from "@rave/shared";
 import { GameSocket, type Timers, type TransportFactory, type TransportHandlers } from "./socket";
 
 function harness() {
@@ -29,16 +29,31 @@ function harness() {
       delta: (d) => deltas.push(d),
       status: (s) => log.push(s),
       closed: (code) => log.push(`closed:${code}`),
+      outdated: () => log.push("outdated"),
     },
     { initialBackoffMs: 100, maxBackoffMs: 400, random: () => 1, timers: fakeTimers },
   );
   return { socket, transports, timers, log, deltas, messages };
 }
 
-const hello = (bootId = "b1") =>
-  JSON.stringify({ type: "hello", protocol: 1, bootId, user: null, config: defaultConfig, player: null, admin: false } satisfies ServerMessage);
+const hello = (bootId = "b1", protocol: number = PROTOCOL_VERSION) =>
+  JSON.stringify({ type: "hello", protocol, bootId, user: null, config: defaultConfig, player: null, admin: false } satisfies ServerMessage);
 
 describe("GameSocket", () => {
+  test("a protocol mismatch stops the socket for good: no hello, no reconnect, no status after it", () => {
+    const h = harness();
+    h.socket.connect();
+    const t = h.transports[0]!;
+    h.socket.subscribe([{ cx: 0, cy: 0 }]);
+    t.handlers.message(hello("b1", PROTOCOL_VERSION + 1));
+    expect(t.closed).toBe(true);
+    expect(t.sent).toEqual([]);
+    t.handlers.close(1000);
+    expect(h.timers).toHaveLength(0);
+    expect(h.transports).toHaveLength(1);
+    expect(h.log).toEqual(["connecting", "outdated", "closed:1000"]);
+  });
+
   test("reports connecting, then open with hello", () => {
     const h = harness();
     h.socket.connect();
