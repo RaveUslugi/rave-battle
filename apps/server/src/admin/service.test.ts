@@ -158,12 +158,19 @@ describe("unban", () => {
   });
 
   test("ensurePlayer and unban in parallel leave the engine and the DB in agreement", async () => {
-    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, bob));
-    const stale = { ...sessionUser(bob, "bob_x"), bannedUntil: Date.now() + 3_600_000, banReason: "seed" };
-    await Promise.all([ensurePlayer({ db: t.db, runtime, accessQueue }, stale), service.unban(admin, { userId: bob, reason: "x" })]);
-    const [row] = await t.db.select().from(users).where(eq(users.id, bob));
-    expect(runtime.engine.players.get(bob).bannedUntil).toBe(banFromDate(row!.bannedUntil));
-    expect(runtime.engine.players.get(bob).banReason).toBe(row!.banReason);
+    for (let i = 0; i < 20; i++) {
+      const id = await insertUser(t.db, `racer${i}`);
+      // The ban landed after the session was resolved: the session says "not banned", the DB says banned.
+      await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, id));
+      const stale = sessionUser(id, `racer${i}`);
+      await Promise.all([
+        ensurePlayer({ db: t.db, runtime, accessQueue }, stale),
+        service.unban(admin, { userId: id, reason: "x" }),
+      ]);
+      const [row] = await t.db.select().from(users).where(eq(users.id, id));
+      expect(row!.bannedUntil).toBeNull();
+      expect(runtime.engine.players.get(id).bannedUntil).toBeNull();
+    }
   });
 
   test("concurrent ban and unban leave the DB and the engine in agreement", async () => {

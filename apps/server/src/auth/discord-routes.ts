@@ -68,9 +68,11 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
   });
   deps.users.set(id, profile.username);
   // Checked inside the command: the player may be created concurrently by another socket.
-  await deps.runtime.run((engine) => {
-    if (engine.players.has(id)) engine.setAccess(id, { guildMember });
-  });
+  await deps.accessQueue.run(id, () =>
+    deps.runtime.run((engine) => {
+      if (engine.players.has(id)) engine.setAccess(id, { guildMember });
+    }),
+  );
   const { token, expiresAt } = await createSession(deps.db, id, deps.config.sessionTtlMs, Date.now());
   headers.append("Set-Cookie", sessionCookie(token, expiresAt, deps.config.secureCookies));
   return new Response(null, { status: 302, headers });

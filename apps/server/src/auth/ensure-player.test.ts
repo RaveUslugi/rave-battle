@@ -40,3 +40,20 @@ test("an unchanged row leaves the player as created", async () => {
   await ensurePlayer({ db: t.db, runtime, accessQueue: new AccessQueue() }, session);
   expect(runtime.engine.players.get(id).bannedUntil).toBeNull();
 });
+
+test("a second concurrent first join returns only after the re-read was applied", async () => {
+  for (let i = 0; i < 10; i++) {
+    const id = await insertUser(t.db, `twin${i}`);
+    const { token } = await createSession(t.db, id, 86_400_000, Date.now());
+    const session = (await resolveSession(t.db, token, Date.now()))!;
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" }).where(eq(users.id, id));
+    const queue = new AccessQueue();
+    const first = ensurePlayer({ db: t.db, runtime, accessQueue: queue }, session);
+    // Take the batch now: the player is no longer "pending", so a second addPlayer resolves without waiting for the commit.
+    void runtime.flush();
+    for (let k = 0; k < 3; k++) await Promise.resolve();
+    const second = ensurePlayer({ db: t.db, runtime, accessQueue: queue }, session).then(() => runtime.engine.players.get(id).banReason);
+    expect(await second).toBe("raced");
+    await first;
+  }
+});
