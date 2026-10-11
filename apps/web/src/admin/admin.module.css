@@ -219,3 +219,86 @@
   margin: 0;
   padding-left: 18px;
 }
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.configBlock {
+  margin-top: 16px;
+}
+
+.textarea {
+  display: block;
+  max-width: 100%;
+  resize: vertical;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--neon-pink);
+}
+
+.issues {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--neon-cyan);
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.wrap {
+  white-space: normal !important;
+  min-width: 160px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.colorCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.narrow {
+  width: 90px;
+}
+
+.hex {
+  width: 110px;
+}
