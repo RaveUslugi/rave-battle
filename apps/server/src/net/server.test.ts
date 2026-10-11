@@ -176,6 +176,24 @@ describe("http", () => {
 });
 
 describe("websocket", () => {
+  test("a committed config change reaches everyone, and online players get a fresh view", async () => {
+    const anon = await connect();
+    const alice = await connect(await login("alice"));
+    const before = runtime.engine.config.shop.bomb.price;
+    const next = structuredClone(runtime.engine.config);
+    next.shop.bomb.price = before + 7;
+    const res = await runtime.run((engine) =>
+      engine.applyConfig(next, { baseVersion: engine.configVersion, adminId: 1, comment: "pricier bombs", action: "config_save" }, Date.now()),
+    );
+    expect(res.ok).toBe(true);
+    for (const c of [anon, alice]) {
+      const msg = await waitFor(() => c.json.find((m): m is Extract<ServerMessage, { type: "config" }> => m.type === "config"));
+      expect(msg.config.shop.bomb.price).toBe(before + 7);
+    }
+    await waitFor(() => alice.json.filter((m) => m.type === "player").length >= 1);
+    expect(anon.json.some((m) => m.type === "player")).toBe(false);
+  });
+
   test("dev login as admin places without charges", async () => {
     const admin = await connect(await login("admin"));
     expect(hello(admin).player?.unlimited).toBe(true);

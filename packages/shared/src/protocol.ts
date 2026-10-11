@@ -240,6 +240,8 @@ export type ServerMessage =
       admin: boolean;
     }
   | { type: "player"; player: PlayerView }
+  /** The live config changed; replaces the one from hello. Canvas size may grow. */
+  | { type: "config"; config: GameConfig }
   | { type: "placed"; reqId: number; result: PlaceResultView }
   | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
   /** Sent once right after `hello`: the latest feed entries, oldest first. Replaces whatever the client showed before. */

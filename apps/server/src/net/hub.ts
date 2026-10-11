@@ -126,6 +126,17 @@ export class Hub {
     }
     const touched = new Set<number>();
     for (const e of events) if (e.type === "player") touched.add(e.userId);
+    // `findLast` is not in the ES2022 lib.
+    let configChange: Extract<EngineEvent, { type: "config_changed" }> | undefined;
+    for (let i = events.length - 1; i >= 0 && !configChange; i--) {
+      const e = events[i]!;
+      if (e.type === "config_changed") configChange = e;
+    }
+    if (configChange) {
+      server.publish(GLOBAL_TOPIC, JSON.stringify({ type: "config", config: configChange.config } satisfies ServerMessage));
+      // Charge caps and access depend on the config: every online player gets a fresh view.
+      for (const ws of this.sockets) if (ws.data.ready && ws.data.user) touched.add(ws.data.user.id);
+    }
     for (const userId of touched) {
       server.publish(userTopic(userId), JSON.stringify({ type: "player", player: this.playerView(userId) } satisfies ServerMessage));
     }
