@@ -207,8 +207,10 @@ export interface PlayerView {
   dailyStep: number;
   dailyLastClaim: string | null;
   bannedUntil: number | "permanent" | null;
-  /** "ok", or why the player may only watch (ban, not in the guild, account too new). Freeze is separate. */
-  access: "ok" | "banned" | "not_guild_member" | "account_too_new";
+  /** Why the player may only watch, most important first; empty = may play. Freeze is separate. Re-check expiry on the client. */
+  blocks: Array<"banned" | "not_guild_member" | "account_too_new">;
+  /** Shown to a banned player. */
+  banReason: string | null;
   /** For "account_too_new": when the account becomes old enough to play; otherwise null. Ban end is `bannedUntil`. */
   playableAt: number | null;
   /** Dev account: spends nothing and cannot be frozen. */
@@ -234,8 +236,12 @@ export type ServerMessage =
       user: UserRef | null;
       config: GameConfig;
       player: PlayerView | null;
+      /** Whether to show admin links; every admin call is checked on the server. */
+      admin: boolean;
     }
   | { type: "player"; player: PlayerView }
+  /** The live config changed; replaces the one from hello. Canvas size may grow. */
+  | { type: "config"; config: GameConfig }
   | { type: "placed"; reqId: number; result: PlaceResultView }
   | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
   /** Sent once right after `hello`: the latest feed entries, oldest first. Replaces whatever the client showed before. */

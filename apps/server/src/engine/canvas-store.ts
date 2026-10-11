@@ -23,6 +23,8 @@ const localIndex = (x: number, y: number) => (y % CHUNK_SIZE) * CHUNK_SIZE + (x 
 export class CanvasStore {
   private chunks = new Map<string, Chunk>();
   private territory = new Map<UserId, number>();
+  /** Cells per non-zero color id across loaded chunks. */
+  private colorCounts = new Float64Array(256);
 
   constructor(
     private _width: number,
@@ -59,6 +61,8 @@ export class CanvasStore {
     chunk.owners[i] = ownerId;
     this.addTerritory(prev.ownerId, -1);
     this.addTerritory(ownerId, 1);
+    if (prev.colorId !== 0) this.colorCounts[prev.colorId]! -= 1;
+    if (colorId !== 0) this.colorCounts[colorId]! += 1;
     return prev;
   }
 
@@ -74,13 +78,25 @@ export class CanvasStore {
     }
     const key = chunkKey(cx, cy);
     const old = this.chunks.get(key);
-    if (old) for (const owner of old.owners) this.addTerritory(owner, -1);
+    if (old) {
+      for (const owner of old.owners) this.addTerritory(owner, -1);
+      for (const color of old.colors) if (color !== 0) this.colorCounts[color]! -= 1;
+    }
     for (const owner of chunk.owners) this.addTerritory(owner, 1);
+    for (const color of chunk.colors) if (color !== 0) this.colorCounts[color]! += 1;
     this.chunks.set(key, chunk);
   }
 
   territoryOf(userId: UserId): number {
     return this.territory.get(userId) ?? 0;
+  }
+
+  /** Cells painted with the color; for 0 (background) every cell not painted by another color. */
+  colorCount(colorId: number): number {
+    if (colorId !== 0) return this.colorCounts[colorId] ?? 0;
+    let painted = 0;
+    for (let i = 1; i < this.colorCounts.length; i++) painted += this.colorCounts[i]!;
+    return this._width * this._height - painted;
   }
 
   /** Cells owned per user (only users with at least one cell). */

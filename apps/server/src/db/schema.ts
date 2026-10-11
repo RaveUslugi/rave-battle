@@ -16,7 +16,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { ItemKey } from "@rave/shared";
-import type { LedgerItem, LedgerReason } from "../engine/types";
+import type { LedgerItem, LedgerReason, ModAction } from "../engine/types";
 import { bytes } from "./bytes";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -97,7 +97,7 @@ export const ledger = pgTable(
     item: text("item").$type<LedgerItem>().notNull(),
     delta: integer("delta").notNull(),
     balanceAfter: integer("balance_after").notNull(),
-    reason: text("reason").$type<LedgerReason | "start" | "admin">().notNull(),
+    reason: text("reason").$type<LedgerReason | "start">().notNull(),
     ref: jsonb("ref").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: ts("created_at").notNull(),
   },
@@ -183,11 +183,15 @@ export const gameConfig = pgTable("game_config", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
-export const modLog = pgTable("mod_log", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id").notNull().references(() => users.id),
-  action: text("action").notNull(),
-  targetUserId: integer("target_user_id").references(() => users.id),
-  params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
-  createdAt: ts("created_at").notNull().defaultNow(),
-});
+export const modLog = pgTable(
+  "mod_log",
+  {
+    id: serial("id").primaryKey(),
+    adminId: integer("admin_id").notNull().references(() => users.id),
+    action: text("action").$type<ModAction>().notNull(),
+    targetUserId: integer("target_user_id").references(() => users.id),
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("mod_log_target_idx").on(t.targetUserId, t.id), index("mod_log_action_idx").on(t.action, t.id)],
+);

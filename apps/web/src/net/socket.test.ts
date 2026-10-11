@@ -36,7 +36,7 @@ function harness() {
 }
 
 const hello = (bootId = "b1") =>
-  JSON.stringify({ type: "hello", protocol: 1, bootId, user: null, config: defaultConfig, player: null } satisfies ServerMessage);
+  JSON.stringify({ type: "hello", protocol: 1, bootId, user: null, config: defaultConfig, player: null, admin: false } satisfies ServerMessage);
 
 describe("GameSocket", () => {
   test("reports connecting, then open with hello", () => {

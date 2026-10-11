@@ -3,7 +3,7 @@ import { defaultConfig, type PlayerView } from "@rave/shared";
 import { createGameStore, gameStore, serverTime } from "./game-store";
 
 test("hello fills identity, config and player", () => {
-  gameStore.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: null });
+  gameStore.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: null, admin: false });
   const state = gameStore.getState();
   expect(state.bootId).toBe("b");
   expect(state.user).toEqual({ id: 1, name: "a" });
@@ -33,14 +33,14 @@ const view = (serverNow: number) =>
   ({
     coins: 0, charges: 0, chargesUpdatedAt: 0, chargeCap: 10, frozenUntil: 0,
     inventory: { bomb: 0, detector: 0, defuser: 0 }, unlockedColors: [], dailyStep: 0,
-    dailyLastClaim: null, bannedUntil: null, access: "ok", playableAt: null, unlimited: false, serverNow,
+    dailyLastClaim: null, bannedUntil: null, blocks: [], banReason: null, playableAt: null, unlimited: false, serverNow,
   }) satisfies PlayerView;
 
 test("player views set the clock offset; serverTime applies it", () => {
   let local = 1_000;
   const store = createGameStore(() => local);
   expect(store.getState().clockOffset).toBe(0);
-  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000) });
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000), admin: false });
   expect(store.getState().clockOffset).toBe(5_000);
   local = 2_000;
   store.getState().setPlayer(view(1_500));
@@ -51,7 +51,7 @@ test("player views set the clock offset; serverTime applies it", () => {
 test("hello without a player keeps the offset", () => {
   const store = createGameStore(() => 0);
   store.getState().setPlayer(view(3_000));
-  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null });
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: null, config: defaultConfig, player: null, admin: false });
   expect(store.getState().clockOffset).toBe(3_000);
 });
 
@@ -64,4 +64,14 @@ test("view and jump requests are stored", () => {
   store.getState().jumpTo(10, 20);
   expect(store.getState().jump).toEqual({ x: 10, y: 20 });
   expect(store.getState().jump).not.toBe(first); // same target twice still triggers
+});
+
+test("hello stores the admin flag; setConfig replaces the config only", () => {
+  const store = createGameStore(() => 0);
+  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(1_000), admin: true });
+  expect(store.getState().admin).toBe(true);
+  const player = store.getState().player;
+  store.getState().setConfig({ ...defaultConfig, canvas: { width: 1024, height: 1024 } });
+  expect(store.getState().config?.canvas.width).toBe(1024);
+  expect(store.getState().player).toBe(player);
 });

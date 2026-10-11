@@ -11,12 +11,14 @@ import {
 } from "@rave/shared";
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
+import { isAdmin } from "../auth/admin";
 import type { DiscordConfig, FetchFn } from "../auth/discord";
 import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
@@ -40,8 +42,6 @@ async function start(
   const users = await UserDirectory.load(t.db);
   let hubRef: Hub | undefined;
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {}, onCommit: (events) => hubRef?.handleCommit(events) });
-  hub = new Hub({ runtime, users, onlineDebounceMs: 10, ...options.hub });
-  hubRef = hub;
   const config: ServerConfig = {
     databaseUrl: "",
     port: 0,
@@ -50,9 +50,14 @@ async function start(
     devLogin: options.devLogin ?? true,
     secureCookies: false,
     sessionTtlMs: 86_400_000,
+    adminDiscordIds: new Set(),
     discord: options.discord ?? null,
   };
-  server = startServer({ db: t.db, runtime, hub, users, config, stats: new StatsService(t.db, runtime, users), fetch: options.fetch, ipLimiter: options.ipLimiter });
+  hub = new Hub({ runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  hubRef = hub;
+  const stats = new StatsService(t.db, runtime, users);
+  const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, fetch: options.fetch, ipLimiter: options.ipLimiter });
   base = `http://localhost:${server.port}`;
 }
 
@@ -174,6 +179,24 @@ describe("http", () => {
 });
 
 describe("websocket", () => {
+  test("a committed config change reaches everyone, and online players get a fresh view", async () => {
+    const anon = await connect();
+    const alice = await connect(await login("alice"));
+    const before = runtime.engine.config.shop.bomb.price;
+    const next = structuredClone(runtime.engine.config);
+    next.shop.bomb.price = before + 7;
+    const res = await runtime.run((engine) =>
+      engine.applyConfig(next, { baseVersion: engine.configVersion, adminId: 1, comment: "pricier bombs", action: "config_save" }, Date.now()),
+    );
+    expect(res.ok).toBe(true);
+    for (const c of [anon, alice]) {
+      const msg = await waitFor(() => c.json.find((m): m is Extract<ServerMessage, { type: "config" }> => m.type === "config"));
+      expect(msg.config.shop.bomb.price).toBe(before + 7);
+    }
+    await waitFor(() => alice.json.filter((m) => m.type === "player").length >= 1);
+    expect(anon.json.some((m) => m.type === "player")).toBe(false);
+  });
+
   test("dev login as admin places without charges", async () => {
     const admin = await connect(await login("admin"));
     expect(hello(admin).player?.unlimited).toBe(true);
@@ -182,6 +205,9 @@ describe("websocket", () => {
     for (let i = 1; i <= cap + 2; i++) expect((await placed(admin, i)).result).toEqual({ ok: true, outcome: "placed" });
     const bob = await connect(await login("bob"));
     expect(hello(bob).player?.unlimited).toBe(false);
+    expect(hello(admin).admin).toBe(true);
+    expect(hello(bob).admin).toBe(false);
+    expect(hello(await connect()).admin).toBe(false);
   });
 
   test("logout closes the sockets of that session only", async () => {

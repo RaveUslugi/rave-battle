@@ -14,6 +14,9 @@ export function buildOverview(canvas: CanvasStore): Uint8Array {
 export class OverviewCache {
   private body: Uint8Array<ArrayBuffer> | null = null;
   private builtAt = 0;
+  // Canvas size the body was built for: growth must show up at once, not after maxAge.
+  private builtWidth = 0;
+  private builtHeight = 0;
 
   constructor(
     private readonly maxAgeMs = 5_000,
@@ -22,9 +25,12 @@ export class OverviewCache {
 
   get(canvas: CanvasStore): Uint8Array<ArrayBuffer> {
     const now = this.now();
-    if (!this.body || now - this.builtAt >= this.maxAgeMs) {
+    const resized = canvas.width !== this.builtWidth || canvas.height !== this.builtHeight;
+    if (!this.body || resized || now - this.builtAt >= this.maxAgeMs) {
       this.body = Bun.gzipSync(buildOverview(canvas) as Uint8Array<ArrayBuffer>);
       this.builtAt = now;
+      this.builtWidth = canvas.width;
+      this.builtHeight = canvas.height;
     }
     return this.body;
   }

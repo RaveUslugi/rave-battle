@@ -19,6 +19,7 @@ function player(overrides: Partial<PlayerState>): PlayerState {
     dailyStep: 0,
     dailyLastClaim: null,
     bannedUntil: null,
+    banReason: null,
     accountCreatedAt: 0,
     guildMember: true,
     ...overrides,

@@ -69,13 +69,31 @@ describe("Leaderboards", () => {
     expect(await boards.ranking("artists", "all")).toHaveLength(2);
   });
 
-  test("currently banned players are hidden; expired bans are not", async () => {
+  test("bans come from the engine and a reset hook shows them without waiting 30 s", async () => {
+    for (const name of ["ann", "ben"] as const) {
+      await runtime.addPlayer({ userId: ids[name]!, accountCreatedAt: Date.UTC(2020, 0, 1), guildMember: true });
+    }
     await stat("ann", 0, { pixels: 1 });
     await stat("ben", 0, { pixels: 2 });
-    await t.db.update(users).set({ bannedUntil: new Date(NOW + DAY_MS) }).where(eq(users.id, ids.ben!));
-    await t.db.update(users).set({ bannedUntil: new Date(NOW - DAY_MS) }).where(eq(users.id, ids.ann!));
     const boards = new Leaderboards(t.db, runtime, () => NOW);
+    expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ben, ids.ann]);
+
+    await runtime.run((engine) => engine.setAccess(ids.ben!, { bannedUntil: NOW + DAY_MS }));
+    expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ben, ids.ann]); // still cached
+    boards.invalidate();
     expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ann]);
+
+    await runtime.run((engine) => engine.setAccess(ids.ben!, { bannedUntil: NOW - DAY_MS }));
+    boards.invalidate();
+    expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ben, ids.ann]);
+  });
+
+  test("users.banned_until without the engine does not affect rankings", async () => {
+    await runtime.addPlayer({ userId: ids.ben!, accountCreatedAt: Date.UTC(2020, 0, 1), guildMember: true });
+    await stat("ben", 0, { pixels: 2 });
+    await t.db.update(users).set({ bannedUntil: new Date(NOW + DAY_MS) }).where(eq(users.id, ids.ben!));
+    const boards = new Leaderboards(t.db, runtime, () => NOW);
+    expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ben]);
   });
 
   test("territory comes from the canvas in memory and ignores the period", async () => {

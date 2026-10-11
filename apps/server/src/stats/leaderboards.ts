@@ -1,7 +1,7 @@
 import { DAY_MS, dateKey } from "@rave/shared";
-import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { statsDaily, users } from "../db/schema";
+import { statsDaily } from "../db/schema";
 import type { GameRuntime } from "../persistence/runtime";
 
 export const BOARDS = ["artists", "bombers", "sappers", "kamikaze", "territory"] as const;
@@ -75,28 +75,35 @@ export class Leaderboards {
     const rows = await this.db
       .select({ userId: statsDaily.userId, value: total })
       .from(statsDaily)
-      .innerJoin(users, eq(users.id, statsDaily.userId))
       .where(
         and(
           eq(statsDaily.seasonId, this.runtime.season),
           from === null ? undefined : gte(statsDaily.date, from),
-          or(isNull(users.bannedUntil), lte(users.bannedUntil, new Date(now))),
         ),
       )
       .groupBy(statsDaily.userId)
       .having(sql`sum(${column}) > 0`)
       .orderBy(desc(total), asc(statsDaily.userId));
-    return rank(rows);
+    return rank(rows.filter((r) => !this.isBanned(r.userId, now)));
   }
 
   private territory(now: number): Ranked[] {
-    const players = this.runtime.engine.players;
     const rows: Array<{ userId: number; value: number }> = [];
     for (const [userId, value] of this.runtime.engine.canvas.territories()) {
       if (userId === 0) continue;
-      const banned = players.has(userId) && (players.get(userId).bannedUntil ?? 0) > now;
-      if (!banned) rows.push({ userId, value });
+      if (!this.isBanned(userId, now)) rows.push({ userId, value });
     }
     return rank(rows);
+  }
+
+  /** Bans come from the engine: moderation updates it together with users, and every player with stats is loaded there. */
+  private isBanned(userId: number, now: number): boolean {
+    const players = this.runtime.engine.players;
+    return players.has(userId) && (players.get(userId).bannedUntil ?? 0) > now;
+  }
+
+  /** Drops cached rankings, e.g. after a ban or unban. */
+  invalidate(): void {
+    this.cache.clear();
   }
 }

@@ -1,7 +1,7 @@
 import { ITEM_KEYS } from "@rave/shared";
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { Tx } from "../db/client";
-import { bombs, chunkSnapshots, inventory, ledger, pixelEvents, playerState, statsDaily, unlockedColors } from "../db/schema";
+import { bombs, chunkSnapshots, gameConfig, inventory, ledger, modLog, pixelEvents, playerState, statsDaily, unlockedColors } from "../db/schema";
 import type { EngineEvent, StatKey } from "../engine/types";
 import type { Batch, PlayerSnapshot } from "./batch";
 import { ownersToBytes } from "./codec";
@@ -19,9 +19,11 @@ function ofType<T extends EngineEvent["type"]>(events: EngineEvent[], type: T): 
 export async function writeBatch(tx: Tx, batch: Batch): Promise<void> {
   assertKnownEvents(batch.events);
   for (const { player, at } of batch.newPlayers) await insertNewPlayer(tx, batch.seasonId, player, at);
+  await insertConfigVersions(tx, batch);
   await insertPixels(tx, batch);
   await applyBombEvents(tx, batch);
   await insertLedger(tx, batch);
+  await insertModLog(tx, batch);
   await addStats(tx, batch);
   await insertColorUnlocks(tx, batch);
   for (const player of batch.players) await upsertPlayer(tx, batch.seasonId, player);
@@ -38,6 +40,8 @@ function assertKnownEvents(events: EngineEvent[]): void {
       case "ledger":
       case "stat":
       case "color_unlocked":
+      case "mod_log":
+      case "config_changed":
       case "player":
         break;
       default: {
@@ -89,6 +93,16 @@ async function upsertPlayer(tx: Tx, seasonId: number, p: PlayerSnapshot): Promis
       target: [inventory.userId, inventory.seasonId, inventory.item],
       set: { amount: sql`excluded.amount` },
     });
+}
+
+async function insertConfigVersions(tx: Tx, batch: Batch): Promise<void> {
+  const rows = ofType(batch.events, "config_changed");
+  if (rows.length === 0) return;
+  await tx
+    .insert(gameConfig)
+    .values(rows.map((e) => ({ version: e.version, data: e.config, createdBy: e.createdBy, comment: e.comment, createdAt: new Date(e.at) })));
+  // Explicit versions bypass the serial; move it past them so later default inserts do not collide.
+  await tx.execute(sql`select setval(pg_get_serial_sequence('game_config', 'version'), (select max(version) from game_config))`);
 }
 
 async function insertPixels(tx: Tx, batch: Batch): Promise<void> {
@@ -144,6 +158,14 @@ async function insertLedger(tx: Tx, batch: Batch): Promise<void> {
       })),
     );
   }
+}
+
+async function insertModLog(tx: Tx, batch: Batch): Promise<void> {
+  const rows = ofType(batch.events, "mod_log");
+  if (rows.length === 0) return;
+  await tx.insert(modLog).values(
+    rows.map((e) => ({ adminId: e.adminId, action: e.action, targetUserId: e.targetUserId, params: e.params, createdAt: new Date(e.at) })),
+  );
 }
 
 async function addStats(tx: Tx, batch: Batch): Promise<void> {

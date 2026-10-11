@@ -20,7 +20,7 @@ export interface LoadedGame {
 /** Builds the engine from the database. `now` decides "today" for the anti-farm counters. */
 export async function loadGame(db: Db, now: number): Promise<LoadedGame> {
   const seasonId = await ensureSeason(db);
-  const cfg = await loadConfig(db);
+  const { config: cfg, version } = await loadConfig(db);
   const canvas = new CanvasStore(cfg.canvas.width, cfg.canvas.height);
   const replayedChunks = await loadCanvas(db, seasonId, canvas);
   const players = new PlayerRegistry();
@@ -29,7 +29,7 @@ export async function loadGame(db: Db, now: number): Promise<LoadedGame> {
   await loadBombs(db, seasonId, bombStore);
   const antiFarm = new AntiFarm();
   await seedAntiFarm(db, seasonId, cfg, antiFarm, now);
-  return { engine: new GameEngine(cfg, canvas, bombStore, players, antiFarm), seasonId, replayedChunks };
+  return { engine: new GameEngine(cfg, canvas, bombStore, players, antiFarm, version), seasonId, replayedChunks };
 }
 
 export async function ensureSeason(db: Db): Promise<number> {
@@ -44,11 +44,11 @@ export async function ensureSeason(db: Db): Promise<number> {
   return created!.id;
 }
 
-export async function loadConfig(db: Db): Promise<GameConfig> {
+export async function loadConfig(db: Db): Promise<{ config: GameConfig; version: number }> {
   const [latest] = await db.select().from(gameConfig).orderBy(desc(gameConfig.version)).limit(1);
-  if (latest) return gameConfigSchema.parse(latest.data);
-  await db.insert(gameConfig).values({ data: defaultConfig, comment: "initial" });
-  return gameConfigSchema.parse(defaultConfig);
+  if (latest) return { config: gameConfigSchema.parse(latest.data), version: latest.version };
+  const [seeded] = await db.insert(gameConfig).values({ data: defaultConfig, comment: "initial" }).returning({ version: gameConfig.version });
+  return { config: gameConfigSchema.parse(defaultConfig), version: seeded!.version };
 }
 
 /**
@@ -87,7 +87,7 @@ async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promis
 
 async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): Promise<void> {
   const rows = await db
-    .select({ state: playerState, discordCreatedAt: users.discordCreatedAt, bannedUntil: users.bannedUntil, guildMember: users.guildMember })
+    .select({ state: playerState, discordCreatedAt: users.discordCreatedAt, bannedUntil: users.bannedUntil, banReason: users.banReason, guildMember: users.guildMember })
     .from(playerState)
     .innerJoin(users, eq(users.id, playerState.userId))
     .where(eq(playerState.seasonId, seasonId));
@@ -106,7 +106,7 @@ async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): 
     unlocked.set(row.userId, set);
   }
 
-  for (const { state, discordCreatedAt, bannedUntil, guildMember } of rows) {
+  for (const { state, discordCreatedAt, bannedUntil, banReason, guildMember } of rows) {
     registry.add({
       userId: state.userId,
       coins: state.coins,
@@ -119,6 +119,7 @@ async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): 
       dailyStep: state.dailyStep,
       dailyLastClaim: state.dailyLastClaim,
       bannedUntil: banFromDate(bannedUntil),
+      banReason,
       accountCreatedAt: discordCreatedAt.getTime(),
       guildMember,
     });

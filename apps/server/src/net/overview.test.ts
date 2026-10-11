@@ -25,4 +25,14 @@ describe("overview", () => {
     const fresh = decodeOverview(Bun.gunzipSync(cache.get(canvas)))!;
     expect(fresh.colors[0]).toBe(7);
   });
+
+  test("the cache rebuilds at once when the canvas grows", () => {
+    const canvas = new CanvasStore(256, 256);
+    const cache = new OverviewCache(5_000, () => 0);
+    const first = cache.get(canvas);
+    canvas.resize(512, 256);
+    const grown = cache.get(canvas);
+    expect(grown).not.toBe(first);
+    expect(decodeOverview(Bun.gunzipSync(grown))).toMatchObject({ width: 256, height: 128 });
+  });
 });

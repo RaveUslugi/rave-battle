@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { CHUNK_SIZE } from "@rave/shared";
 import { CanvasStore } from "./canvas-store";
 
 describe("CanvasStore", () => {
@@ -76,5 +77,25 @@ describe("CanvasStore", () => {
   test("loadChunk rejects wrongly sized buffers", () => {
     const canvas = new CanvasStore(512, 512);
     expect(() => canvas.loadChunk(0, 0, { colors: new Uint8Array(10), owners: new Int32Array(10) })).toThrow();
+  });
+
+  test("colorCount follows set, overwrites and chunk replacement", () => {
+    const canvas = new CanvasStore(512, 512);
+    expect(canvas.colorCount(0)).toBe(262144);
+    canvas.set(1, 1, 3, 7);
+    canvas.set(2, 1, 4, 7);
+    canvas.set(3, 1, 4, 7);
+    canvas.set(1, 1, 4, 8);
+    expect(canvas.colorCount(3)).toBe(0);
+    expect(canvas.colorCount(4)).toBe(3);
+    expect(canvas.colorCount(0)).toBe(262144 - 3);
+
+    const colors = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+    colors[0] = 9;
+    colors[1] = 9;
+    canvas.loadChunk(0, 0, { colors, owners: new Int32Array(CHUNK_SIZE * CHUNK_SIZE) });
+    expect(canvas.colorCount(4)).toBe(0);
+    expect(canvas.colorCount(9)).toBe(2);
+    expect(canvas.colorCount(0)).toBe(262144 - 2);
   });
 });

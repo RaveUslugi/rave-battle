@@ -41,11 +41,23 @@ describe("toPlayerView", () => {
   test("reports why a player may only watch", () => {
     const { cfg, addPlayer } = makeEngine();
     const p = addPlayer(1);
-    expect(toPlayerView(p, cfg, T0, false).access).toBe("ok");
+    expect(toPlayerView(p, cfg, T0, false).blocks).toEqual([]);
     p.guildMember = false;
-    expect(toPlayerView(p, cfg, T0, false).access).toBe("not_guild_member");
+    expect(toPlayerView(p, cfg, T0, false).blocks).toEqual(["not_guild_member"]);
     p.bannedUntil = T0 + 1;
-    expect(toPlayerView(p, cfg, T0, false).access).toBe("banned");
+    p.banReason = "spam";
+    const view = toPlayerView(p, cfg, T0, false);
+    expect(view.blocks).toEqual(["banned", "not_guild_member"]);
+    expect(view.banReason).toBe("spam");
+  });
+
+  test("hides a stale ban reason when the player is not banned", () => {
+    const { cfg, addPlayer } = makeEngine();
+    const p = addPlayer(1);
+    p.banReason = "old";
+    expect(toPlayerView(p, cfg, T0, false).banReason).toBeNull();
+    p.bannedUntil = T0 - 1;
+    expect(toPlayerView(p, cfg, T0, false).banReason).toBeNull();
   });
 
   test("tells a too-new account when it may play", () => {
@@ -54,7 +66,7 @@ describe("toPlayerView", () => {
     expect(toPlayerView(p, cfg, T0, false).playableAt).toBeNull();
     p.accountCreatedAt = T0 - DAY_MS;
     const view = toPlayerView(p, cfg, T0, false);
-    expect(view.access).toBe("account_too_new");
+    expect(view.blocks).toEqual(["account_too_new"]);
     expect(view.playableAt).toBe(T0 - DAY_MS + cfg.access.minAccountAgeDays * DAY_MS);
   });
 

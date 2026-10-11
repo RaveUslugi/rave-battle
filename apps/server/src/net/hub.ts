@@ -42,6 +42,8 @@ export interface HubOptions {
   messageRate?: { capacity: number; perSecond: number };
   maxConnectionsPerIp?: number;
   onlineDebounceMs?: number;
+  /** Whether to tell the client to show admin links; defaults to nobody. */
+  isAdmin?: (user: SessionUser) => boolean;
 }
 
 type Socket = ServerWebSocket<SocketData>;
@@ -124,6 +126,17 @@ export class Hub {
     }
     const touched = new Set<number>();
     for (const e of events) if (e.type === "player") touched.add(e.userId);
+    // `findLast` is not in the ES2022 lib.
+    let configChange: Extract<EngineEvent, { type: "config_changed" }> | undefined;
+    for (let i = events.length - 1; i >= 0 && !configChange; i--) {
+      const e = events[i]!;
+      if (e.type === "config_changed") configChange = e;
+    }
+    if (configChange) {
+      server.publish(GLOBAL_TOPIC, JSON.stringify({ type: "config", config: configChange.config } satisfies ServerMessage));
+      // Charge caps and access depend on the config: every online player gets a fresh view.
+      for (const ws of this.sockets) if (ws.data.ready && ws.data.user) touched.add(ws.data.user.id);
+    }
     for (const userId of touched) {
       server.publish(userTopic(userId), JSON.stringify({ type: "player", player: this.playerView(userId) } satisfies ServerMessage));
     }
@@ -154,6 +167,7 @@ export class Hub {
           accountCreatedAt: user.discordCreatedAt,
           guildMember: user.guildMember,
           bannedUntil: user.bannedUntil,
+          banReason: user.banReason,
         });
         player = this.playerView(user.id);
       } catch {
@@ -168,6 +182,7 @@ export class Hub {
       user: user ? this.options.users.ref(user.id) : null,
       config: this.options.runtime.engine.config,
       player,
+      admin: user !== null && (this.options.isAdmin?.(user) ?? false),
     });
     send(ws, { type: "feed_history", entries: [...this.feedHistory] });
     // Topics only after hello, so it is always the first message the client sees.

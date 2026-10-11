@@ -1,5 +1,5 @@
 import { CHUNK_SIZE, DAY_MS, type ChunkDelta, type GameConfig, type PlaceResultView, type PlayerView, type ServerMessage } from "@rave/shared";
-import { accessError } from "../engine/access";
+import { accessBlocks } from "../engine/access";
 import { chargeCap, settleCharges } from "../engine/charges";
 import type { EngineEvent, PlaceResult, PlayerState } from "../engine/types";
 import type { UserDirectory } from "./user-directory";
@@ -7,7 +7,7 @@ import type { UserDirectory } from "./user-directory";
 export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlimited: boolean): PlayerView {
   const settled = { ...p };
   settleCharges(settled, cfg, now);
-  const access = accessError(p, cfg, now) ?? "ok";
+  const blocks = accessBlocks(p, cfg, now);
   return {
     coins: p.coins,
     charges: settled.charges,
@@ -19,8 +19,9 @@ export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlim
     dailyStep: p.dailyStep,
     dailyLastClaim: p.dailyLastClaim,
     bannedUntil: p.bannedUntil === null ? null : Number.isFinite(p.bannedUntil) ? p.bannedUntil : "permanent",
-    access,
-    playableAt: access === "account_too_new" ? p.accountCreatedAt + cfg.access.minAccountAgeDays * DAY_MS : null,
+    blocks,
+    banReason: blocks.includes("banned") ? p.banReason : null,
+    playableAt: blocks.includes("account_too_new") ? p.accountCreatedAt + cfg.access.minAccountAgeDays * DAY_MS : null,
     unlimited,
     serverNow: now,
   };

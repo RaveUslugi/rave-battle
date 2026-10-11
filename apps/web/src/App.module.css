@@ -59,6 +59,13 @@
   }
 }
 
+/* Desktop: the side panel takes the right edge; keep login, menu and minimap visible to its left. */
+@media (min-width: 901px) {
+  .app[data-panel="open"] .top {
+    right: calc(var(--side-panel-width) + 12px + env(safe-area-inset-right));
+  }
+}
+
 .bottom {
   position: absolute;
   left: 0;

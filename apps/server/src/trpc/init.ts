@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError, type TRPCDefaultErrorShape } from "@trpc/server";
+import { isAdmin } from "../auth/admin";
 import type { SessionUser } from "../auth/session";
 import type { AppDeps } from "../net/deps";
 import type { UserRateLimiter } from "../net/rate-limit";
@@ -40,6 +41,16 @@ export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
     accountCreatedAt: user.discordCreatedAt,
     guildMember: user.guildMember,
     bannedUntil: user.bannedUntil,
+    banReason: user.banReason,
   });
+  return next({ ctx: { ...ctx, user } });
+});
+
+/** Admins only. Queries go over GET like public ones (the browser's CORS keeps their answers same-origin); mutations get the Origin check. */
+export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const user = ctx.user;
+  if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!isAdmin(user.discordId, ctx.deps.config)) throw new TRPCError({ code: "FORBIDDEN" });
+  if (!ctx.limiter.take(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
   return next({ ctx: { ...ctx, user } });
 });

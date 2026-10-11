@@ -10,6 +10,8 @@ export interface GameState {
   user: UserRef | null;
   player: PlayerView | null;
   config: GameConfig | null;
+  /** The server says this user may open the admin panel. */
+  admin: boolean;
   online: number;
   /** Canvas cell under the pointer, for the status bar. */
   hover: { x: number; y: number } | null;
@@ -21,6 +23,7 @@ export interface GameState {
   jump: { x: number; y: number } | null;
   applyHello(message: HelloMessage): void;
   setPlayer(player: PlayerView): void;
+  setConfig(config: GameConfig): void;
   setStatus(status: ConnectionStatus): void;
   setOnline(count: number): void;
   setHover(cell: { x: number; y: number } | null): void;
@@ -41,13 +44,15 @@ export function createGameStore(clock: () => number = Date.now) {
     user: null,
     player: null,
     config: null,
+    admin: false,
     online: 0,
     hover: null,
     clockOffset: 0,
     view: null,
     jump: null,
-    applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config, ...offsetOf(m.player) }),
+    applyHello: (m) => set({ bootId: m.bootId, user: m.user, player: m.player, config: m.config, admin: m.admin, ...offsetOf(m.player) }),
     setPlayer: (player) => set({ player, ...offsetOf(player) }),
+    setConfig: (config) => set({ config }),
     // The count belongs to a connection: drop it when the connection goes away.
     setStatus: (status) => set(status === "open" ? { status } : { status, online: 0 }),
     setOnline: (online) => set({ online }),

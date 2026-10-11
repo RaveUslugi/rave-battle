@@ -1,11 +1,17 @@
 import { itemKeySchema } from "@rave/shared";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { isAdmin } from "../auth/admin";
+import { MOD_ACTIONS } from "../engine/types";
 import { toPlayerView } from "../net/views";
 import { BOARDS, PERIODS } from "../stats/leaderboards";
-import { playerProcedure, publicProcedure, router } from "./init";
+import { adminProcedure, playerProcedure, publicProcedure, router } from "./init";
 
 const TOP = 50;
+
+const userId = z.number().int().positive().max(2_147_483_647);
+const note = z.string().trim().min(1).max(200);
+const delta = z.number().int().min(-1_000_000).max(1_000_000).optional();
 
 const cell = z.object({ x: z.number().int().nonnegative(), y: z.number().int().nonnegative() });
 
@@ -21,6 +27,52 @@ export const appRouter = router({
       ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id))
       : null;
     return { user: ctx.deps.users.ref(ctx.user.id), player };
+  }),
+
+  admin: router({
+    whoami: publicProcedure.query(({ ctx }) => ({ admin: ctx.user !== null && isAdmin(ctx.user.discordId, ctx.deps.config) })),
+    players: router({
+      search: adminProcedure.input(z.object({ q: z.string().trim().min(1).max(64) })).query(({ ctx, input }) => ctx.deps.admin.search(input.q)),
+      get: adminProcedure.input(z.object({ userId })).query(async ({ ctx, input }) => {
+        const player = await ctx.deps.admin.player(input.userId);
+        if (!player) throw new TRPCError({ code: "NOT_FOUND" });
+        return player;
+      }),
+      ban: adminProcedure
+        .input(z.object({ userId, until: z.union([z.number().int().positive().max(8_640_000_000_000_000), z.literal("permanent")]), reason: note }))
+        .mutation(({ ctx, input }) => ctx.deps.admin.ban(ctx.user, input)),
+      unban: adminProcedure.input(z.object({ userId, reason: note })).mutation(({ ctx, input }) => ctx.deps.admin.unban(ctx.user, input)),
+      adjust: adminProcedure
+        .input(z.object({ userId, changes: z.object({ coins: delta, bomb: delta, detector: delta, defuser: delta }), comment: note }))
+        .mutation(({ ctx, input }) => ctx.deps.admin.adjust(ctx.user, input)),
+    }),
+    // `cursor` is the useInfiniteQuery input name; the service calls it `before`.
+    modLog: adminProcedure
+      .input(
+        z.object({
+          action: z.enum(MOD_ACTIONS).optional(),
+          targetUserId: userId.optional(),
+          cursor: z.number().int().positive().nullish(),
+        }),
+      )
+      .query(({ ctx, input }) =>
+        ctx.deps.admin.modLog({
+          ...(input.action !== undefined ? { action: input.action } : {}),
+          ...(input.targetUserId !== undefined ? { targetUserId: input.targetUserId } : {}),
+          ...(input.cursor != null ? { before: input.cursor } : {}),
+        }),
+      ),
+    config: router({
+      current: adminProcedure.query(({ ctx }) => ctx.deps.admin.currentConfig()),
+      history: adminProcedure.query(({ ctx }) => ctx.deps.admin.history()),
+      get: adminProcedure.input(z.object({ version: z.number().int().positive() })).query(({ ctx, input }) => ctx.deps.admin.configVersion(input.version)),
+      save: adminProcedure
+        .input(z.object({ baseVersion: z.number().int().positive(), config: z.unknown(), comment: note }))
+        .mutation(({ ctx, input }) => ctx.deps.admin.saveConfig(ctx.user, input)),
+      rollback: adminProcedure
+        .input(z.object({ version: z.number().int().positive(), baseVersion: z.number().int().positive(), comment: note }))
+        .mutation(({ ctx, input }) => ctx.deps.admin.rollbackConfig(ctx.user, input)),
+    }),
   }),
 
   shop: router({

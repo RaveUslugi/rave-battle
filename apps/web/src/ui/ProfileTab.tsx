@@ -12,6 +12,7 @@ export function ProfileTab() {
   const me = useGame((s) => s.user);
   const player = useGame((s) => s.player);
   const config = useGame((s) => s.config);
+  const admin = useGame((s) => s.admin);
   const target = useUi((s) => s.profileUserId) ?? me?.id ?? null;
   const query = useQuery({ ...trpc.stats.profile.queryOptions({ userId: target ?? 0 }), enabled: target !== null });
 
@@ -38,6 +39,7 @@ export function ProfileTab() {
         {own && <span className={styles.badgeMe}> · это вы</span>}
         {p.banned && <span className={styles.badgeBanned}> · заблокирован</span>}
       </h3>
+      {admin && !own && <a href={`/admin?tab=players&player=${p.user.id}`}>Модерировать</a>}
       <p className={styles.hint}>В игре с {new Date(p.joinedAt).toLocaleDateString("ru-RU")}</p>
       {own && player && (
         <p className={styles.balance}>

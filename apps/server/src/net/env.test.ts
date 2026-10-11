@@ -23,6 +23,12 @@ test("dev login is refused in production", () => {
   expect(loadEnv({ ...base, DEV_LOGIN: "1" }).devLogin).toBe(true);
 });
 
+test("admin discord ids are trimmed, empty entries dropped, and must be numeric", () => {
+  expect(loadEnv({ ...base, ADMIN_DISCORD_IDS: "1, 2,,3" }).adminDiscordIds).toEqual(new Set(["1", "2", "3"]));
+  expect(loadEnv(base).adminDiscordIds).toEqual(new Set());
+  expect(() => loadEnv({ ...base, ADMIN_DISCORD_IDS: "abc" })).toThrow();
+});
+
 test("missing required variables fail fast", () => {
   expect(() => loadEnv({ PUBLIC_URL: base.PUBLIC_URL })).toThrow();
 });

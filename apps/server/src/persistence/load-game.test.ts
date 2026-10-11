@@ -76,7 +76,7 @@ describe("loadGame", () => {
         chunks: [],
       }),
     );
-    await t.db.update(users).set({ bannedUntil: PERMANENT_BAN_DATE }).where(sql`${users.id} = ${b}`);
+    await t.db.update(users).set({ bannedUntil: PERMANENT_BAN_DATE, banReason: "spam" }).where(sql`${users.id} = ${b}`);
 
     const loaded = (await loadGame(t.db, T0)).engine;
     expect(loaded.canvas.get(5, 5)).toEqual({ colorId: 3, ownerId: a });
@@ -98,5 +98,6 @@ describe("loadGame", () => {
       guildMember: true,
     });
     expect(loaded.players.get(b).bannedUntil).toBe(Number.POSITIVE_INFINITY);
+    expect(loaded.players.get(b).banReason).toBe("spam");
   });
 });
