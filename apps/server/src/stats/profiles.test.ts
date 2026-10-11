@@ -54,11 +54,50 @@ describe("Profiles", () => {
     expect(await (await profiles()).profile(9999)).toBeNull();
   });
 
+  test("the profile has no extra keys: no bomb coordinates, coins or inventory", async () => {
+    const p = (await (await profiles()).profile(ann))!;
+    expect(Object.keys(p).sort()).toEqual(["activeBombs", "banned", "favoriteColor", "heatmap", "joinedAt", "territory", "totals", "user"]);
+    expect(Object.keys(p.heatmap).sort()).toEqual(["cells", "height", "step", "width"]);
+    expect(Object.keys(p.totals).sort()).toEqual(["bombsTriggered", "defused", "explosionsSuffered", "pixels", "selfExplosions"]);
+    expect(Object.keys(p.user).sort()).toEqual(["id", "name"]);
+  });
+
+  test("the heatmap follows a grown, non-square canvas", async () => {
+    const next = structuredClone(runtime.engine.config);
+    next.canvas.width = 768;
+    next.canvas.height = 512;
+    const res = await runtime.run((engine, now) =>
+      engine.applyConfig(next, { baseVersion: engine.configVersion, adminId: ann, comment: "grow", action: "config_save" }, now),
+    );
+    expect(res.ok).toBe(true);
+    await runtime.run((engine, now) => {
+      engine.placePixel(ann, { x: 700, y: 10, colorId: 4, withBomb: false }, now);
+      engine.placePixel(ann, { x: 10, y: 500, colorId: 4, withBomb: false }, now);
+    });
+    const p = (await (await profiles()).profile(ann))!;
+    expect(p.heatmap).toMatchObject({ step: 12, width: 64, height: 43 });
+    // (700,10) -> 0*64 + 58; (10,500) -> 41*64 + 0.
+    expect(p.heatmap.cells.sort((a, b) => a[0] - b[0])).toEqual([[58, 1], [2624, 1]]);
+  });
+
+  test("the ban comes from the engine when the player is loaded, else from users.banned_until", async () => {
+    const service = await profiles();
+    await runtime.run((engine) => engine.setAccess(ann, { bannedUntil: Date.now() + DAY_MS }));
+    expect((await service.profile(ann))!.banned).toBe(true);
+    await runtime.run((engine) => engine.setAccess(ann, { bannedUntil: 0 }));
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + DAY_MS) }).where(eq(users.id, ann));
+    expect((await service.profile(ann))!.banned).toBe(false);
+    const stranger = await insertUser(t.db, "stranger");
+    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + DAY_MS) }).where(eq(users.id, stranger));
+    expect((await (await profiles()).profile(stranger))!.banned).toBe(true);
+  });
+
   test("banned users are marked; the pixel aggregates are cached for 5 minutes", async () => {
     let now = Date.now();
     const service = await profiles(() => now);
-    await t.db.update(users).set({ bannedUntil: new Date(now + DAY_MS) }).where(eq(users.id, ben));
+    await runtime.run((engine) => engine.setAccess(ben, { bannedUntil: now + DAY_MS }));
     expect((await service.profile(ben))!.banned).toBe(true);
+    await runtime.run((engine) => engine.setAccess(ben, { bannedUntil: 0 }));
     await runtime.run((engine, at) => engine.placePixel(ben, { x: 0, y: 0, colorId: 9, withBomb: false }, at));
     expect((await service.profile(ben))!.favoriteColor).toBeNull();
     now += 5 * 60_000;

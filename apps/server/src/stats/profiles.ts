@@ -65,12 +65,19 @@ export class Profiles {
     return {
       user: this.users.ref(userId),
       joinedAt: user.createdAt.getTime(),
-      banned: user.bannedUntil !== null && user.bannedUntil.getTime() > this.now(),
+      banned: this.isBanned(userId, user.bannedUntil),
       totals: totals!,
       territory: engine.canvas.territoryOf(userId),
       activeBombs: engine.bombs.activeCount(userId),
       ...(await this.pixels(userId)),
     };
+  }
+
+  /** The engine is the ban source when the player is loaded there; users.banned_until is the fallback. */
+  private isBanned(userId: number, dbBannedUntil: Date | null): boolean {
+    const players = this.runtime.engine.players;
+    const until = players.has(userId) ? (players.get(userId).bannedUntil ?? 0) : (dbBannedUntil?.getTime() ?? 0);
+    return until > this.now();
   }
 
   private pixels(userId: number): Promise<PixelAggregates> {

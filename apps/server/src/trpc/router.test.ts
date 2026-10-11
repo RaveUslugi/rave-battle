@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { TRPCError } from "@trpc/server";
 import type { SessionUser } from "../auth/session";
+import { statsDaily } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import type { AppDeps } from "../net/deps";
 import type { ServerConfig } from "../net/env";
@@ -120,6 +121,23 @@ describe("appRouter", () => {
     expect(board.me).toEqual({ rank: 1, value: 1 });
     expect((await as(bob).stats.leaderboard({ board: "artists", period: "all" })).me).toBeNull();
     expect((await as(null).stats.leaderboard({ board: "territory", period: "day" })).top[0]?.value).toBe(1);
+  });
+
+  test("the top is capped at 50 and a caller outside it still gets a place", async () => {
+    const date = new Date().toISOString().slice(0, 10);
+    const rows = [];
+    for (let i = 0; i < 55; i++) {
+      const userId = await insertUser(t.db, `p${i}`);
+      rows.push({ userId, seasonId: runtime.season, date, pixels: 100 - i });
+    }
+    rows.push({ userId: alice.id, seasonId: runtime.season, date, pixels: 1 });
+    await t.db.insert(statsDaily).values(rows);
+    const board = await as(alice).stats.leaderboard({ board: "artists", period: "all" });
+    expect(board.top).toHaveLength(50);
+    expect(board.top[0]?.value).toBe(100);
+    expect(board.top.some((r) => r.user.id === alice.id)).toBe(false);
+    expect(board.me).toEqual({ rank: 56, value: 1 });
+    expect((await as(null).stats.leaderboard({ board: "artists", period: "all" })).me).toBeNull();
   });
 
   test("profiles are public and unknown ids are NOT_FOUND", async () => {
