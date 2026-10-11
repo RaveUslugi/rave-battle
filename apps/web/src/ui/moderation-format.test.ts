@@ -34,6 +34,7 @@ describe("moderation-format", () => {
   test("moderationErrorText", () => {
     expect(moderationErrorText("bad_area")).toBe("Область вне холста");
     expect(moderationErrorText("area_too_large")).toBe("Слишком большая область");
+    expect(moderationErrorText("too_many_cells")).toBe("Слишком много клеток — откатите по областям или выберите меньший период");
     expect(moderationErrorText("bad_period")).toBe("Неверный период");
     expect(moderationErrorText("not_found")).toBe("Игрок не найден");
     expect(moderationErrorText("FORBIDDEN")).toBe("Не удалось выполнить действие");

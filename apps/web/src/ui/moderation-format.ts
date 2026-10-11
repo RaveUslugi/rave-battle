@@ -38,6 +38,7 @@ const ERROR_TEXTS: Record<string, string> = {
   area_too_large: "Слишком большая область",
   bad_period: "Неверный период",
   not_found: "Игрок не найден",
+  too_many_cells: "Слишком много клеток — откатите по областям или выберите меньший период",
 };
 
 const FAILED = "Не удалось выполнить действие";

@@ -250,6 +250,17 @@ describe("rejections", () => {
     expect(validateArea({ x1: 0.5, y1: 0, x2: 4, y2: 0 }, canvas)).toBe("bad_area");
   });
 
+  test("whole-canvas rollback over the cell cap -> too_many_cells", async () => {
+    await place(target, 1, 1, 7, t2);
+    await place(target, 2, 1, 7, t2);
+    await place(target, 3, 1, 7, t2);
+    const cap2 = new ModerationPlanner({ db: t.db, runtime, now: () => NOW, maxRollbackCells: 2 });
+    expect(await cap2.plan(rollback())).toEqual({ ok: false, code: "too_many_cells" });
+    const cap3 = new ModerationPlanner({ db: t.db, runtime, now: () => NOW, maxRollbackCells: 3 });
+    const res = await cap3.plan(rollback());
+    expect(res.ok).toBe(true);
+  });
+
   test("plan returns error codes", async () => {
     const { width, height } = runtime.engine.canvas;
     const p = planner();

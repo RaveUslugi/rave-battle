@@ -12,6 +12,8 @@ export interface Rect {
 
 /** Largest area one moderation action may touch (e.g. 256×256). */
 export const MAX_AREA_CELLS = 65_536;
+/** Most cells one whole-canvas player rollback may touch. */
+export const MAX_ROLLBACK_CELLS = 200_000;
 
 export const rectCells = (r: Rect) => (r.x2 - r.x1 + 1) * (r.y2 - r.y1 + 1);
 
