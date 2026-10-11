@@ -5,7 +5,7 @@ import { toolsApi } from "./net/api";
 import { queryClient, useTRPC } from "./net/trpc";
 import { gameStore } from "./state/game-store";
 import { bindReadings, readingsStore } from "./state/readings-store";
-import { uiStore } from "./state/ui-store";
+import { uiStore, useUi } from "./state/ui-store";
 import { AccessBanner } from "./ui/AccessBanner";
 import { AuthPanel } from "./ui/AuthPanel";
 import { ChunkBoundary } from "./ui/ChunkBoundary";
@@ -31,6 +31,8 @@ const LOGIN_ERRORS: Record<string, string> = {
 
 export function App() {
   const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore, readings: readingsStore, tools: toolsApi }), []);
+
+  const panel = useUi((s) => s.panel);
 
   useEffect(() => bindReadings(gameStore, readingsStore), []);
 
@@ -58,7 +60,7 @@ export function App() {
   }, []);
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} data-panel={panel === null ? undefined : "open"}>
       <ChunkBoundary fallback="reload">
         <Suspense fallback={null}>
           <CanvasView client={client} />

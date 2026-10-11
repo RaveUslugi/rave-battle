@@ -10,6 +10,7 @@ function logout(): void {
 
 export function AuthPanel() {
   const user = useGame((s) => s.user);
+  const admin = useGame((s) => s.admin);
 
   if (user) {
     return (
@@ -17,6 +18,11 @@ export function AuthPanel() {
         <span className={styles.name} title={user.name}>
           {user.name}
         </span>
+        {admin && (
+          <a className={styles.button} href="/admin">
+            Админка
+          </a>
+        )}
         <button type="button" className={styles.button} onClick={logout}>
           Выйти
         </button>
