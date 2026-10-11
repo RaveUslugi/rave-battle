@@ -1,4 +1,4 @@
-import type { ModAction } from "../../../server/src/engine/types";
+import type { ModAction } from "@rave/shared/client";
 
 export const ACTION_LABEL: Record<ModAction, string> = {
   ban: "Бан",
@@ -6,6 +6,9 @@ export const ACTION_LABEL: Record<ModAction, string> = {
   player_edit: "Правка игрока",
   config_save: "Конфиг",
   config_rollback: "Откат конфига",
+  rollback_player: "Откат игрока",
+  clear_area: "Очистка области",
+  remove_bombs: "Снятие бомб",
 };
 
 export const ITEM_LABEL = {

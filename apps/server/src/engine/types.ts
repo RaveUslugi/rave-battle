@@ -1,4 +1,5 @@
-import type { GameConfig, ItemKey, Reward } from "@rave/shared";
+import type { GameConfig, ItemKey, ModAction, Reward } from "@rave/shared";
+export { MOD_ACTIONS, type ModAction } from "@rave/shared";
 import type { ConfigIssue } from "./config-change";
 
 export type UserId = number;
@@ -52,8 +53,6 @@ export type Rejected = { ok: false; code: RejectCode };
 
 export type LedgerItem = "coins" | ItemKey;
 export type LedgerReason = "shop" | "daily" | "explosion" | "bomb_bonus" | "defuse" | "use" | "admin";
-export const MOD_ACTIONS = ["ban", "unban", "player_edit", "config_save", "config_rollback"] as const;
-export type ModAction = (typeof MOD_ACTIONS)[number];
 export type AdjustResult = { ok: true } | { ok: false; code: "nothing_to_change" | "negative_balance" };
 export type StatKey =
   | "pixels"

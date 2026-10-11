@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { ModAction } from "../../../server/src/engine/types";
+import type { ModAction } from "@rave/shared/client";
 import { useTRPC } from "../net/trpc";
 import styles from "./admin.module.css";
 import { ACTION_LABEL, ITEM_LABEL } from "./labels";
@@ -29,6 +29,9 @@ function details(action: ModAction, p: Record<string, unknown>): string {
       return `версия ${String(p.version)} — ${comment}`;
     case "config_rollback":
       return `версия ${String(p.version)} (из ${String(p.fromVersion)}) — ${comment}`;
+    default:
+      // rollback_player / clear_area / remove_bombs: details are rendered in Task 12
+      return comment;
   }
 }
 
