@@ -1,4 +1,4 @@
-import { defaultConfig, type PlayerView, type ServerMessage } from "@rave/shared";
+import { defaultConfig, type PlayerView, type Rect, type ServerMessage } from "@rave/shared";
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
@@ -35,6 +35,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   const pendingCalls: number[] = [];
   const selections: Array<{ x: number; y: number } | null> = [];
   const flashes: Array<{ x: number; y: number }> = [];
+  const areas: Array<Rect | null> = [];
   const port: CanvasPort = {
     sendPlace: (msg) => {
       sent.push(msg);
@@ -43,6 +44,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
     },
     setPending: (cells) => void pendingCalls.push(cells.length),
     setSelection: (cell) => void selections.push(cell),
+    setArea: (rect) => void areas.push(rect),
     flash: (cell) => void flashes.push(cell),
   };
   const timeouts: Array<() => void> = [];
@@ -59,7 +61,7 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   const client = new GameClient({ game, ui, readings, tools, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
-  return { game, ui, readings, toolCalls, client, sent, pendingCalls, selections, flashes, timeouts, cleared, advance: (ms: number) => void (now += ms) };
+  return { game, ui, readings, toolCalls, client, sent, pendingCalls, selections, flashes, areas, timeouts, cleared, advance: (ms: number) => void (now += ms) };
 }
 
 const placed = (reqId: number, result: Placed["result"]): Placed => ({ type: "placed", reqId, result });
@@ -88,6 +90,40 @@ describe("GameClient", () => {
     expect(t.sent).toEqual([{ reqId: 1, x: 3, y: 4, colorId: 7, withBomb: true }]);
     expect(t.ui.getState().selection).toBeNull();
     expect(t.selections.at(-1)).toBeNull();
+  });
+
+  test("the inspect tool opens the moderation panel on any pointer without selecting or sending", () => {
+    t.ui.getState().setTool("inspect");
+    t.client.onCellTap({ x: 4, y: 5 }, "touch");
+    expect(t.ui.getState().selection).toBeNull();
+    expect(t.ui.getState()).toMatchObject({ panel: "moderation", moderation: { cell: { x: 4, y: 5 } } });
+    t.client.onCellTap({ x: 6, y: 7 }, "mouse");
+    expect(t.ui.getState().moderation.cell).toEqual({ x: 6, y: 7 });
+    expect(t.sent).toHaveLength(0);
+    expect(t.toolCalls).toHaveLength(0);
+    expect(t.areas.at(-1)).toEqual({ x1: 6, y1: 7, x2: 6, y2: 7 });
+  });
+
+  test("the area tool: a mouse click frames one cell", () => {
+    t.ui.getState().setTool("area");
+    t.client.onCellTap({ x: 2, y: 3 }, "mouse");
+    expect(t.ui.getState().moderation.area).toEqual({ x1: 2, y1: 3, x2: 2, y2: 3 });
+    expect(t.sent).toHaveLength(0);
+    expect(t.toolCalls).toHaveLength(0);
+  });
+
+  test("the area tool: two touch taps close the rectangle, the first only frames the corner", () => {
+    t.ui.getState().setTool("area");
+    t.client.onCellTap({ x: 8, y: 9 }, "touch");
+    expect(t.ui.getState().moderation).toMatchObject({ corner: { x: 8, y: 9 }, area: null });
+    expect(t.ui.getState().selection).toBeNull();
+    expect(t.areas.at(-1)).toEqual({ x1: 8, y1: 9, x2: 8, y2: 9 });
+    t.client.onCellTap({ x: 5, y: 12 }, "pen");
+    expect(t.ui.getState().moderation).toEqual({ cell: null, corner: null, area: { x1: 5, y1: 9, x2: 8, y2: 12 } });
+    expect(t.areas.at(-1)).toEqual({ x1: 5, y1: 9, x2: 8, y2: 12 });
+    t.client.confirmSelection();
+    expect(t.sent).toHaveLength(0);
+    expect(t.toolCalls).toHaveLength(0);
   });
 
   test("anonymous taps explain that login is needed and send nothing", () => {
@@ -257,7 +293,7 @@ describe("GameClient", () => {
     });
     t.client.detach();
     const pendingSizes: number[] = [];
-    c.attach({ sendPlace: () => true, setPending: (cells) => void pendingSizes.push(cells.length), setSelection: () => {}, flash: () => {} });
+    c.attach({ sendPlace: () => true, setPending: (cells) => void pendingSizes.push(cells.length), setSelection: () => {}, setArea: () => {}, flash: () => {} });
     c.onCellTap({ x: 1, y: 1 }, "mouse");
     wall -= 3_600_000; // the wall clock jumps back an hour
     mono += 10_001;

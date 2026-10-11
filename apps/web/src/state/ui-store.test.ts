@@ -112,4 +112,31 @@ describe("ui store", () => {
     store.getState().openPanel("leaders");
     expect(store.getState().panel).toBe("leaders");
   });
+  test("inspecting a cell opens the moderation panel and drops the area", () => {
+    const store = createUiStore(null);
+    store.getState().setArea({ x1: 1, y1: 1, x2: 2, y2: 2 });
+    store.getState().inspectCell({ x: 3, y: 4 });
+    expect(store.getState().panel).toBe("moderation");
+    expect(store.getState().moderation).toEqual({ cell: { x: 3, y: 4 }, area: null, corner: null });
+  });
+
+  test("setting an area drops the cell and the corner and opens the panel", () => {
+    const store = createUiStore(null);
+    store.getState().inspectCell({ x: 3, y: 4 });
+    store.getState().setCorner({ x: 5, y: 5 });
+    store.getState().setArea({ x1: 1, y1: 1, x2: 2, y2: 2 });
+    expect(store.getState().panel).toBe("moderation");
+    expect(store.getState().moderation).toEqual({ cell: null, area: { x1: 1, y1: 1, x2: 2, y2: 2 }, corner: null });
+    store.getState().setArea(null);
+    expect(store.getState().moderation.area).toBeNull();
+  });
+
+  test("the corner is remembered and cleared without touching the panel", () => {
+    const store = createUiStore(null);
+    store.getState().setCorner({ x: 5, y: 6 });
+    expect(store.getState().moderation.corner).toEqual({ x: 5, y: 6 });
+    expect(store.getState().panel).toBeNull();
+    store.getState().setCorner(null);
+    expect(store.getState().moderation.corner).toBeNull();
+  });
 });

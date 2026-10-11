@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
+import { normalizeRect } from "@rave/shared/client";
 import type { GameClient } from "../game/client";
+import { uiStore } from "../state/ui-store";
 import styles from "./CanvasView.module.css";
 import { CanvasSession } from "./session";
 
@@ -10,7 +12,15 @@ export function CanvasView({ client }: { client: GameClient }) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const session = new CanvasSession(host, { onCellTap: client.onCellTap, onPlaced: client.onPlaced });
+    const session: CanvasSession = new CanvasSession(host, {
+      onCellTap: client.onCellTap,
+      onPlaced: client.onPlaced,
+      areaDrag: (pointerType) => pointerType === "mouse" && uiStore.getState().tool === "area",
+      onAreaDrag: (a, b, done) => {
+        if (done) uiStore.getState().setArea(normalizeRect(a, b));
+        else session.setArea(normalizeRect(a, b));
+      },
+    });
     client.attach(session);
     return () => {
       client.detach();
