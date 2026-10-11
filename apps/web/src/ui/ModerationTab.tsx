@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTRPC } from "../net/trpc";
 import { useGame } from "../state/game-store";
 import { uiStore, useUi } from "../state/ui-store";
-import { kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
+import { describeAction, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
 import styles from "./Tabs.module.css";
 
 const fmt = (ms: number) => new Date(ms).toLocaleString("ru-RU");
@@ -79,7 +79,7 @@ function AreaTools({ area }: { area: Rect }) {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [removeBombs, setRemoveBombs] = useState(true);
-  const [staged, setStaged] = useState<{ action: Action; text: string } | null>(null);
+  const [staged, setStaged] = useState<{ action: Action; text: string; what: string } | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   // Selecting on the canvas replaces the typed values and any preview made for the old area.
@@ -89,11 +89,23 @@ function AreaTools({ area }: { area: Rect }) {
     setMessage(null);
   }, [area.x1, area.y1, area.x2, area.y2]);
 
+  // A preview describes one exact action: any change to what it depends on invalidates it.
+  useEffect(() => {
+    setStaged(null);
+  }, [clearMode, clearAt, owner, period, customFrom, customTo, removeBombs]);
+  useEffect(() => {
+    setMessage(null);
+  }, [clearMode, clearAt, period, customFrom, customTo, removeBombs]);
+
   const cells = rectCells(area);
   const tooLarge = cells > MAX_AREA_CELLS;
   const blocked = tooLarge || cells < 1;
   const owners = useQuery({ ...trpc.admin.canvas.areaOwners.queryOptions({ area }), enabled: !blocked });
   const ownerList = owners.data?.ok ? owners.data.owners : [];
+  // The chosen player may vanish from the list (area change, refetch after an apply).
+  useEffect(() => {
+    if (owner !== null && owners.data && !ownerList.some((o) => o.user.id === owner)) setOwner(null);
+  }, [owners.data, owner]);
 
   const edit = (key: (typeof COORDS)[number], value: string) => {
     const next = { ...fields, [key]: value };
@@ -109,7 +121,9 @@ function AreaTools({ area }: { area: Rect }) {
     mutationFn: (action: Action) => queryClient.fetchQuery({ ...trpc.admin.moderation.preview.queryOptions({ action }), staleTime: 0 }),
     onSuccess: (res, action) => {
       if (res.ok) {
-        setStaged({ action, text: previewText(res) });
+        const player = action.kind === "rollback_player" ? ownerList.find((o) => o.user.id === action.userId)?.user.name : undefined;
+        const label = PERIOD_PRESETS.find((p) => p.id === period)?.label;
+        setStaged({ action, text: previewText(res), what: describeAction(action, { fmt, ...(player ? { player } : {}), ...(label ? { period: label } : {}) }) });
         setMessage(null);
       } else {
         setStaged(null);
@@ -194,7 +208,10 @@ function AreaTools({ area }: { area: Rect }) {
           {ownerList.map((o) => (
             <li key={o.user.id}>
               <label className={styles.check}>
-                <input type="radio" name="rollback-owner" checked={owner === o.user.id} onChange={() => setOwner(o.user.id)} />
+                <input type="radio" name="rollback-owner" checked={owner === o.user.id} onChange={() => {
+                    setOwner(o.user.id);
+                    setMessage(null);
+                  }} />
                 <span className={styles.name}>{o.user.name}</span>
                 <span className={styles.hint}>{o.cells}</span>
               </label>
@@ -238,6 +255,7 @@ function AreaTools({ area }: { area: Rect }) {
 
       {staged && (
         <div className={styles.notice} role="status">
+          <p className={styles.balance}>{staged.what}</p>
           <p className={styles.balance}>{staged.text}</p>
           <div className={styles.segments}>
             <button type="button" className={styles.armed} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>

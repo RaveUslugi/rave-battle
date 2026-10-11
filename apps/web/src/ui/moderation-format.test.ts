@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
+import { describeAction, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
 
 describe("moderation-format", () => {
   test("rectText", () => {
@@ -38,5 +38,14 @@ describe("moderation-format", () => {
     expect(moderationErrorText("not_found")).toBe("Игрок не найден");
     expect(moderationErrorText("FORBIDDEN")).toBe("Не удалось выполнить действие");
     expect(moderationErrorText(undefined)).toBe("Не удалось выполнить действие");
+  });
+
+  test("describeAction", () => {
+    const fmt = (ms: number) => `t${ms}`;
+    expect(describeAction({ kind: "rollback_player", userId: 3, from: 0, to: 5, removeBombs: true }, { player: "Вася", period: "24 ч", fmt })).toBe("Откат игрока Вася за 24 ч, со снятием бомб");
+    expect(describeAction({ kind: "rollback_player", userId: 3, from: 1, to: 5, removeBombs: false }, { fmt })).toBe("Откат игрока #3 за t1 — t5");
+    expect(describeAction({ kind: "clear_area", mode: "fill" }, { fmt })).toBe("Очистка: залить фоном");
+    expect(describeAction({ kind: "clear_area", mode: "to_time", at: 9 }, { fmt })).toBe("Очистка: откат к t9");
+    expect(describeAction({ kind: "remove_bombs" }, { fmt })).toBe("Снятие бомб в области");
   });
 });
