@@ -14,7 +14,7 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyStep: 0,
   dailyLastClaim: null,
   bannedUntil: null,
-  access: "ok",
+  blocks: [], banReason: null,
   playableAt: null,
   unlimited: false,
   serverNow: NOW,
@@ -48,16 +48,16 @@ describe("planPlacement", () => {
   });
 
   test("players who may only watch are refused with the reason", () => {
-    expect(planPlacement(input({ player: player({ access: "account_too_new" }) }))).toEqual({ ok: false, code: "account_too_new" });
+    expect(planPlacement(input({ player: player({ blocks: ["account_too_new"] }) }))).toEqual({ ok: false, code: "account_too_new" });
   });
 
   test("a watch-only reason that has since expired does not refuse", () => {
-    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: NOW - 1 }) }))).toEqual({ ok: true });
+    expect(planPlacement(input({ player: player({ blocks: ["banned"], bannedUntil: NOW - 1 }) }))).toEqual({ ok: true });
   });
 
   test("refuses banned and frozen players", () => {
-    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: "permanent" }) }))).toEqual({ ok: false, code: "banned" });
-    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: NOW + 1 }) }))).toEqual({ ok: false, code: "banned" });
+    expect(planPlacement(input({ player: player({ blocks: ["banned"], bannedUntil: "permanent" }) }))).toEqual({ ok: false, code: "banned" });
+    expect(planPlacement(input({ player: player({ blocks: ["banned"], bannedUntil: NOW + 1 }) }))).toEqual({ ok: false, code: "banned" });
     expect(planPlacement(input({ player: player({ bannedUntil: NOW - 1 }) }))).toEqual({ ok: true });
     expect(planPlacement(input({ player: player({ frozenUntil: NOW + 5000 }) }))).toEqual({ ok: false, code: "frozen" });
   });

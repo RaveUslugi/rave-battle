@@ -6,6 +6,7 @@ import { queryClient, useTRPC } from "./net/trpc";
 import { gameStore } from "./state/game-store";
 import { bindReadings, readingsStore } from "./state/readings-store";
 import { uiStore } from "./state/ui-store";
+import { AccessBanner } from "./ui/AccessBanner";
 import { AuthPanel } from "./ui/AuthPanel";
 import { ChunkBoundary } from "./ui/ChunkBoundary";
 import { ConfirmBar } from "./ui/ConfirmBar";
@@ -71,6 +72,7 @@ export function App() {
         </div>
         <div className={styles.topCenter}>
           <FreezeBanner />
+          <AccessBanner />
           <Toasts />
         </div>
         <div className={styles.topRight}>

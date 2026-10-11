@@ -46,6 +46,14 @@ describe("CanvasController", () => {
     expect(h.calls).toEqual(["palette", "size:512x512"]);
   });
 
+  test("a live config update re-applies palette and size without dropping chunks", () => {
+    const h = harness();
+    h.controller.onHello(hello("b1"));
+    h.calls.length = 0;
+    h.controller.onConfig({ ...defaultConfig, canvas: { width: 1024, height: 768 }, palette: defaultConfig.palette.slice(0, 4) });
+    expect(h.calls).toEqual(["palette", "size:1024x768"]);
+  });
+
   test("visible chunks are subscribed and loaded", async () => {
     const h = harness();
     h.controller.onHello(hello("b1"));

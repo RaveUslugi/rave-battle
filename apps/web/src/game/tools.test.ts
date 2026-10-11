@@ -9,7 +9,7 @@ const NOW = 5_000_000;
 const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   coins: 0, charges: 5, chargesUpdatedAt: NOW, chargeCap: 10, frozenUntil: 0,
   inventory: { bomb: 0, detector: 2, defuser: 1 }, unlockedColors: [], dailyStep: 0,
-  dailyLastClaim: null, bannedUntil: null, access: "ok", playableAt: null, unlimited: false, serverNow: NOW, ...overrides,
+  dailyLastClaim: null, bannedUntil: null, blocks: [], banReason: null, playableAt: null, unlimited: false, serverNow: NOW, ...overrides,
 });
 
 function setup(answers: { detect?: DetectAnswer; defuse?: DefuseAnswer; throws?: boolean } = {}) {
@@ -67,12 +67,12 @@ describe("SapperTools", () => {
 
   test("watch-only players get the reason; an expired ban no longer refuses", () => {
     const t = setup();
-    t.game.setState({ player: player({ access: "not_guild_member" }), clockOffset: 0 });
+    t.game.setState({ player: player({ blocks: ["not_guild_member"] }), clockOffset: 0 });
     expect(t.tools.use("detector", { x: 0, y: 0 })).toBeNull();
-    t.game.setState({ player: player({ access: "banned", bannedUntil: NOW + 1_000 }) });
+    t.game.setState({ player: player({ blocks: ["banned"], bannedUntil: NOW + 1_000 }) });
     expect(t.tools.use("defuser", { x: 0, y: 0 })).toBeNull();
     expect(t.toasts()).toEqual(["Играть могут только участники сообщества", "Вы заблокированы"]);
-    t.game.setState({ player: player({ access: "banned", bannedUntil: NOW }) });
+    t.game.setState({ player: player({ blocks: ["banned"], bannedUntil: NOW }) });
     expect(t.tools.use("detector", { x: 0, y: 0 })).not.toBeNull();
     expect(t.calls).toEqual(["detect 0,0"]);
   });

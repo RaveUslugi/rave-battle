@@ -163,7 +163,12 @@ export class CanvasSession implements CanvasPort {
   private onMessage(message: ServerMessage): void {
     const store = gameStore.getState();
     if (message.type === "player") store.setPlayer(message.player);
-    else if (message.type === "online") store.setOnline(message.count);
+    else if (message.type === "config") {
+      store.setConfig(message.config);
+      this.canvas = message.config.canvas;
+      this.controller?.onConfig(message.config);
+      this.applyCamera(true);
+    } else if (message.type === "online") store.setOnline(message.count);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
     else if (message.type === "feed") feedStore.getState().push(message);

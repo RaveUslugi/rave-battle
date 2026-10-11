@@ -56,8 +56,13 @@ export class CanvasController {
       this.visible.clear();
     }
     this.bootId = message.bootId;
-    this.deps.renderer.setPalette(buildPaletteLut(message.config.palette));
-    this.deps.renderer.setCanvasSize(message.config.canvas.width, message.config.canvas.height);
+    this.onConfig(message.config);
+  }
+
+  /** Palette and canvas size of the live config; loaded chunks stay. */
+  onConfig(config: GameConfig): void {
+    this.deps.renderer.setPalette(buildPaletteLut(config.palette));
+    this.deps.renderer.setCanvasSize(config.canvas.width, config.canvas.height);
   }
 
   setVisible(chunks: Array<{ cx: number; cy: number }>): void {
