@@ -3,7 +3,8 @@ import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "../../../server/src/trpc/router";
 
-export const trpcClient = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: "/trpc" })] });
+// The server rejects batches over 10 calls (`maxBatchSize`).
+export const trpcClient = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: "/trpc", maxItems: 10 })] });
 
 export const queryClient = new QueryClient({
   // Game state arrives over the WebSocket; queries here are slow-changing stats.

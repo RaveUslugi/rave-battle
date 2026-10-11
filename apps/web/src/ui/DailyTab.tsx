@@ -4,7 +4,7 @@ import { claimBlocked, dailyState, rewardText } from "../game/daily";
 import { rejectText } from "../game/messages";
 import { useServerNow } from "../hooks/useNow";
 import { dailyApi } from "../net/api";
-import { useGame } from "../state/game-store";
+import { gameStore, useGame } from "../state/game-store";
 import { uiStore } from "../state/ui-store";
 import styles from "./Tabs.module.css";
 
@@ -38,11 +38,13 @@ export function DailyTab() {
   const claim = async () => {
     if (blocked) return;
     setBusy(true);
+    const before = gameStore.getState().player;
     const answer = await dailyApi.claim();
     setBusy(false);
     const ui = uiStore.getState();
     if (answer.ok) {
-      setWaiting(true);
+      // The server sends the player update before answering; wait only if it has not arrived yet.
+      if (gameStore.getState().player === before) setWaiting(true);
       ui.pushToast("info", `📅 Награда: ${rewardText(answer.reward)}`);
     } else ui.pushToast("error", rejectText(answer.code));
   };

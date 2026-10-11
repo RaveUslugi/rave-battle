@@ -167,6 +167,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ranking[aria-busy="true"] {
+  opacity: 0.6;
+}
+
 .rank,
 .rankMe {
   display: flex;

@@ -43,7 +43,8 @@ export function LeadersTab() {
       {query.isError && !query.data && <p className={styles.hint}>Не удалось загрузить рейтинг</p>}
       {query.data && query.data.top.length === 0 && <p className={styles.hint}>Пока никого</p>}
       {query.data && query.data.top.length > 0 && (
-        <ol className={styles.ranking} role="list">
+        // While another board or period loads, the previous list stays on screen, dimmed.
+        <ol className={styles.ranking} role="list" aria-busy={query.isPlaceholderData || undefined}>
           {query.data.top.map((row) => (
             <li key={row.user.id} className={row.user.id === user?.id ? styles.rankMe : styles.rank} aria-current={row.user.id === user?.id ? "true" : undefined}>
               <span className={styles.place}>{row.rank}</span>

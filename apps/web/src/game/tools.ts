@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand/vanilla";
 import { serverTime, type GameState } from "../state/game-store";
 import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
+import { effectiveAccess } from "./access";
 import { isFrozen } from "./charges";
 import { rejectText } from "./messages";
 
@@ -60,7 +61,10 @@ export class SapperTools {
     const game = this.deps.game.getState();
     const player = game.player;
     if (!player) return "unavailable";
-    if (isFrozen(player, serverTime(game, this.now()))) return "frozen";
+    const now = serverTime(game, this.now());
+    const access = effectiveAccess(player, now);
+    if (access !== "ok") return access;
+    if (isFrozen(player, now)) return "frozen";
     if (!player.unlimited && player.inventory[tool] < 1) return tool === "detector" ? "no_detector" : "no_defuser";
     return null;
   }

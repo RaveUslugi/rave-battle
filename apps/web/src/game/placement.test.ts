@@ -56,8 +56,8 @@ describe("planPlacement", () => {
   });
 
   test("refuses banned and frozen players", () => {
-    expect(planPlacement(input({ player: player({ bannedUntil: "permanent" }) }))).toEqual({ ok: false, code: "banned" });
-    expect(planPlacement(input({ player: player({ bannedUntil: NOW + 1 }) }))).toEqual({ ok: false, code: "banned" });
+    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: "permanent" }) }))).toEqual({ ok: false, code: "banned" });
+    expect(planPlacement(input({ player: player({ access: "banned", bannedUntil: NOW + 1 }) }))).toEqual({ ok: false, code: "banned" });
     expect(planPlacement(input({ player: player({ bannedUntil: NOW - 1 }) }))).toEqual({ ok: true });
     expect(planPlacement(input({ player: player({ frozenUntil: NOW + 5000 }) }))).toEqual({ ok: false, code: "frozen" });
   });

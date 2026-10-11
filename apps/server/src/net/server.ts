@@ -135,6 +135,8 @@ async function trpc(req: Request, deps: AppDeps, limiter: UserRateLimiter): Prom
     endpoint: "/trpc",
     req,
     router: appRouter,
+    // Each call in a batch is real work; the IP limit counts HTTP requests. The client batches at most as many.
+    maxBatchSize: 10,
     createContext: () => ({ deps, user, limiter }),
     onError: ({ error, path }) => {
       if (error.code === "INTERNAL_SERVER_ERROR") console.error("tRPC error", path, error);

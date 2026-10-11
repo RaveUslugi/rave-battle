@@ -561,6 +561,12 @@ describe("trpc over http", () => {
     expect((await data(res)).user.name).toBe("alice");
   });
 
+  test("a batch is capped at 10 calls", async () => {
+    const batch = (n: number) => fetch(`${base}/trpc/${Array(n).fill("me").join(",")}?batch=1`);
+    expect((await batch(10)).status).toBe(200);
+    expect((await batch(11)).status).toBe(400);
+  });
+
   test("requests are limited per ip before any session lookup", async () => {
     await shutdown();
     await start({ ipLimiter: new KeyedRateLimiter<string>(3, 0.001) });

@@ -4,7 +4,7 @@ import { rejectText } from "../game/messages";
 import { offerBlocked, shopOffers, type Offer } from "../game/shop";
 import { useServerNow } from "../hooks/useNow";
 import { shopApi } from "../net/api";
-import { useGame } from "../state/game-store";
+import { gameStore, useGame } from "../state/game-store";
 import { uiStore } from "../state/ui-store";
 import styles from "./Tabs.module.css";
 
@@ -55,11 +55,13 @@ export function ShopTab() {
     }
     setArmed(null);
     setBusy(offer.key);
+    const before = gameStore.getState().player;
     const answer = await buy(offer);
     setBusy(null);
     const ui = uiStore.getState();
     if (answer.ok) {
-      setWaiting(offer.key);
+      // The server sends the player update before answering; wait only if it has not arrived yet.
+      if (gameStore.getState().player === before) setWaiting(offer.key);
       if (offer.kind === "color") ui.selectColor(offer.colorId);
       ui.pushToast("info", `Куплено: ${offer.title}`);
     } else ui.pushToast("error", rejectText(answer.code));

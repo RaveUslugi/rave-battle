@@ -23,7 +23,6 @@ export function planPlacement(i: PlacementInput): PlacementPlan {
   if (!p) return { ok: false, code: "unavailable" };
   const access = effectiveAccess(p, i.now);
   if (access !== "ok") return { ok: false, code: access };
-  if (p.bannedUntil === "permanent" || (p.bannedUntil !== null && p.bannedUntil > i.now)) return { ok: false, code: "banned" };
   if (isFrozen(p, i.now)) return { ok: false, code: "frozen" };
   const entry = i.config.palette.find((e) => e.id === i.colorId);
   if (!entry) return { ok: false, code: "invalid_color" };
