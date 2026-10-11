@@ -1,0 +1,54 @@
+# Production-like stack for end-to-end tests (Caddy + server image + Postgres) on http://localhost:8080.
+# Run via `bun run e2e` (scripts/e2e.sh).
+name: rave-e2e
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rave
+      POSTGRES_DB: rave
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - pgdata_e2e:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rave -d rave"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    logging: *logging
+
+  server:
+    build:
+      context: .
+      target: server
+    env_file: .env.e2e
+    environment:
+      DATABASE_URL: postgres://rave:${POSTGRES_PASSWORD}@postgres:5432/rave
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  caddy:
+    build:
+      context: .
+      target: web
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SITE_ADDRESS: http://localhost:8080
+    depends_on:
+      server:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  pgdata_e2e:

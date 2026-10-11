@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { TRPCError } from "@trpc/server";
 import { gameConfigSchema } from "@rave/shared";
+import { AccessQueue } from "../admin/access-queue";
 import { AdminService } from "../admin/service";
 import { isAdmin } from "../auth/admin";
 import type { SessionUser } from "../auth/session";
@@ -29,6 +30,7 @@ const config: ServerConfig = {
   sessionTtlMs: 86_400_000,
   adminDiscordIds: new Set(["discord-admin"]),
   discord: null,
+  trustProxy: false,
 };
 
 let runtime: GameRuntime;
@@ -55,9 +57,10 @@ beforeEach(async () => {
   admin = sessionUser(await insertUser(t.db, "admin"), "admin");
   const users = await UserDirectory.load(t.db);
   runtime = await bootGame(t.db, { flushIntervalMs: 0, onFatal: () => {} });
+  const accessQueue = new AccessQueue();
   const stats = new StatsService(t.db, runtime, users);
-  const adminService = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  deps = { db: t.db, runtime, hub: new Hub({ db: t.db, runtime, users }), users, config, stats, admin: adminService };
+  const adminService = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
+  deps = { db: t.db, runtime, hub: new Hub({ runtime, users }), users, config, stats, admin: adminService, accessQueue };
 });
 afterEach(() => runtime.stop());
 afterAll(() => t.close());

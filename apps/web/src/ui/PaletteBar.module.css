@@ -39,6 +39,11 @@
   gap: 6px;
 }
 
+/* Desktop: the admin buttons sit in the same row as the other tools. */
+.adminTools {
+  display: contents;
+}
+
 .swatches {
   display: flex;
   gap: 6px;
@@ -89,5 +94,27 @@
   .toolOn {
     min-width: 48px;
     padding: 0 8px;
+  }
+}
+
+/* Mobile: admin tools get their own row above; swatches keep their size and scroll. */
+@media (max-width: 900px) {
+  .bar {
+    flex-wrap: wrap;
+  }
+
+  .tools {
+    display: contents;
+  }
+
+  .adminTools {
+    order: -1;
+    flex: 0 0 100%;
+    display: flex;
+    gap: 6px;
+  }
+
+  .swatches {
+    flex: 1 1 0;
   }
 }

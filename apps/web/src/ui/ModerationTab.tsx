@@ -21,7 +21,12 @@ export function ModerationTab() {
   const area = useUi((s) => s.moderation.area);
   if (cell) return <Inspector cell={cell} />;
   if (area) return <AreaTools area={area} />;
-  return <p className={styles.hint}>Выберите 🔎 клетку или ▭ область на холсте</p>;
+  return (
+    <div className={styles.tab}>
+      <p className={styles.hint}>Выберите 🔎 клетку или ▭ область на холсте</p>
+      <p className={styles.hint}>▭: протяните мышью, чтобы выделить; для перемещения холста выключите инструмент</p>
+    </div>
+  );
 }
 
 function Swatch({ colorId }: { colorId: number }) {
@@ -29,13 +34,25 @@ function Swatch({ colorId }: { colorId: number }) {
   return <span className={styles.swatch} style={{ background: base ?? "transparent" }} role="img" aria-label={`Цвет ${colorId}`} />;
 }
 
-const playerLink = (user: { id: number; name: string }) => <a href={`/admin?tab=players&player=${user.id}`}>{user.name}</a>;
+const playerLink = (user: { id: number; name: string }) => (
+  <a className={styles.playerLink} href={`/admin?tab=players&player=${user.id}`} target="_blank" rel="noopener">
+    {user.name}
+  </a>
+);
 
 function Inspector({ cell }: { cell: { x: number; y: number } }) {
   const trpc = useTRPC();
   const query = useQuery(trpc.admin.canvas.inspect.queryOptions({ cell }));
   if (query.isPending) return <p className={styles.hint}>Загрузка…</p>;
-  if (query.isError) return <p className={styles.hint}>{moderationErrorText(undefined)}</p>;
+  if (query.isError)
+    return (
+      <div className={styles.tab}>
+        <p className={styles.hint}>{moderationErrorText(undefined)}</p>
+        <button type="button" className={styles.buy} onClick={() => void query.refetch()}>
+          Повторить
+        </button>
+      </div>
+    );
   const d = query.data;
   return (
     <div className={styles.tab}>
@@ -66,6 +83,8 @@ function Inspector({ cell }: { cell: { x: number; y: number } }) {
   );
 }
 
+type Section = "clear" | "bombs" | "rollback";
+
 const COORDS = ["x1", "y1", "x2", "y2"] as const;
 
 function AreaTools({ area }: { area: Rect }) {
@@ -79,7 +98,7 @@ function AreaTools({ area }: { area: Rect }) {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [removeBombs, setRemoveBombs] = useState(true);
-  const [staged, setStaged] = useState<{ action: Action; text: string; what: string } | null>(null);
+  const [staged, setStaged] = useState<{ action: Action; text: string; what: string; section: Section } | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   // Selecting on the canvas replaces the typed values and any preview made for the old area.
@@ -121,14 +140,14 @@ function AreaTools({ area }: { area: Rect }) {
     }
   };
 
-  type Request = { action: Action; what: string; token: number };
+  type Request = { action: Action; what: string; section: Section; token: number };
   const preview = useMutation({
     mutationFn: ({ action }: Request) => queryClient.fetchQuery({ ...trpc.admin.moderation.preview.queryOptions({ action }), staleTime: 0 }),
-    onSuccess: (res, { action, what, token }) => {
+    onSuccess: (res, { action, what, section, token }) => {
       // The inputs changed while the request was in flight: this answer belongs to an action no longer on screen.
       if (token !== requestToken.current) return;
       if (res.ok) {
-        setStaged({ action, text: previewText(res), what });
+        setStaged({ action, text: previewText(res), what, section });
         setMessage(null);
       } else {
         setStaged(null);
@@ -157,13 +176,13 @@ function AreaTools({ area }: { area: Rect }) {
     },
   });
   const busy = preview.isPending || apply.isPending;
-  const calc = (action: Action) => {
+  const calc = (action: Action, section: Section) => {
     setMessage(null);
     // The description is fixed now, from the same inputs as the action, so it always matches it.
     const player = action.kind === "rollback_player" ? ownerList.find((o) => o.user.id === action.userId)?.user.name : undefined;
     const label = PERIOD_PRESETS.find((p) => p.id === period)?.label;
     const what = describeAction(action, { fmt, ...(player ? { player } : {}), ...(label ? { period: label } : {}) });
-    preview.mutate({ action, what, token: ++requestToken.current });
+    preview.mutate({ action, what, section, token: ++requestToken.current });
   };
 
   const clearTime = clearAt ? new Date(clearAt).getTime() : Number.NaN;
@@ -174,8 +193,24 @@ function AreaTools({ area }: { area: Rect }) {
     if (owner === null) return;
     // Preset ranges are taken at click time and sent as-is, so the applied action equals the previewed one.
     const range = preset ? presetRange(preset, Date.now()) : customRange;
-    calc({ kind: "rollback_player", userId: owner, from: range.from, to: range.to, area, removeBombs });
+    calc({ kind: "rollback_player", userId: owner, from: range.from, to: range.to, area, removeBombs }, "rollback");
   };
+
+  const stagedBlock = (section: Section) =>
+    staged?.section === section && (
+        <div className={styles.notice} role="status">
+          <p className={styles.balance}>{staged.what}</p>
+          <p className={styles.balance}>{staged.text}</p>
+          <div className={styles.segments}>
+            <button type="button" className={styles.armed} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>
+              Применить
+            </button>
+            <button type="button" className={styles.buy} disabled={busy} onClick={() => setStaged(null)}>
+              Отмена
+            </button>
+          </div>
+        </div>
+      );
 
   return (
     <div className={styles.tab}>
@@ -203,21 +238,23 @@ function AreaTools({ area }: { area: Rect }) {
         type="button"
         className={styles.buy}
         disabled={blocked || busy || (clearMode === "to_time" && !Number.isFinite(clearTime))}
-        onClick={() => calc(clearMode === "fill" ? { kind: "clear_area", area, mode: "fill" } : { kind: "clear_area", area, mode: "to_time", at: clearTime })}
+        onClick={() => calc(clearMode === "fill" ? { kind: "clear_area", area, mode: "fill" } : { kind: "clear_area", area, mode: "to_time", at: clearTime }, "clear")}
       >
         Посчитать
       </button>
+      {stagedBlock("clear")}
 
       <h3 className={styles.section}>Бомбы</h3>
-      <button type="button" className={styles.buy} disabled={blocked || busy} onClick={() => calc({ kind: "remove_bombs", area })}>
+      <button type="button" className={styles.buy} disabled={blocked || busy} onClick={() => calc({ kind: "remove_bombs", area }, "bombs")}>
         Посчитать снятие бомб в области
       </button>
+      {stagedBlock("bombs")}
 
       <h3 className={styles.section}>Откат игрока в области</h3>
       {owners.isPending && !blocked ? (
         <p className={styles.hint}>Загрузка…</p>
       ) : ownerList.length === 0 ? (
-        <p className={styles.hint}>В области нет чужих пикселей</p>
+        <p className={styles.hint}>В области нет пикселей игроков</p>
       ) : (
         <ul className={styles.list} role="radiogroup" aria-label="Игрок">
           {ownerList.map((o) => (
@@ -267,22 +304,9 @@ function AreaTools({ area }: { area: Rect }) {
       >
         Посчитать
       </button>
+      {stagedBlock("rollback")}
       <p className={styles.hint}>Для рейда нескольких игроков надёжнее «Очистка → Откатить к моменту»: откат игрока не трогает клетки, восстановленные прошлой модерацией.</p>
 
-      {staged && (
-        <div className={styles.notice} role="status">
-          <p className={styles.balance}>{staged.what}</p>
-          <p className={styles.balance}>{staged.text}</p>
-          <div className={styles.segments}>
-            <button type="button" className={styles.armed} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>
-              Применить
-            </button>
-            <button type="button" className={styles.buy} disabled={busy} onClick={() => setStaged(null)}>
-              Отмена
-            </button>
-          </div>
-        </div>
-      )}
       {message && (
         <p className={message.error ? styles.notice : styles.balance} role={message.error ? "alert" : "status"}>
           {message.text}

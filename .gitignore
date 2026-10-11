@@ -5,3 +5,8 @@ dist/
 !.env.example
 tmp/
 .DS_Store
+backups/
+!.env.production.example
+!.env.e2e
+e2e/test-results/
+playwright-report/

@@ -1,7 +1,8 @@
 import { CHUNK_SIZE } from "./constants";
 import type { GameConfig, ItemKey } from "./config/schema";
 
-export const PROTOCOL_VERSION = 1;
+/** Bump on every incompatible message change; clients reload on mismatch. */
+export const PROTOCOL_VERSION = 2;
 export const MAX_SUBSCRIBED_CHUNKS = 64;
 
 // ---- Client → server: binary frames (little-endian) ----

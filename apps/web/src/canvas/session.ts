@@ -1,6 +1,8 @@
 import { encodePlace, normalizeRect, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { onProtocolMismatch, waitForNewBundle } from "../net/version";
+import { uiStore } from "../state/ui-store";
 import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
@@ -42,6 +44,8 @@ const TAP_MAX_MOVE = 5;
 const TAP_MAX_MS = 400;
 const SUBSCRIBE_THROTTLE_MS = 150;
 const URL_DEBOUNCE_MS = 300;
+const BUNDLE_POLL_MS = 3000;
+const BUNDLE_WAIT_MS = 120_000;
 
 /** Owns the renderer, the socket and all pointer handling for one mounted canvas. */
 export class CanvasSession implements CanvasPort {
@@ -52,6 +56,7 @@ export class CanvasSession implements CanvasPort {
   private camera: Camera | null = null;
   private canvas: CanvasSize | null = null;
   private disposed = false;
+  private waitingForBundle = false;
   private viewTimer: ReturnType<typeof setTimeout> | null = null;
   private viewFrame: number | null = null;
   private urlTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +80,7 @@ export class CanvasSession implements CanvasPort {
       message: (m) => !this.disposed && this.onMessage(m),
       delta: (d) => !this.disposed && this.controller?.onDelta(d),
       status: (s) => !this.disposed && gameStore.getState().setStatus(s),
+      outdated: () => !this.disposed && this.onOutdated(),
     });
     this.resizeObserver = new ResizeObserver(() => {
       this.renderer.resize();
@@ -160,6 +166,44 @@ export class CanvasSession implements CanvasPort {
     this.attachPointerHandlers(this.renderer.canvasElement);
     this.resizeObserver.observe(this.host);
     this.socket.connect();
+  }
+
+  private onOutdated(): void {
+    if (this.waitingForBundle) return;
+    this.waitingForBundle = true;
+    uiStore.getState().pushToast("info", "Игра обновилась — перезагружаем…");
+    void this.reloadWhenBundleChanges();
+  }
+
+  /** During a deploy the old page may still be served for a while; reloading into it would only loop. */
+  private async reloadWhenBundleChanges(): Promise<void> {
+    const signal = this.abort.signal;
+    const current = document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute("src") ?? null;
+    const result = await waitForNewBundle({
+      fetchHtml: async () => (await fetch("/", { cache: "no-store", signal })).text(),
+      current,
+      timeoutMs: BUNDLE_WAIT_MS,
+      intervalMs: BUNDLE_POLL_MS,
+      now: Date.now,
+      sleep: (ms) =>
+        new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, ms);
+          signal.addEventListener("abort", () => (clearTimeout(timer), resolve()), { once: true });
+        }),
+      signal,
+    });
+    if (result === "aborted" || this.disposed) return;
+    let storage: Storage | null = null;
+    try {
+      storage = window.sessionStorage;
+    } catch {
+      // Storage may be blocked; without it the guard cannot loop anyway, the new bundle matches.
+    }
+    if (onProtocolMismatch(storage, Date.now()) === "ask") {
+      gameStore.getState().setStatus("outdated");
+      return;
+    }
+    window.location.reload();
   }
 
   private onHello(message: HelloMessage): void {

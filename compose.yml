@@ -1,0 +1,85 @@
+# Production stack. Run with:
+#   docker compose --env-file .env.production up -d --build
+# One-off backup:
+#   docker compose --env-file .env.production run --rm -e BACKUP_NOW=1 backup
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rave
+      POSTGRES_DB: rave
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rave -d rave"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+  server:
+    build:
+      context: .
+      target: server
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgres://rave:${POSTGRES_PASSWORD}@postgres:5432/rave
+      PUBLIC_URL: https://${DOMAIN:?}
+      TRUST_PROXY: "1"
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging: *logging
+
+  caddy:
+    build:
+      context: .
+      target: web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${DOMAIN:?}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *logging
+
+  backup:
+    image: postgres:17-alpine
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGHOST: postgres
+      PGUSER: rave
+      PGDATABASE: rave
+      KEEP_DAYS: "14"
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

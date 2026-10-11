@@ -1,7 +1,7 @@
-import { decodeChunkDelta, encodeSubscribe, type ChunkDelta, type ServerMessage } from "@rave/shared/client";
+import { decodeChunkDelta, encodeSubscribe, PROTOCOL_VERSION, type ChunkDelta, type ServerMessage } from "@rave/shared/client";
 
 export type HelloMessage = Extract<ServerMessage, { type: "hello" }>;
-export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "closed";
+export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "closed" | "outdated";
 
 export interface TransportHandlers {
   message(data: string | ArrayBuffer): void;
@@ -27,6 +27,8 @@ export interface GameSocketEvents {
   delta(delta: ChunkDelta): void;
   status(status: ConnectionStatus): void;
   closed?(code: number): void;
+  /** The server speaks another protocol version; the socket has stopped for good and will not reconnect. */
+  outdated?(): void;
 }
 
 export interface GameSocketOptions {
@@ -126,6 +128,15 @@ export class GameSocket {
     }
     if (message.type !== "hello") {
       this.events.message(message);
+      return;
+    }
+    if (message.protocol !== PROTOCOL_VERSION) {
+      // An old bundle cannot talk to this server; reconnecting would only repeat the mismatch.
+      this.stopped = true;
+      this.transport?.close();
+      this.transport = null;
+      this.ready = false;
+      this.events.outdated?.();
       return;
     }
     this.attempt = 0;

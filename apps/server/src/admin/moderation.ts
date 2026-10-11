@@ -1,4 +1,4 @@
-import { MAX_AREA_CELLS, rectCells, type Rect } from "@rave/shared";
+import { MAX_AREA_CELLS, MAX_ROLLBACK_CELLS, rectCells, type Rect } from "@rave/shared";
 import { eq, sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { users } from "../db/schema";
@@ -12,7 +12,7 @@ export type ModerationAction =
   | { kind: "remove_bombs"; userId: number }
   | { kind: "remove_bombs"; area: Rect };
 
-export type PlanError = "bad_area" | "area_too_large" | "bad_period" | "not_found";
+export type PlanError = "bad_area" | "area_too_large" | "bad_period" | "not_found" | "too_many_cells";
 
 export interface PlannedAction {
   plan: ModerationPlan;
@@ -68,14 +68,18 @@ export interface ModerationPlannerDeps {
   db: Db;
   runtime: GameRuntime;
   now?: () => number;
+  /** Cap on cells in one player rollback. */
+  maxRollbackCells?: number;
 }
 
 /** Builds moderation plans; the engine applies them later, guarded by each write's `expect`. */
 export class ModerationPlanner {
   private readonly now: () => number;
+  private readonly maxRollbackCells: number;
 
   constructor(private deps: ModerationPlannerDeps) {
     this.now = deps.now ?? Date.now;
+    this.maxRollbackCells = deps.maxRollbackCells ?? MAX_ROLLBACK_CELLS;
   }
 
   async plan(action: ModerationAction): Promise<PlanResult> {
@@ -88,7 +92,7 @@ export class ModerationPlanner {
       case "rollback_player": {
         if (!this.validPeriod(action.from, action.to)) return { ok: false, code: "bad_period" };
         if (!(await this.userExists(action.userId))) return { ok: false, code: "not_found" };
-        return { ok: true, planned: await this.rollbackPlayer(action) };
+        return await this.rollbackPlayer(action);
       }
       case "clear_area": {
         if (action.mode === "fill") return { ok: true, planned: this.clearFill(action.area) };
@@ -128,7 +132,7 @@ export class ModerationPlanner {
    * latest event that is not such a placement (another player's pixel, the target's older pixel,
    * or an empty cell).
    */
-  private async rollbackPlayer(action: Extract<ModerationAction, { kind: "rollback_player" }>): Promise<PlannedAction> {
+  private async rollbackPlayer(action: Extract<ModerationAction, { kind: "rollback_player" }>): Promise<PlanResult> {
     const { userId: target, from, to, area, removeBombs } = action;
     const season = this.deps.runtime.season;
     const rows = await this.deps.db.execute<WriteRow>(sql`
@@ -156,18 +160,23 @@ export class ModerationPlanner {
       from last l left join restore r on r.x = l.x and r.y = l.y
       where l.user_id = ${target} and l.kind = 'place' and l.created_at between ${ts(from)} and ${ts(to)}
       order by l.y, l.x
+      limit ${this.maxRollbackCells + 1}
     `);
+    if (rows.length > this.maxRollbackCells) return { ok: false, code: "too_many_cells" };
     const writes = rows.map((r) => this.write(r));
     let bombs: ModerationPlan["bombs"] = [];
     if (removeBombs) {
       const store = this.deps.runtime.engine.bombs;
       bombs = this.bombCells(area ? store.inRect(area).filter((b) => b.ownerId === target) : store.ownedBy(target));
     }
-    return this.planned("mod_rollback", writes, bombs, {
-      action: "rollback_player",
-      targetUserId: target,
-      params: { from, to, area, removeBombs },
-    });
+    return {
+      ok: true,
+      planned: this.planned("mod_rollback", writes, bombs, {
+        action: "rollback_player",
+        targetUserId: target,
+        params: { from, to, area, removeBombs },
+      }),
+    };
   }
 
   /** Every non-empty cell of the area becomes empty and ownerless. */

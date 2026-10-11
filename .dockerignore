@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+apps/web/dist
+.git
+.env*
+!.env.example
+tmp
+backups
+.superpowers
+docs
+e2e/test-results
+playwright-report
+*.log

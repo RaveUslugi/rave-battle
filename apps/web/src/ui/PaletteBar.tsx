@@ -94,14 +94,14 @@ export function PaletteBar() {
           <span aria-hidden="true">{count("defuser")}</span>
         </button>
         {admin && (
-          <>
+          <div className={styles.adminTools}>
             <button type="button" className={tool === "inspect" ? styles.toolOn : styles.tool} aria-pressed={tool === "inspect"} aria-label="Инспектор клетки" onClick={() => pickTool("inspect")}>
               <span aria-hidden="true">🔎</span>
             </button>
             <button type="button" className={tool === "area" ? styles.toolOn : styles.tool} aria-pressed={tool === "area"} aria-label="Выделить область" onClick={() => pickTool("area")}>
               <span aria-hidden="true">▭</span>
             </button>
-          </>
+          </div>
         )}
       </div>
       <div ref={swatchesRef} className={styles.swatches} role="radiogroup" aria-label="Цвет" onKeyDown={onKeyDown}>

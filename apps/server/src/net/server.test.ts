@@ -18,6 +18,8 @@ import { createTestDb } from "../db/test-db";
 import { bootGame } from "../persistence/boot";
 import { PERMANENT_BAN_DATE } from "../persistence/codec";
 import type { GameRuntime } from "../persistence/runtime";
+import { AccessQueue } from "../admin/access-queue";
+import { ensurePlayer } from "../auth/ensure-player";
 import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
@@ -36,7 +38,7 @@ let base = "";
 const sockets: WebSocket[] = [];
 
 async function start(
-  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean; ipLimiter?: KeyedRateLimiter<string> } = {},
+  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean; ipLimiter?: KeyedRateLimiter<string>; staticLimiter?: KeyedRateLimiter<string>; trustProxy?: boolean } = {},
 ) {
   if (!options.keepDb) await t.reset();
   const users = await UserDirectory.load(t.db);
@@ -52,12 +54,21 @@ async function start(
     sessionTtlMs: 86_400_000,
     adminDiscordIds: new Set(),
     discord: options.discord ?? null,
+    trustProxy: options.trustProxy ?? false,
   };
-  hub = new Hub({ db: t.db, runtime, users, onlineDebounceMs: 10, isAdmin: (u) => isAdmin(u.discordId, config), ...options.hub });
+  const accessQueue = new AccessQueue();
+  hub = new Hub({
+    runtime,
+    users,
+    onlineDebounceMs: 10,
+    isAdmin: (u) => isAdmin(u.discordId, config),
+    ensurePlayer: (u) => ensurePlayer({ db: t.db, runtime, accessQueue }, u),
+    ...options.hub,
+  });
   hubRef = hub;
   const stats = new StatsService(t.db, runtime, users);
-  const admin = new AdminService({ db: t.db, runtime, users, stats, isAdmin: (id) => isAdmin(id, config) });
-  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, fetch: options.fetch, ipLimiter: options.ipLimiter });
+  const admin = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
+  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, accessQueue, fetch: options.fetch, ipLimiter: options.ipLimiter, staticLimiter: options.staticLimiter });
   base = `http://localhost:${server.port}`;
 }
 
@@ -627,6 +638,31 @@ describe("trpc over http", () => {
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) statuses.push((await fetch(`${base}/trpc/me`)).status);
     expect(statuses).toEqual([200, 200, 200, 429]);
+  });
+
+  test("behind a trusted proxy each forwarded address gets its own bucket", async () => {
+    await shutdown();
+    await start({ ipLimiter: new KeyedRateLimiter<string>(1, 0), trustProxy: true });
+    const me = (ip: string) => fetch(`${base}/trpc/me`, { headers: { "X-Forwarded-For": `6.6.6.6, ${ip}` } });
+    expect((await me("1.1.1.1")).status).toBe(200);
+    expect((await me("2.2.2.2")).status).toBe(200);
+    expect((await me("1.1.1.1")).status).toBe(429);
+  });
+
+  test("without trust the forwarded header is ignored and everyone shares one bucket", async () => {
+    await shutdown();
+    await start({ ipLimiter: new KeyedRateLimiter<string>(1, 0) });
+    const me = (ip: string) => fetch(`${base}/trpc/me`, { headers: { "X-Forwarded-For": ip } });
+    expect((await me("1.1.1.1")).status).toBe(200);
+    expect((await me("2.2.2.2")).status).toBe(429);
+  });
+
+  test("overview and chunks are limited per ip", async () => {
+    await shutdown();
+    await start({ staticLimiter: new KeyedRateLimiter<string>(1, 0) });
+    expect((await fetch(`${base}/overview`)).status).toBe(200);
+    expect((await fetch(`${base}/overview`)).status).toBe(429);
+    expect((await fetch(`${base}/chunk/0/0`)).status).toBe(429);
   });
 
   test("mutations require an allowed origin", async () => {
