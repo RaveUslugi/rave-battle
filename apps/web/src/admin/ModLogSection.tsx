@@ -1,39 +1,14 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ModAction } from "@rave/shared/client";
 import { useTRPC } from "../net/trpc";
 import styles from "./admin.module.css";
-import { ACTION_LABEL, ITEM_LABEL } from "./labels";
+import { ACTION_LABEL } from "./labels";
+import { details, fmt } from "./log-format";
 import { useSearchParam } from "./useSearchParam";
 
-const fmt = (ms: number) => new Date(ms).toLocaleString("ru-RU");
+const MAX_USER_ID = 2_147_483_647;
 const ACTIONS = Object.keys(ACTION_LABEL) as ModAction[];
-const ITEM_KEYS = Object.keys(ITEM_LABEL) as Array<keyof typeof ITEM_LABEL>;
-
-function details(action: ModAction, p: Record<string, unknown>): string {
-  const comment = String(p.comment ?? "");
-  switch (action) {
-    case "ban":
-      return `до ${p.until === "permanent" ? "навсегда" : fmt(Number(p.until))}: ${String(p.reason ?? "")}`;
-    case "unban":
-      return String(p.reason ?? "");
-    case "player_edit": {
-      const changes = (p.changes ?? {}) as Record<string, number | undefined>;
-      const parts = ITEM_KEYS.flatMap((k) => {
-        const d = changes[k];
-        return d ? [`${ITEM_LABEL[k]} ${d > 0 ? "+" : "−"}${Math.abs(d)}`] : [];
-      });
-      return `${parts.join(", ")} — ${comment}`;
-    }
-    case "config_save":
-      return `версия ${String(p.version)} — ${comment}`;
-    case "config_rollback":
-      return `версия ${String(p.version)} (из ${String(p.fromVersion)}) — ${comment}`;
-    default:
-      // rollback_player / clear_area / remove_bombs: details are rendered in Task 12
-      return comment;
-  }
-}
 
 export function ModLogSection() {
   const trpc = useTRPC();
@@ -41,12 +16,15 @@ export function ModLogSection() {
   const [, setPlayer] = useSearchParam("player");
   const [action, setAction] = useState<ModAction | "">("");
   const [playerText, setPlayerText] = useState("");
-  const targetUserId = /^\d+$/.test(playerText.trim()) && Number(playerText) > 0 ? Number(playerText) : undefined;
+  const trimmed = playerText.trim();
+  const playerNumber = trimmed === "" ? undefined : Number(trimmed);
+  const badPlayer = playerNumber !== undefined && (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(playerNumber) || playerNumber < 1 || playerNumber > MAX_USER_ID);
+  const targetUserId = badPlayer ? undefined : playerNumber;
 
   const log = useInfiniteQuery(
     trpc.admin.modLog.infiniteQueryOptions(
       { ...(action !== "" ? { action } : {}), ...(targetUserId !== undefined ? { targetUserId } : {}) },
-      { getNextPageParam: (last) => last.next ?? undefined },
+      { getNextPageParam: (last) => last.next ?? undefined, placeholderData: keepPreviousData, enabled: !badPlayer },
     ),
   );
   const entries = log.data?.pages.flatMap((page) => page.entries) ?? [];
@@ -72,7 +50,8 @@ export function ModLogSection() {
         </label>
         <label className={styles.field}>
           Игрок (id)
-          <input className={styles.input} inputMode="numeric" value={playerText} onChange={(e) => setPlayerText(e.target.value)} />
+          <input className={styles.input} inputMode="numeric" value={playerText} aria-invalid={badPlayer} onChange={(e) => setPlayerText(e.target.value)} />
+          {badPlayer && <span className={styles.error}>Неверный id</span>}
         </label>
       </div>
       {log.isError && <p className={styles.error}>Не удалось загрузить журнал</p>}
@@ -110,7 +89,7 @@ export function ModLogSection() {
                       "—"
                     )}
                   </td>
-                  <td className={styles.wrap}>{details(e.action, e.params)}</td>
+                  <td className={styles.wrap}>{details(e)}</td>
                 </tr>
               ))}
             </tbody>

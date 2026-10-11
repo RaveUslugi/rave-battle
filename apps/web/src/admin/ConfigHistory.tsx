@@ -137,7 +137,13 @@ export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh
           <h4 className={styles.subtitle}>Что изменится при откате к версии {selected}</h4>
           {preview.isPending && <p className={styles.message}>Загрузка…</p>}
           {preview.isError && <p className={styles.error}>Не удалось загрузить версию</p>}
-          {preview.data && !preview.data.ok && <p className={styles.error}>Версия не найдена или не проходит текущую схему</p>}
+          {preview.data && !preview.data.ok && (
+            <p className={styles.error}>
+              {preview.data.code === "invalid"
+                ? `Версия не проходит текущую схему: ${preview.data.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`
+                : "Версия не найдена"}
+            </p>
+          )}
           {preview.data?.ok && <DiffList diff={configDiff(current.config, preview.data.config as GameConfig)} />}
         </div>
       )}

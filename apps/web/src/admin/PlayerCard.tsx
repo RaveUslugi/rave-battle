@@ -4,6 +4,7 @@ import { useTRPC } from "../net/trpc";
 import { describeAction, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, resultText } from "../ui/moderation-format";
 import { BAN_PRESETS, banUntil, parseDelta, type BanPresetKey } from "./ban";
 import { ACTION_LABEL, ITEM_LABEL, adminErrorText } from "./labels";
+import { details } from "./log-format";
 import styles from "./admin.module.css";
 
 const FAILED = "Не удалось выполнить действие";
@@ -204,6 +205,7 @@ export function PlayerCard({ userId }: { userId: number }) {
                     aria-invalid={parseDelta(deltas[k]) === null}
                     onChange={(e) => setDeltas({ ...deltas, [k]: e.target.value })}
                   />
+                  {parseDelta(deltas[k]) === null && <span className={styles.error}>целое число, не больше 1 000 000</span>}
                 </label>
               ))}
             </div>
@@ -229,8 +231,7 @@ export function PlayerCard({ userId }: { userId: number }) {
           {log.map((e) => (
             <li key={e.id}>
               {fmt(e.at)} · {ACTION_LABEL[e.action]} · {e.admin.name}
-              {typeof e.params.reason === "string" && ` · ${e.params.reason}`}
-              {typeof e.params.comment === "string" && ` · ${e.params.comment}`}
+              {` · ${details(e)}`}
             </li>
           ))}
         </ul>

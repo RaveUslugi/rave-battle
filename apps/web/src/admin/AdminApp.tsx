@@ -26,7 +26,19 @@ export default function AdminApp() {
       </div>
     );
   }
-  if (whoami.isError || !whoami.data.admin) {
+  if (whoami.isError) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.page}>
+          <h1 className={styles.title}>Не удалось проверить доступ</h1>
+          <button type="button" className={styles.button} onClick={() => void whoami.refetch()}>
+            Повторить
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (!whoami.data.admin) {
     return (
       <div className={styles.root}>
         <div className={styles.page}>
