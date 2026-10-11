@@ -176,7 +176,7 @@ describe("writeBatch", () => {
     const events: EngineEvent[] = [];
     for (let i = 0; i < n; i++) {
       const at = T0 + i;
-      events.push({ type: "pixel", x: i % 512, y: Math.floor(i / 512), userId: a, colorId: 3, prevColorId: 0, prevUserId: 0, at });
+      events.push({ type: "pixel", kind: "place", x: i % 512, y: Math.floor(i / 512), userId: a, colorId: 3, prevColorId: 0, prevUserId: 0, at });
       events.push({ type: "ledger", userId: a, item: "coins", delta: 1, balanceAfter: 101 + i, reason: "daily", ref: {}, at });
     }
     await write({ events });

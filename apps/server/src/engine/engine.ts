@@ -16,6 +16,9 @@ import type {
   EngineEvent,
   LedgerItem,
   LedgerReason,
+  ModerationMeta,
+  ModerationPlan,
+  ModerationResult,
   PlaceCommand,
   PlaceResult,
   PlayerState,
@@ -124,7 +127,7 @@ export class GameEngine {
     if (bomb) return this.explode(p, bomb, bombOwner, day, now);
 
     const prev = this.canvas.set(cmd.x, cmd.y, cmd.colorId, userId);
-    this.emit({ type: "pixel", x: cmd.x, y: cmd.y, userId, colorId: cmd.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
+    this.emit({ type: "pixel", kind: "place", x: cmd.x, y: cmd.y, userId, colorId: cmd.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
     p.coins += this.cfg.coinsPerPixel;
     this.stat(userId, day, "pixels", 1);
     this.stat(userId, day, "coinsFromPixels", this.cfg.coinsPerPixel);
@@ -325,6 +328,36 @@ export class GameEngine {
     this.emit({ type: "mod_log", adminId: meta.adminId, action: "player_edit", targetUserId: userId, params: { changes: Object.fromEntries(entries), comment: meta.comment }, at: now });
     this.emit({ type: "player", userId });
     return { ok: true };
+  }
+
+  /** Moderator canvas edit: guarded cell writes, bomb removal and one mod_log entry. Stats and coins are untouched. */
+  applyModeration(plan: ModerationPlan, meta: ModerationMeta, now: number): ModerationResult {
+    let cells = 0;
+    let skipped = 0;
+    for (const w of plan.writes) {
+      if (!this.canvas.inBounds(w.x, w.y)) {
+        skipped++;
+        continue;
+      }
+      const current = this.canvas.get(w.x, w.y);
+      if (current.colorId !== w.expect.colorId || current.ownerId !== w.expect.ownerId) {
+        skipped++;
+        continue;
+      }
+      if (current.colorId === w.colorId && current.ownerId === w.ownerId) continue;
+      const prev = this.canvas.set(w.x, w.y, w.colorId, w.ownerId);
+      this.emit({ type: "pixel", kind: plan.kind, x: w.x, y: w.y, userId: w.ownerId, colorId: w.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
+      cells++;
+    }
+    let bombs = 0;
+    for (const { x, y } of plan.bombs) {
+      const bomb = this.bombs.remove(x, y);
+      if (!bomb) continue;
+      this.emit({ type: "bomb_removed", x, y, ownerId: bomb.ownerId, reason: "moderated", removedBy: meta.adminId, at: now });
+      bombs++;
+    }
+    this.emit({ type: "mod_log", adminId: meta.adminId, action: meta.action, targetUserId: meta.targetUserId, params: { ...meta.params, cells, skipped, bombs }, at: now });
+    return { ok: true, cells, skipped, bombs };
   }
 
   /** Call after mutating the balance: records the new balance. */

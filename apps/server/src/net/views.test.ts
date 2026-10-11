@@ -88,7 +88,7 @@ describe("toPlaceResultView", () => {
 
 describe("buildChunkDeltas", () => {
   const pixel = (x: number, y: number, colorId: number): EngineEvent => ({
-    type: "pixel", x, y, userId: 1, colorId, prevColorId: 0, prevUserId: 0, at: T0,
+    type: "pixel", kind: "place", x, y, userId: 1, colorId, prevColorId: 0, prevUserId: 0, at: T0,
   });
 
   test("groups pixels by chunk, keeps the last color per cell and bumps versions", () => {

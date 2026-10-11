@@ -62,10 +62,12 @@ export type StatKey =
   | "selfExplosions"
   | "defused";
 
+export type PixelKind = "place" | "mod_rollback" | "mod_clear";
+
 export type EngineEvent =
-  | { type: "pixel"; x: number; y: number; userId: UserId; colorId: number; prevColorId: number; prevUserId: UserId; at: number }
+  | { type: "pixel"; kind: PixelKind; x: number; y: number; userId: UserId; colorId: number; prevColorId: number; prevUserId: UserId; at: number }
   | { type: "bomb_added"; x: number; y: number; ownerId: UserId; at: number }
-  | { type: "bomb_removed"; x: number; y: number; ownerId: UserId; reason: "exploded" | "defused"; removedBy: UserId; at: number }
+  | { type: "bomb_removed"; x: number; y: number; ownerId: UserId; reason: "exploded" | "defused" | "moderated"; removedBy: UserId; at: number }
   | { type: "ledger"; userId: UserId; item: LedgerItem; delta: number; balanceAfter: number; reason: LedgerReason; ref: Record<string, unknown>; at: number }
   | { type: "stat"; userId: UserId; day: string; stat: StatKey; delta: number }
   | { type: "color_unlocked"; userId: UserId; colorId: number; source: "shop"; at: number }
@@ -73,6 +75,31 @@ export type EngineEvent =
   | { type: "config_changed"; version: number; config: GameConfig; createdBy: UserId; comment: string; at: number }
   /** Player state changed; the persister upserts the current snapshot. */
   | { type: "player"; userId: UserId };
+
+export interface CellWrite {
+  x: number;
+  y: number;
+  /** State the planner saw; the write is skipped if the cell differs now. */
+  expect: { colorId: number; ownerId: UserId };
+  colorId: number;
+  ownerId: UserId;
+}
+
+export interface ModerationPlan {
+  kind: Exclude<PixelKind, "place">;
+  writes: CellWrite[];
+  /** Cells whose active bomb is removed (if one is still there). */
+  bombs: Array<{ x: number; y: number }>;
+}
+
+export interface ModerationMeta {
+  adminId: UserId;
+  action: "rollback_player" | "clear_area" | "remove_bombs";
+  targetUserId: UserId | null;
+  params: Record<string, unknown>;
+}
+
+export type ModerationResult = { ok: true; cells: number; skipped: number; bombs: number };
 
 export interface PlaceCommand {
   x: number;
