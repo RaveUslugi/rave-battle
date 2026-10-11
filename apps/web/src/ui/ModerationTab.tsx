@@ -1,6 +1,6 @@
 import { MAX_AREA_CELLS, rectCells, type Rect } from "@rave/shared/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "../net/trpc";
 import { useGame } from "../state/game-store";
 import { uiStore, useUi } from "../state/ui-store";
@@ -85,12 +85,16 @@ function AreaTools({ area }: { area: Rect }) {
   // Selecting on the canvas replaces the typed values and any preview made for the old area.
   useEffect(() => {
     setFields(toFields(area));
+    requestToken.current++;
     setStaged(null);
     setMessage(null);
   }, [area.x1, area.y1, area.x2, area.y2]);
 
+  /** Bumped by every request and by every change of its inputs; a late answer with an older token is dropped. */
+  const requestToken = useRef(0);
   // A preview describes one exact action: any change to what it depends on invalidates it.
   useEffect(() => {
+    requestToken.current++;
     setStaged(null);
   }, [clearMode, clearAt, owner, period, customFrom, customTo, removeBombs]);
   useEffect(() => {
@@ -117,20 +121,22 @@ function AreaTools({ area }: { area: Rect }) {
     }
   };
 
+  type Request = { action: Action; what: string; token: number };
   const preview = useMutation({
-    mutationFn: (action: Action) => queryClient.fetchQuery({ ...trpc.admin.moderation.preview.queryOptions({ action }), staleTime: 0 }),
-    onSuccess: (res, action) => {
+    mutationFn: ({ action }: Request) => queryClient.fetchQuery({ ...trpc.admin.moderation.preview.queryOptions({ action }), staleTime: 0 }),
+    onSuccess: (res, { action, what, token }) => {
+      // The inputs changed while the request was in flight: this answer belongs to an action no longer on screen.
+      if (token !== requestToken.current) return;
       if (res.ok) {
-        const player = action.kind === "rollback_player" ? ownerList.find((o) => o.user.id === action.userId)?.user.name : undefined;
-        const label = PERIOD_PRESETS.find((p) => p.id === period)?.label;
-        setStaged({ action, text: previewText(res), what: describeAction(action, { fmt, ...(player ? { player } : {}), ...(label ? { period: label } : {}) }) });
+        setStaged({ action, text: previewText(res), what });
         setMessage(null);
       } else {
         setStaged(null);
         setMessage({ text: moderationErrorText(res.code), error: true });
       }
     },
-    onError: () => {
+    onError: (_error, { token }) => {
+      if (token !== requestToken.current) return;
       setStaged(null);
       setMessage({ text: moderationErrorText(undefined), error: true });
     },
@@ -153,7 +159,11 @@ function AreaTools({ area }: { area: Rect }) {
   const busy = preview.isPending || apply.isPending;
   const calc = (action: Action) => {
     setMessage(null);
-    preview.mutate(action);
+    // The description is fixed now, from the same inputs as the action, so it always matches it.
+    const player = action.kind === "rollback_player" ? ownerList.find((o) => o.user.id === action.userId)?.user.name : undefined;
+    const label = PERIOD_PRESETS.find((p) => p.id === period)?.label;
+    const what = describeAction(action, { fmt, ...(player ? { player } : {}), ...(label ? { period: label } : {}) });
+    preview.mutate({ action, what, token: ++requestToken.current });
   };
 
   const clearTime = clearAt ? new Date(clearAt).getTime() : Number.NaN;
