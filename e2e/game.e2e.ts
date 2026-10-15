@@ -25,6 +25,38 @@ function isClose(actual: number[], expected: number[]): boolean {
   return actual.every((c, i) => Math.abs(c - (expected[i] ?? 0)) <= TOLERANCE);
 }
 
+/** Polls until the canvas centre has `expected`; on timeout the error says what was there instead. */
+async function expectCenter(page: Page, expected: number[], timeout = 5_000): Promise<void> {
+  let last: number[] = [];
+  try {
+    await expect
+      .poll(
+        async () => {
+          last = await centerPixel(page);
+          return isClose(last, expected);
+        },
+        { timeout },
+      )
+      .toBe(true);
+  } catch (error) {
+    const box = await canvasOf(page).boundingBox();
+    const onTop = await page.evaluate(
+      ({ x, y }) => {
+        const el = document.elementFromPoint(x, y);
+        return el ? `${el.tagName.toLowerCase()}.${String(el.className)} ${el.getAttribute("aria-label") ?? ""}`.trim() : "nothing";
+      },
+      { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 },
+    );
+    const status = await page.getByTestId("status").textContent();
+    throw new Error(
+      `centre is rgb(${last.join(",")}), expected rgb(${expected.join(",")}); on top: ${onTop}; status: ${status}; canvas: ${JSON.stringify(box)}`,
+      {
+        cause: error,
+      },
+    );
+  }
+}
+
 async function openAs(browser: Browser, name: string): Promise<Page> {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -46,7 +78,7 @@ test("a pixel placed by one player shows up for another in real time", async ({ 
   await expect(canvasOf(b)).toBeVisible();
 
   // Before the click B sees the background in the centre.
-  await expect.poll(() => centerPixel(b).then((p) => isClose(p, background))).toBe(true);
+  await expectCenter(b, background);
 
   await a
     .getByRole("radiogroup", { name: "Цвет" })
@@ -54,5 +86,5 @@ test("a pixel placed by one player shows up for another in real time", async ({ 
     .click();
   await canvasOf(a).click();
 
-  await expect.poll(() => centerPixel(b).then((p) => isClose(p, placed)), { timeout: 5_000 }).toBe(true);
+  await expectCenter(b, placed);
 });
