@@ -11,10 +11,10 @@ test("admin page is served by the SPA fallback and its assets load", async ({ pa
 
   await page.goto("/auth/dev?name=admin");
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "Rave Battle · админка" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Дашборд" })).toBeVisible();
 
   await page.goto("/admin?tab=config");
-  await expect(page.getByText("Версия").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "История версий" })).toBeVisible();
 
   expect(assets.length).toBeGreaterThan(0);
   expect(bad).toEqual([]);
