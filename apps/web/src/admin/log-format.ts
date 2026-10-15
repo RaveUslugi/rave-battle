@@ -52,5 +52,13 @@ export function details(entry: { action: ModAction; params: Record<string, unkno
       return p.mode === "to_time" ? `${area(p.area)}, возврат к состоянию на ${fmt(Number(p.at))}: ${counts(p)}` : `${area(p.area)}, очистка: ${counts(p)}`;
     case "remove_bombs":
       return `${p.userId !== undefined ? `все бомбы игрока #${String(p.userId)}` : area(p.area)}: ${counts(p)}`;
+    case "chat_mute":
+      return p.until === "permanent" ? `навсегда: ${String(p.reason ?? "")}` : `до ${fmt(Number(p.until))}: ${String(p.reason ?? "")}`;
+    case "chat_unmute":
+      return String(p.reason ?? "");
+    case "chat_delete": {
+      const n = Array.isArray(p.ids) ? p.ids.length : 0;
+      return p.periodMs !== undefined ? `сообщений: ${n} за ${Math.round(Number(p.periodMs) / 3_600_000)} ч` : `сообщений: ${n}`;
+    }
   }
 }

@@ -2,7 +2,7 @@ import { CHUNK_SIZE } from "./constants";
 import type { GameConfig, ItemKey } from "./config/schema";
 
 /** Bump on every incompatible message change; clients reload on mismatch. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const MAX_SUBSCRIBED_CHUNKS = 64;
 
 // ---- Client → server: binary frames (little-endian) ----
@@ -216,6 +216,10 @@ export interface PlayerView {
   playableAt: number | null;
   /** Dev account: spends nothing and cannot be frozen. */
   unlimited: boolean;
+  /** The player may play but not write in the chat until then; null = may write. Re-check expiry on the client. */
+  chatMutedUntil: number | "permanent" | null;
+  /** Shown to a muted player. */
+  chatMuteReason: string | null;
   /** Server clock when this view was built: lets the client compare server timestamps despite clock skew. */
   serverNow: number;
 }
@@ -224,6 +228,25 @@ export type PlaceResultView =
   | { ok: true; outcome: "placed" }
   | { ok: true; outcome: "exploded"; self: boolean; frozenUntil: number; coinsLost: number; bombOwner: UserRef }
   | { ok: false; code: string };
+
+/** A public game event: who and whose bomb, never where. */
+export interface FeedMessage {
+  type: "feed";
+  kind: "exploded" | "defused";
+  actor: UserRef;
+  owner: UserRef;
+  at: number;
+}
+
+export interface ChatMessage {
+  type: "chat";
+  id: number;
+  author: UserRef;
+  text: string;
+  at: number;
+}
+
+export type TimelineEntry = FeedMessage | ChatMessage;
 
 export type ServerMessage =
   | {
@@ -244,9 +267,12 @@ export type ServerMessage =
   /** The live config changed; replaces the one from hello. Canvas size may grow. */
   | { type: "config"; config: GameConfig }
   | { type: "placed"; reqId: number; result: PlaceResultView }
-  | { type: "feed"; kind: "exploded" | "defused"; actor: UserRef; owner: UserRef; at: number }
-  /** Sent once right after `hello`: the latest feed entries, oldest first. Replaces whatever the client showed before. */
-  | { type: "feed_history"; entries: Array<Extract<ServerMessage, { type: "feed" }>> }
+  | FeedMessage
+  | ChatMessage
+  /** Messages a moderator removed: drop them from the timeline. */
+  | { type: "chat_deleted"; ids: number[] }
+  /** Sent once right after `hello`: the latest feed events and chat messages, oldest first. Replaces whatever the client showed before. */
+  | { type: "timeline_history"; entries: TimelineEntry[] }
   | { type: "online"; count: number }
   /**
    * Answer to SUBSCRIBE listing only newly added chunks with their current version. Deltas for them

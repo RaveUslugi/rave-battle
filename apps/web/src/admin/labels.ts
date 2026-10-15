@@ -9,6 +9,9 @@ export const ACTION_LABEL: Record<ModAction, string> = {
   rollback_player: "Откат игрока",
   clear_area: "Очистка области",
   remove_bombs: "Снятие бомб",
+  chat_mute: "Чат отключён",
+  chat_unmute: "Чат возвращён",
+  chat_delete: "Удаление сообщений",
 };
 
 export const ITEM_LABEL = {

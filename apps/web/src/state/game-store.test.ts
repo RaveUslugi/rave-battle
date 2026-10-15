@@ -45,6 +45,8 @@ const view = (serverNow: number) =>
     banReason: null,
     playableAt: null,
     unlimited: false,
+    chatMutedUntil: null,
+    chatMuteReason: null,
     serverNow,
   }) satisfies PlayerView;
 

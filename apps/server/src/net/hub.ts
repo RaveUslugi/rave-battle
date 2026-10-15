@@ -7,7 +7,9 @@ import {
   PROTOCOL_VERSION,
   type PlaceMessage,
   type PlayerView,
+  type ChatMessage,
   type ServerMessage,
+  type TimelineEntry,
 } from "@rave/shared";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import type { SessionUser } from "../auth/session";
@@ -16,15 +18,13 @@ import type { GameRuntime } from "../persistence/runtime";
 import type { Metrics } from "./metrics";
 import { TokenBucket } from "./rate-limit";
 import type { UserDirectory } from "./user-directory";
-import { buildChunkDeltas, buildFeed, ChunkVersions, toPlaceResultView, toPlayerView } from "./views";
+import { buildChunkDeltas, buildFeed, type ChatMute, ChunkVersions, toPlaceResultView, toPlayerView } from "./views";
 
 export const GLOBAL_TOPIC = "global";
 const chunkTopic = (key: string) => `chunk:${key}`;
 const userTopic = (userId: number) => `user:${userId}`;
 /** Frames accepted before `hello` is sent; more than this closes the socket. */
 const MAX_PENDING = 16;
-/** How many feed entries a new connection gets right after hello. */
-const FEED_HISTORY = 20;
 
 export interface SocketData {
   user: SessionUser | null;
@@ -48,10 +48,11 @@ export interface HubOptions {
   /** Puts the user's player into the engine on connect; without it, players must already be there. */
   ensurePlayer?: (user: SessionUser) => Promise<void>;
   metrics?: Metrics;
+  /** Current chat mute of a user, for their player view. */
+  chatMute?: (userId: number) => ChatMute | null;
 }
 
 type Socket = ServerWebSocket<SocketData>;
-type FeedMessage = Extract<ServerMessage, { type: "feed" }>;
 
 const send = (ws: Socket, message: ServerMessage) => ws.send(JSON.stringify(message));
 
@@ -62,7 +63,8 @@ export class Hub {
   private server: Server<SocketData> | null = null;
   private connectionsByIp = new Map<string, number>();
   private readonly sockets = new Set<Socket>();
-  private readonly feedHistory: FeedMessage[] = [];
+  /** Latest feed events and chat messages, oldest first; sent to every new connection. */
+  private timeline: TimelineEntry[] = [];
   private onlineTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private readonly now: () => number;
@@ -77,6 +79,41 @@ export class Hub {
     this.onlineDebounceMs = options.onlineDebounceMs ?? 1000;
     options.metrics?.gauge("rave_sockets", "Open WebSocket connections", () => this.sockets.size);
     options.metrics?.gauge("rave_players_online", "Distinct logged-in users with an open socket", () => this.onlineUserIds().size);
+  }
+
+  /** Replaces the timeline, e.g. with the one restored from the database at startup. */
+  seedTimeline(entries: TimelineEntry[]): void {
+    this.timeline = entries.slice(-this.historySize());
+  }
+
+  /** Broadcasts a stored chat message and keeps it in the timeline. */
+  publishChat(message: ChatMessage): void {
+    this.remember(message);
+    this.server?.publish(GLOBAL_TOPIC, JSON.stringify(message));
+  }
+
+  /** Drops moderated messages from the timeline and tells every client. */
+  publishChatDeleted(ids: number[]): void {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.timeline = this.timeline.filter((e) => e.type !== "chat" || !gone.has(e.id));
+    this.server?.publish(GLOBAL_TOPIC, JSON.stringify({ type: "chat_deleted", ids } satisfies ServerMessage));
+  }
+
+  /** Sends the user a fresh player view (after a change made outside the engine, e.g. a chat mute). */
+  refreshPlayer(userId: number): void {
+    if (!this.options.runtime.engine.players.has(userId)) return;
+    this.server?.publish(userTopic(userId), JSON.stringify({ type: "player", player: this.playerView(userId) } satisfies ServerMessage));
+  }
+
+  private historySize(): number {
+    return this.options.runtime.engine.config.chat.historySize;
+  }
+
+  private remember(entry: TimelineEntry): void {
+    this.timeline.push(entry);
+    const extra = this.timeline.length - this.historySize();
+    if (extra > 0) this.timeline.splice(0, extra);
   }
 
   /** Users with at least one ready socket. */
@@ -139,8 +176,7 @@ export class Hub {
       server.publish(chunkTopic(`${delta.cx}:${delta.cy}`), encodeChunkDelta(delta));
     }
     for (const entry of buildFeed(events, this.options.users)) {
-      this.feedHistory.push(entry);
-      if (this.feedHistory.length > FEED_HISTORY) this.feedHistory.shift();
+      this.remember(entry);
       server.publish(GLOBAL_TOPIC, JSON.stringify(entry));
     }
     const touched = new Set<number>();
@@ -172,7 +208,7 @@ export class Hub {
 
   private playerView(userId: number): PlayerView {
     const engine = this.options.runtime.engine;
-    return toPlayerView(engine.players.get(userId), engine.config, this.now(), engine.isUnlimited(userId));
+    return toPlayerView(engine.players.get(userId), engine.config, this.now(), engine.isUnlimited(userId), this.options.chatMute?.(userId) ?? null);
   }
 
   private async open(ws: Socket): Promise<void> {
@@ -197,7 +233,7 @@ export class Hub {
       player,
       admin: user !== null && (this.options.isAdmin?.(user) ?? false),
     });
-    send(ws, { type: "feed_history", entries: [...this.feedHistory] });
+    send(ws, { type: "timeline_history", entries: [...this.timeline] });
     // Topics only after hello, so it is always the first message the client sees.
     ws.subscribe(GLOBAL_TOPIC);
     if (user) ws.subscribe(userTopic(user.id));

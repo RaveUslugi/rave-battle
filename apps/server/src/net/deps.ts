@@ -1,5 +1,6 @@
 import type { AccessQueue } from "../admin/access-queue";
 import type { AdminService } from "../admin/service";
+import type { ChatService } from "../chat/service";
 import type { FetchFn } from "../auth/discord";
 import type { Db } from "../db/client";
 import type { GameRuntime } from "../persistence/runtime";
@@ -20,6 +21,8 @@ export interface AppDeps {
   admin: AdminService;
   /** One chain per user for everything touching access: ban, unban, first join. */
   accessQueue: AccessQueue;
+  /** Text chat; chat procedures answer PRECONDITION_FAILED without it. */
+  chat?: ChatService;
   /** Served at GET /metrics when present. */
   metrics?: Metrics;
   /** Outbound HTTP (Discord); injectable for tests. Defaults to global fetch. */

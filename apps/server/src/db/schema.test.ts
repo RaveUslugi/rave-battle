@@ -13,6 +13,7 @@ test("migrations create every table of the spec", async () => {
   )) as unknown as Array<{ table_name: string }>;
   expect(rows.map((r) => r.table_name)).toEqual([
     "bombs",
+    "chat_messages",
     "chunk_snapshots",
     "game_config",
     "inventory",

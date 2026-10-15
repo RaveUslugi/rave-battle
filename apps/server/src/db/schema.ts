@@ -38,6 +38,9 @@ export const users = pgTable("users", {
   locale: text("locale").$type<Locale>(),
   /** Discord's UI language tag ("ru", "en-US", …), refreshed on every Discord login. */
   discordLocale: text("discord_locale"),
+  /** The player may play but not write in the chat until then; 9999-12-31 = permanent. */
+  chatMutedUntil: ts("chat_muted_until"),
+  chatMuteReason: text("chat_mute_reason"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -199,6 +202,25 @@ export const statsDaily = pgTable(
     defused: integer("defused").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.userId, t.seasonId, t.date] })],
+);
+
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    seasonId: integer("season_id")
+      .notNull()
+      .references(() => seasons.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    text: text("text").notNull(),
+    createdAt: ts("created_at").notNull(),
+    /** Removed by a moderator: kept for the log until the retention cleanup, never shown. */
+    deletedAt: ts("deleted_at"),
+    deletedBy: integer("deleted_by").references(() => users.id),
+  },
+  (t) => [index("chat_messages_season_idx").on(t.seasonId, t.id), index("chat_messages_user_idx").on(t.userId, t.createdAt)],
 );
 
 export const gameConfig = pgTable("game_config", {

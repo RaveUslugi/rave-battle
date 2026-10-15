@@ -50,6 +50,8 @@ export interface AdminPlayer {
     guildMember: boolean;
     bannedUntil: number | "permanent" | null;
     banReason: string | null;
+    chatMutedUntil: number | "permanent" | null;
+    chatMuteReason: string | null;
   };
   /** Null when the player has never entered the game (not loaded in the engine). */
   state: {
@@ -209,6 +211,8 @@ export class AdminService {
     }
     const { entries } = await this.modLog({ targetUserId: userId }, PLAYER_LOG);
     const ban = banFromDate(row.bannedUntil);
+    const mute = banFromDate(row.chatMutedUntil);
+    const muted = mute !== null && mute > this.now();
     return {
       user: {
         id: row.id,
@@ -220,6 +224,8 @@ export class AdminService {
         guildMember: row.guildMember,
         bannedUntil: ban === null ? null : Number.isFinite(ban) ? ban : "permanent",
         banReason: row.banReason,
+        chatMutedUntil: !muted ? null : Number.isFinite(mute) ? mute : "permanent",
+        chatMuteReason: muted ? row.chatMuteReason : null,
       },
       state,
       log: entries,

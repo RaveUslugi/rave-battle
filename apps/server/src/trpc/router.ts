@@ -5,12 +5,18 @@ import { z } from "zod";
 import { isAdmin } from "../auth/admin";
 import { users } from "../db/schema";
 import { MOD_ACTIONS } from "../engine/types";
+import type { ChatService } from "../chat/service";
 import type { AppDeps } from "../net/deps";
 import { toPlayerView } from "../net/views";
 import { BOARDS, PERIODS } from "../stats/leaderboards";
 import { adminProcedure, playerProcedure, publicProcedure, router, userProcedure } from "./init";
 
 const TOP = 50;
+
+function chatOf(deps: AppDeps): ChatService {
+  if (!deps.chat) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Chat is not available" });
+  return deps.chat;
+}
 
 /** Counts the action in the metrics once the engine answered. */
 async function tracked<T extends { ok: boolean; code?: string }>(deps: AppDeps, type: string, result: Promise<T>): Promise<T> {
@@ -45,9 +51,13 @@ export const appRouter = router({
     if (!ctx.user) return null;
     const engine = ctx.deps.runtime.engine;
     const player = engine.players.has(ctx.user.id)
-      ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id))
+      ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id), ctx.deps.chat?.muteOf(ctx.user.id) ?? null)
       : null;
     return { user: ctx.deps.users.ref(ctx.user.id), player, locale: ctx.user.locale };
+  }),
+
+  chat: router({
+    send: playerProcedure.input(z.object({ text: z.string().max(2000) })).mutation(({ ctx, input }) => chatOf(ctx.deps).send(ctx.user, input.text)),
   }),
 
   settings: router({
@@ -74,6 +84,27 @@ export const appRouter = router({
       adjust: adminProcedure
         .input(z.object({ userId, changes: z.object({ coins: delta, bomb: delta, detector: delta, defuser: delta }), comment: note }))
         .mutation(({ ctx, input }) => ctx.deps.admin.adjust(ctx.user, input)),
+    }),
+    chat: router({
+      mute: adminProcedure
+        .input(z.object({ userId, until: z.union([z.number().int().positive().max(8_640_000_000_000_000), z.literal("permanent")]), reason: note }))
+        .mutation(({ ctx, input }) => chatOf(ctx.deps).mute(ctx.user, input)),
+      unmute: adminProcedure.input(z.object({ userId, reason: note })).mutation(({ ctx, input }) => chatOf(ctx.deps).unmute(ctx.user, input)),
+      delete: adminProcedure
+        .input(z.object({ id: z.number().int().positive() }))
+        .mutation(({ ctx, input }) => chatOf(ctx.deps).deleteMessage(ctx.user, input.id)),
+      deleteRecent: adminProcedure
+        .input(
+          z.object({
+            userId,
+            periodMs: z
+              .number()
+              .int()
+              .positive()
+              .max(30 * 86_400_000),
+          }),
+        )
+        .mutation(({ ctx, input }) => chatOf(ctx.deps).deleteRecent(ctx.user, input)),
     }),
     // `cursor` is the useInfiniteQuery input name; the service calls it `before`.
     canvas: router({

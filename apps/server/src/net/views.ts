@@ -1,10 +1,17 @@
-import { CHUNK_SIZE, DAY_MS, type ChunkDelta, type GameConfig, type PlaceResultView, type PlayerView, type ServerMessage } from "@rave/shared";
+import { CHUNK_SIZE, DAY_MS, type ChunkDelta, type GameConfig, type PlaceResultView, type PlayerView, type FeedMessage } from "@rave/shared";
 import { accessBlocks } from "../engine/access";
 import { chargeCap, settleCharges } from "../engine/charges";
 import type { EngineEvent, PlaceResult, PlayerState } from "../engine/types";
 import type { UserDirectory } from "./user-directory";
 
-export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlimited: boolean): PlayerView {
+/** Chat mute of one player: `until` is epoch ms, Infinity = permanent. */
+export interface ChatMute {
+  until: number;
+  reason: string | null;
+}
+
+export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlimited: boolean, chatMute: ChatMute | null = null): PlayerView {
+  const muted = chatMute !== null && chatMute.until > now;
   const settled = { ...p };
   settleCharges(settled, cfg, now);
   const blocks = accessBlocks(p, cfg, now);
@@ -23,6 +30,8 @@ export function toPlayerView(p: PlayerState, cfg: GameConfig, now: number, unlim
     banReason: blocks.includes("banned") ? p.banReason : null,
     playableAt: blocks.includes("account_too_new") ? p.accountCreatedAt + cfg.access.minAccountAgeDays * DAY_MS : null,
     unlimited,
+    chatMutedUntil: !muted ? null : Number.isFinite(chatMute.until) ? chatMute.until : "permanent",
+    chatMuteReason: muted ? chatMute.reason : null,
     serverNow: now,
   };
 }
@@ -73,8 +82,6 @@ export function buildChunkDeltas(events: EngineEvent[], versions: ChunkVersions)
     cells: [...cells].map(([index, colorId]) => ({ index, colorId })),
   }));
 }
-
-type FeedMessage = Extract<ServerMessage, { type: "feed" }>;
 
 /** Feed entries carry who and whose bomb — never where. */
 export function buildFeed(events: EngineEvent[], users: UserDirectory): FeedMessage[] {

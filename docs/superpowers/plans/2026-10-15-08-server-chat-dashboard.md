@@ -42,18 +42,18 @@
 
 ## 8b. Чат
 
-- [ ] Миграция: `chat_messages` (`id bigserial`, `season_id`, `user_id`, `text`, `created_at`, `deleted_at`, `deleted_by`; индексы `(season_id, id)`, `(user_id, created_at)`), `users.chat_muted_until`, `users.chat_mute_reason`.
-- [ ] `MOD_ACTIONS` += `chat_mute`, `chat_unmute`, `chat_delete`.
-- [ ] `chat/service.ts` — `ChatService`:
+- [x] Миграция: `chat_messages` (`id bigserial`, `season_id`, `user_id`, `text`, `created_at`, `deleted_at`, `deleted_by`; индексы `(season_id, id)`, `(user_id, created_at)`), `users.chat_muted_until`, `users.chat_mute_reason`.
+- [x] `MOD_ACTIONS` += `chat_mute`, `chat_unmute`, `chat_delete`.
+- [x] `chat/service.ts` — `ChatService`:
   - `send(user, text)`: нормализация (обрезка, переводы строк → пробел), проверки `chat_disabled` / `empty` / `too_long` / `no_access` (бан, гильдия, возраст — как у игры) / `muted` / `cooldown` (в памяти, по `cooldownMs`); вставка; рассылка через Hub;
   - отключения чата: кэш `Map<userId, { until, reason }>` из БД при старте; `mute`, `unmute` (БД + `mod_log` в одной транзакции, затем кэш и новый `player` игроку);
   - `deleteMessage(admin, id)`, `deleteRecent(admin, userId, sinceMs)`: `deleted_at`, `mod_log`, рассылка `chat_deleted`;
   - ночная очистка старше `retentionDays` (раз в час проверка, как чистка сессий).
-- [ ] Протокол (`@rave/shared`): `ChatMessage = { type: "chat"; id; author: UserRef; text; at }`, `{ type: "chat_deleted"; ids }`, `timeline_history` вместо `feed_history`; `PlayerView` += `chatMutedUntil: number | "permanent" | null`, `chatMuteReason`; `PROTOCOL_VERSION = 3`.
-- [ ] Hub: общая лента (события и сообщения) размером `chat.historySize`; `timeline_history` после `hello`; `publishChat`, `publishChatDeleted`; восстановление ленты при старте из `bombs` и `chat_messages` (`chat/timeline.ts`).
-- [ ] tRPC: `chat.send` (playerProcedure), `admin.chat.mute` / `unmute` / `delete` / `deleteRecent`. В `admin.players.get` — состояние чата.
-- [ ] Клиент (минимально, чтобы не сломался): `timeline_history` → события в текущую ленту, `chat`/`chat_deleted` пока игнорируются.
-- [ ] Тесты: все коды отказа `send`, нормализация, кулдаун, отключение и возврат чата, удаление и рассылка, история при подключении (порядок, размер), восстановление после рестарта, очистка по сроку, протокол v3.
+- [x] Протокол (`@rave/shared`): `ChatMessage = { type: "chat"; id; author: UserRef; text; at }`, `{ type: "chat_deleted"; ids }`, `timeline_history` вместо `feed_history`; `PlayerView` += `chatMutedUntil: number | "permanent" | null`, `chatMuteReason`; `PROTOCOL_VERSION = 3`.
+- [x] Hub: общая лента (события и сообщения) размером `chat.historySize`; `timeline_history` после `hello`; `publishChat`, `publishChatDeleted`; восстановление ленты при старте из `bombs` и `chat_messages` (`chat/timeline.ts`).
+- [x] tRPC: `chat.send` (playerProcedure), `admin.chat.mute` / `unmute` / `delete` / `deleteRecent`. В `admin.players.get` — состояние чата.
+- [x] Клиент (минимально, чтобы не сломался): `timeline_history` → события в текущую ленту, `chat`/`chat_deleted` пока игнорируются.
+- [x] Тесты: все коды отказа `send`, нормализация, кулдаун, отключение и возврат чата, удаление и рассылка, история при подключении (порядок, размер), восстановление после рестарта, очистка по сроку, протокол v3.
 
 ## 8c. Дашборд и список игроков
 

@@ -237,7 +237,8 @@ export class CanvasSession implements CanvasPort {
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
     else if (message.type === "feed") feedStore.getState().push(message);
-    else if (message.type === "feed_history") feedStore.getState().replace(message.entries);
+    // Chat messages arrive already (protocol 3); the current UI shows only game events until the chat UI lands.
+    else if (message.type === "timeline_history") feedStore.getState().replace(message.entries.filter((e) => e.type === "feed"));
   }
 
   private zoomLimits(canvas: CanvasSize): ZoomLimits {

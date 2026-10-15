@@ -3,6 +3,7 @@ import { CHUNK_SIZE, decodeChunkBody, decodeChunkDelta, decodeOverview, encodePl
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
 import { isAdmin } from "../auth/admin";
+import type { SessionUser } from "../auth/session";
 import type { DiscordConfig, FetchFn } from "../auth/discord";
 import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
@@ -15,6 +16,7 @@ import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
+import { ChatService } from "../chat/service";
 import { Metrics } from "./metrics";
 import { KeyedRateLimiter } from "./rate-limit";
 import { startServer } from "./server";
@@ -28,6 +30,7 @@ let hub: Hub;
 let server: Server<SocketData>;
 let base = "";
 let metrics: Metrics;
+let chat: ChatService;
 const sockets: WebSocket[] = [];
 
 async function start(
@@ -64,12 +67,14 @@ async function start(
     runtime,
     users,
     metrics,
+    chatMute: (id) => chat.muteOf(id),
     onlineDebounceMs: 10,
     isAdmin: (u) => isAdmin(u.discordId, config),
     ensurePlayer: (u) => ensurePlayer({ db: t.db, runtime, accessQueue }, u),
     ...options.hub,
   });
   hubRef = hub;
+  chat = await ChatService.load({ db: t.db, runtime, hub, users, isAdmin: (id) => isAdmin(id, config) });
   const stats = new StatsService(t.db, runtime, users);
   const admin = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
   server = startServer({
@@ -82,6 +87,7 @@ async function start(
     admin,
     accessQueue,
     metrics,
+    chat,
     fetch: options.fetch,
     ipLimiter: options.ipLimiter,
     staticLimiter: options.staticLimiter,
@@ -369,14 +375,15 @@ describe("websocket", () => {
     await waitFor(() => bob.json.find((m) => m.type === "feed"));
 
     const late = await connect();
-    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
     expect(late.json[0]?.type).toBe("hello");
     expect(history.entries).toHaveLength(1);
     expect(history.entries[0]).toMatchObject({ type: "feed", kind: "exploded", actor: { name: "bob" }, owner: { name: "alice" } });
     expect(Object.keys(history.entries[0]!).sort()).toEqual(["actor", "at", "kind", "owner", "type"]);
   });
 
-  test("the feed history keeps the latest 20 entries", async () => {
+  test("the timeline keeps the latest chat.historySize entries", async () => {
+    runtime.engine.config.chat.historySize = 20;
     const owner = await connect(await login("owner"));
     const victim = await connect(await login("victim"));
     for (let i = 0; i < 22; i++) {
@@ -401,7 +408,7 @@ describe("websocket", () => {
     });
     expect(new Set(live.map((m) => m.at)).size).toBe(22);
     const late = await connect();
-    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
     expect(history.entries).toHaveLength(20);
     expect(history.entries).toEqual(live.slice(-20));
   });
@@ -735,5 +742,42 @@ describe("trpc over http", () => {
     expect(await data(res)).toEqual({ ok: true, found: true, reward: 20 });
     const feed = await waitFor(() => viewer.json.find((m) => m.type === "feed"));
     expect(feed).toMatchObject({ kind: "defused", actor: { name: "alice" }, owner: { name: "bob" } });
+  });
+
+  test("chat: a message reaches everyone, joins the timeline, and a deletion is broadcast", async () => {
+    const aliceCookie = await login("alice");
+    await connect(aliceCookie);
+    const viewer = await connect();
+    expect(await data(await post("chat.send", { text: "hello\nworld" }, { Cookie: aliceCookie, Origin: ORIGIN }))).toMatchObject({ ok: true });
+    const live = await waitFor(() => viewer.json.find((m): m is Extract<ServerMessage, { type: "chat" }> => m.type === "chat"));
+    expect(live).toMatchObject({ author: { name: "alice" }, text: "hello world" });
+    expect(Object.keys(live).sort()).toEqual(["at", "author", "id", "text", "type"]);
+
+    const late = await connect();
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
+    expect(history.entries).toEqual([live]);
+
+    // The service is what admin.chat.delete calls; the HTTP route is covered by the router tests.
+    const mod: SessionUser = {
+      id: live.author.id,
+      username: "mod",
+      discordCreatedAt: 0,
+      bannedUntil: null,
+      guildMember: true,
+      discordId: "mod",
+      banReason: null,
+      locale: null,
+      sessionId: "x",
+    };
+    await chat.deleteMessage(mod, live.id);
+    expect(await waitFor(() => viewer.json.find((m) => m.type === "chat_deleted"))).toEqual({ type: "chat_deleted", ids: [live.id] });
+    const later = await connect();
+    const after = await waitFor(() => later.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
+    expect(after.entries).toEqual([]);
+  });
+
+  test("chat: guests cannot send", async () => {
+    const res = await post("chat.send", { text: "hi" }, { Origin: ORIGIN });
+    expect(res.status).toBe(401);
   });
 });

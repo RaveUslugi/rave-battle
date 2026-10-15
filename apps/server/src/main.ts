@@ -4,6 +4,8 @@ import { isAdmin } from "./auth/admin";
 import { ensurePlayer } from "./auth/ensure-player";
 import { restoreDevAdmin } from "./auth/dev-admin";
 import { deleteExpiredSessions } from "./auth/session";
+import { ChatService } from "./chat/service";
+import { loadTimeline } from "./chat/timeline";
 import { createDb } from "./db/client";
 import { runMigrations } from "./db/migrate";
 import { acquireWriterLock } from "./db/writer-lock";
@@ -41,16 +43,24 @@ async function main(): Promise<void> {
   });
   if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
   const accessQueue = new AccessQueue();
+  let chat: ChatService | undefined;
   hub = new Hub({
     runtime,
     users,
     isAdmin: (u) => isAdmin(u.discordId, config),
     ensurePlayer: (u) => ensurePlayer({ db, runtime, accessQueue }, u),
     metrics,
+    chatMute: (userId) => chat?.muteOf(userId) ?? null,
   });
+  const chatService = await ChatService.load({ db, runtime, hub, users, metrics, isAdmin: (id) => isAdmin(id, config) });
+  chat = chatService;
+  hub.seedTimeline(await loadTimeline(db, runtime.season, users, runtime.engine.config.chat.historySize));
+  const purgeChat = () => chatService.purge().catch((error) => console.error("Chat cleanup failed", error));
+  await purgeChat();
+  setInterval(purgeChat, 60 * 60 * 1000).unref();
   const stats = new StatsService(db, runtime, users);
   const admin = new AdminService({ db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
-  const server = startServer({ db, runtime, hub, users, config, stats, admin, accessQueue, metrics });
+  const server = startServer({ db, runtime, hub, users, config, stats, admin, accessQueue, metrics, chat: chatService });
   console.log(`Rave Battle server listening on :${server.port}`);
 
   let shuttingDown = false;

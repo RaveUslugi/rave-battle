@@ -21,6 +21,8 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   banReason: null,
   playableAt: null,
   unlimited: false,
+  chatMutedUntil: null,
+  chatMuteReason: null,
   serverNow: NOW,
   ...overrides,
 });

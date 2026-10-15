@@ -90,6 +90,13 @@ describe("appRouter", () => {
     await expect(as(alice).settings.setLocale({ locale: "de" as "en" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  test("chat procedures: admin ones need an admin, all need the chat service", async () => {
+    await expect(as(alice).admin.chat.delete({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.chat.mute({ userId: bob.id, until: "permanent", reason: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    // These tests build deps without a ChatService.
+    await expect(as(alice).chat.send({ text: "hi" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+
   test("admin.whoami reports admin rights from the server config", async () => {
     expect(await as(null).admin.whoami()).toEqual({ admin: false });
     expect(await as(alice).admin.whoami()).toEqual({ admin: false });
