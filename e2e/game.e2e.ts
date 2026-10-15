@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { defaultConfig } from "../packages/shared/src/config/defaults";
-import { COLOR_ID, canvasOf, expectCenter, hexToRgb, openAs } from "./helpers";
+import { COLOR_ID, canvasOf, closeAll, expectCenter, hexToRgb, openAs } from "./helpers";
+
+test.afterEach(closeAll);
 
 test("a pixel placed by one player shows up for another in real time", async ({ browser }) => {
   const entry = defaultConfig.palette.find((e) => e.id === COLOR_ID);

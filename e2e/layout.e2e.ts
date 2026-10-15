@@ -1,6 +1,8 @@
 import { expect, type Locator, test } from "@playwright/test";
 import { defaultConfig } from "../packages/shared/src/config/defaults";
-import { canvasOf, centerPixel, expectCenter, hexToRgb, isClose, openAs } from "./helpers";
+import { canvasOf, closeAll, centerPixel, expectCenter, hexToRgb, isClose, openAs } from "./helpers";
+
+test.afterEach(closeAll);
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -57,7 +59,7 @@ test("desktop: a section opens next to the rail and Esc closes it", async ({ bro
 
 test("phone 390×844: tap, confirm, and the pixel shows up for another player", async ({ browser }) => {
   const view = "/?x=120.5&y=120.5&z=24";
-  const phone = await openAs(browser, "e2e_phone", { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, view);
+  const phone = await openAs(browser, "e2e_phone", { viewport: { width: 390, height: 844 }, hasTouch: true }, view);
   const watcher = await openAs(browser, "e2e_watch", {}, view);
 
   await expectApart({

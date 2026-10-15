@@ -1,4 +1,4 @@
-import { type Browser, type BrowserContextOptions, expect, type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, type BrowserContextOptions, expect, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
 export const COLOR_ID = 5;
@@ -64,11 +64,27 @@ export async function expectCenter(page: Page, expected: number[], timeout = 20_
   }
 }
 
+const contexts: BrowserContext[] = [];
+
+/** Closes every browser opened with `openAs`: each one holds a socket, and the server limits sockets per IP. */
+export async function closeAll(): Promise<void> {
+  await Promise.all(contexts.splice(0).map((c) => c.close()));
+}
+
+/** Logs in as a dev account and opens the game; fails with the page's console errors if it never connects. */
 export async function openAs(browser: Browser, name: string, options: BrowserContextOptions = {}, view = VIEW): Promise<Page> {
   const context = await browser.newContext(options);
+  contexts.push(context);
   const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`/auth/dev?name=${name}`);
   await page.goto(view);
-  await expect(page.getByTestId("status")).toContainText("онлайн", { timeout: 15_000 });
+  try {
+    await expect(page.getByTestId("status")).toContainText("онлайн", { timeout: 15_000 });
+  } catch (error) {
+    throw new Error(`${name} did not connect; console: ${errors.join(" | ") || "no errors"}`, { cause: error });
+  }
   return page;
 }
