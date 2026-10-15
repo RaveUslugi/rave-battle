@@ -1,10 +1,9 @@
 import type { ChunkDelta, GameConfig } from "@rave/shared/client";
 import type { Timers } from "../net/socket";
 import { ChunkSync, type SyncAction } from "./chunk-sync";
-import { buildPaletteLut } from "./palette";
 
 export interface Renderer {
-  setPalette(lut: Uint8Array): void;
+  setPalette(palette: GameConfig["palette"]): void;
   setCanvasSize(width: number, height: number): void;
   replaceChunk(cx: number, cy: number, colors: Uint8Array): void;
   applyCells(cx: number, cy: number, cells: ChunkDelta["cells"]): void;
@@ -61,7 +60,7 @@ export class CanvasController {
 
   /** Palette and canvas size of the live config; loaded chunks stay. */
   onConfig(config: GameConfig): void {
-    this.deps.renderer.setPalette(buildPaletteLut(config.palette));
+    this.deps.renderer.setPalette(config.palette);
     this.deps.renderer.setCanvasSize(config.canvas.width, config.canvas.height);
   }
 

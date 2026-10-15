@@ -1,16 +1,39 @@
-import { CHUNK_SIZE, type Rect } from "@rave/shared/client";
-import { Application, BufferImageSource, Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { CHUNK_SIZE, type PaletteEntry, type Rect } from "@rave/shared/client";
+import {
+  Application,
+  BufferImageSource,
+  Container,
+  Graphics,
+  Mesh,
+  type MeshGeometry,
+  RendererType,
+  type Shader,
+  Sprite,
+  Text,
+  TextStyle,
+  Texture,
+  type WebGLRenderer,
+} from "pixi.js";
 import { readingAlpha, type Reading } from "../state/readings-store";
 import type { Renderer } from "./controller";
-import { paintCell, paintRgba } from "./palette";
+import { chunkGeometry, chunkShader, EffectPalette, effectsSupported, indexSource } from "./effect-shader";
+import { buildEffectTables, countMoving, type EffectTables, effectPhases } from "./effect-tables";
+import { buildPaletteLut, paintCell, paintRgba } from "./palette";
 import { readingColor, visibleReadings } from "./reading-view";
 import type { Camera } from "./viewport";
 
+/**
+ * A loaded chunk. With effects the GPU gets the palette indices themselves (r8) and a shader colours
+ * them; without (fallback), indices are turned into an RGBA buffer on the CPU using `base` colours.
+ */
 interface ChunkView {
   colors: Uint8Array;
-  rgba: Uint8Array;
+  /** Fallback only. */
+  rgba: Uint8Array | null;
   source: BufferImageSource;
-  sprite: Sprite;
+  view: Sprite | Mesh<MeshGeometry, Shader>;
+  /** Cells whose colour moves over time (effects only). */
+  moving: number;
 }
 
 const GRID_MIN_ZOOM = 12;
@@ -62,6 +85,14 @@ export class PixiRenderer implements Renderer {
   private readonly chunks = new Map<string, ChunkView>();
   private readonly dirty = new Set<ChunkView>();
   private lut: Uint8Array = new Uint8Array(256 * 4);
+  private palette: PaletteEntry[] = [];
+  private tables: EffectTables = buildEffectTables([]);
+  /** Null when effects are unavailable and chunks are drawn from RGBA buffers. */
+  private effects: EffectPalette | null = null;
+  private geometry: MeshGeometry | null = null;
+  /** Whether the last phase upload was the frozen (reduced motion) one. */
+  private phasesFrozen = false;
+  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private canvasSize = { width: 0, height: 0 };
   private camera: Camera = { x: 0, y: 0, zoom: 1 };
   private state: "new" | "initializing" | "ready" | "destroyed" = "new";
@@ -71,6 +102,7 @@ export class PixiRenderer implements Renderer {
     if (this.state !== "new") throw new Error("PixiRenderer.init called twice");
     this.state = "initializing";
     await this.app.init({
+      preference: "webgl",
       resizeTo: host,
       background: "#0b0a12",
       antialias: false,
@@ -78,15 +110,25 @@ export class PixiRenderer implements Renderer {
       resolution: window.devicePixelRatio || 1,
     });
     this.state = "ready";
+    if (this.app.renderer.type === RendererType.WEBGL && effectsSupported((this.app.renderer as WebGLRenderer).gl)) {
+      this.effects = new EffectPalette(this.tables);
+      this.geometry = chunkGeometry();
+    }
     host.appendChild(this.app.canvas);
     this.world.addChild(this.board);
     this.app.stage.addChild(this.world, this.grid, this.readingsLayer, this.overlay, this.fx);
     this.app.ticker.add(() => {
       this.flush();
+      this.tickPhases();
       this.tickFlashes();
     });
     // Context loss needs no handling here: on `webglcontextrestored` Pixi drops its GPU textures and
-    // re-uploads each source from its CPU buffer (our `rgba`) the next time it is drawn.
+    // re-uploads each source from its CPU buffer (`colors`, `rgba`, the palette tables) the next time it is drawn.
+  }
+
+  /** True when chunks are drawn by the effect shader rather than from RGBA buffers. */
+  get effectsEnabled(): boolean {
+    return this.effects !== null;
   }
 
   get canvasElement(): HTMLCanvasElement {
@@ -112,6 +154,8 @@ export class PixiRenderer implements Renderer {
     this.state = "destroyed";
     this.chunks.clear();
     this.dirty.clear();
+    this.effects?.destroy();
+    this.geometry?.destroy();
     this.app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true, context: true });
   }
 
@@ -120,11 +164,19 @@ export class PixiRenderer implements Renderer {
     return this.state === "ready";
   }
 
-  setPalette(lut: Uint8Array): void {
-    this.lut = lut;
+  setPalette(palette: PaletteEntry[]): void {
+    this.palette = palette;
+    this.lut = buildPaletteLut(palette);
+    this.tables = buildEffectTables(palette);
+    this.effects?.setTables(this.tables);
+    this.phasesFrozen = false;
     for (const chunk of this.chunks.values()) {
-      paintRgba(chunk.colors, lut, chunk.rgba);
-      this.dirty.add(chunk);
+      if (chunk.rgba) {
+        paintRgba(chunk.colors, this.lut, chunk.rgba);
+        this.dirty.add(chunk);
+      } else {
+        chunk.moving = countMoving(chunk.colors, this.tables.moving);
+      }
     }
     // Pending pixels are drawn with palette colors too.
     this.drawOverlay();
@@ -141,16 +193,19 @@ export class PixiRenderer implements Renderer {
     if (this.state !== "ready") return;
     const chunk = this.chunks.get(`${cx}:${cy}`) ?? this.createChunk(cx, cy);
     chunk.colors.set(colors);
-    paintRgba(chunk.colors, this.lut, chunk.rgba);
+    if (chunk.rgba) paintRgba(chunk.colors, this.lut, chunk.rgba);
+    else chunk.moving = countMoving(chunk.colors, this.tables.moving);
     this.dirty.add(chunk);
   }
 
   applyCells(cx: number, cy: number, cells: Array<{ index: number; colorId: number }>): void {
     const chunk = this.chunks.get(`${cx}:${cy}`);
     if (!chunk) return;
+    const moving = this.tables.moving;
     for (const cell of cells) {
+      chunk.moving += (moving[cell.colorId] ?? 0) - (moving[chunk.colors[cell.index] ?? 0] ?? 0);
       chunk.colors[cell.index] = cell.colorId;
-      paintCell(cell.index, cell.colorId, this.lut, chunk.rgba);
+      if (chunk.rgba) paintCell(cell.index, cell.colorId, this.lut, chunk.rgba);
     }
     this.dirty.add(chunk);
   }
@@ -161,7 +216,14 @@ export class PixiRenderer implements Renderer {
     if (!chunk) return;
     this.dirty.delete(chunk);
     this.chunks.delete(key);
-    chunk.sprite.destroy({ texture: true, textureSource: true });
+    if (chunk.view instanceof Mesh) {
+      const shader = chunk.view.shader;
+      chunk.view.destroy();
+      shader?.destroy();
+      chunk.source.destroy();
+    } else {
+      chunk.view.destroy({ texture: true, textureSource: true });
+    }
   }
 
   dropAll(): void {
@@ -229,13 +291,19 @@ export class PixiRenderer implements Renderer {
 
   private createChunk(cx: number, cy: number): ChunkView {
     const colors = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
-    const rgba = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
-    // A Uint8Array defaults to "bgra8unorm" in Pixi; our bytes are RGBA.
-    const source = new BufferImageSource({ resource: rgba, width: CHUNK_SIZE, height: CHUNK_SIZE, format: "rgba8unorm", scaleMode: "nearest" });
-    const sprite = new Sprite(new Texture({ source }));
-    sprite.position.set(cx * CHUNK_SIZE, cy * CHUNK_SIZE);
-    this.world.addChild(sprite);
-    const chunk = { colors, rgba, source, sprite };
+    let chunk: ChunkView;
+    if (this.effects && this.geometry) {
+      const source = indexSource(colors);
+      const view = new Mesh({ geometry: this.geometry, shader: chunkShader(source, this.effects, cx, cy) });
+      chunk = { colors, rgba: null, source, view, moving: 0 };
+    } else {
+      const rgba = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * 4);
+      // A Uint8Array defaults to "bgra8unorm" in Pixi; our bytes are RGBA.
+      const source = new BufferImageSource({ resource: rgba, width: CHUNK_SIZE, height: CHUNK_SIZE, format: "rgba8unorm", scaleMode: "nearest" });
+      chunk = { colors, rgba, source, view: new Sprite(new Texture({ source })), moving: 0 };
+    }
+    chunk.view.position.set(cx * CHUNK_SIZE, cy * CHUNK_SIZE);
+    this.world.addChild(chunk.view);
     this.chunks.set(`${cx}:${cy}`, chunk);
     return chunk;
   }
@@ -356,6 +424,22 @@ export class PixiRenderer implements Renderer {
         .circle(origin.x + (f.x + 0.5) * zoom, origin.y + (f.y + 0.5) * zoom, radius)
         .stroke({ width: f.still ? 3 : 1 + 3 * (1 - t), color: FLASH_COLOR, alpha: 1 - t });
     }
+  }
+
+  /**
+   * Advances effect colours while any loaded chunk shows a moving one (the controller keeps only
+   * visible chunks loaded). With reduced motion every effect is drawn at time 0, uploaded once.
+   */
+  private tickPhases(): void {
+    if (!this.effects) return;
+    let moving = false;
+    for (const chunk of this.chunks.values()) if (chunk.moving > 0) moving = true;
+    if (!moving) return;
+    const frozen = this.reducedMotion.matches;
+    if (frozen && this.phasesFrozen) return;
+    effectPhases(this.palette, frozen ? 0 : performance.now(), this.effects.phaseValues);
+    this.effects.phases.update();
+    this.phasesFrozen = frozen;
   }
 
   /** Re-uploads changed chunk buffers once per frame (`update()` re-reads the same `rgba` array). */
