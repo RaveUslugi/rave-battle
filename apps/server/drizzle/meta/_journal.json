@@ -36,6 +36,13 @@
       "when": 1792080439911,
       "tag": "0004_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792081336746,
+      "tag": "0005_stats_hourly",
+      "breakpoints": true
     }
   ]
 }

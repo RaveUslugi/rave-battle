@@ -97,6 +97,13 @@ describe("appRouter", () => {
     await expect(as(alice).chat.send({ text: "hi" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
+  test("dashboard and the player table are for admins", async () => {
+    await expect(as(alice).admin.dashboard({ period: "24h" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.players.list({})).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const admin = sessionUser(99, "admin");
+    await expect(as(admin).admin.dashboard({ period: "24h" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+
   test("admin.whoami reports admin rights from the server config", async () => {
     expect(await as(null).admin.whoami()).toEqual({ admin: false });
     expect(await as(alice).admin.whoami()).toEqual({ admin: false });

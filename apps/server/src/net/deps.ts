@@ -1,4 +1,6 @@
 import type { AccessQueue } from "../admin/access-queue";
+import type { DashboardService } from "../admin/dashboard";
+import type { PlayerListService } from "../admin/players";
 import type { AdminService } from "../admin/service";
 import type { ChatService } from "../chat/service";
 import type { FetchFn } from "../auth/discord";
@@ -21,6 +23,9 @@ export interface AppDeps {
   admin: AdminService;
   /** One chain per user for everything touching access: ban, unban, first join. */
   accessQueue: AccessQueue;
+  /** Admin dashboard and player table; their procedures answer PRECONDITION_FAILED without them. */
+  dashboard?: DashboardService;
+  playerList?: PlayerListService;
   /** Text chat; chat procedures answer PRECONDITION_FAILED without it. */
   chat?: ChatService;
   /** Served at GET /metrics when present. */

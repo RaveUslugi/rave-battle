@@ -161,7 +161,11 @@ export const pixelEvents = pgTable(
     kind: text("kind").$type<"place" | "mod_rollback" | "mod_clear">().notNull(),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("pixel_events_user_idx").on(t.seasonId, t.userId, t.createdAt), index("pixel_events_cell_idx").on(t.seasonId, t.x, t.y, t.id)],
+  (t) => [
+    index("pixel_events_user_idx").on(t.seasonId, t.userId, t.createdAt),
+    index("pixel_events_cell_idx").on(t.seasonId, t.x, t.y, t.id),
+    index("pixel_events_time_idx").on(t.seasonId, t.createdAt),
+  ],
 );
 
 export const bombs = pgTable(
@@ -221,6 +225,34 @@ export const chatMessages = pgTable(
     deletedBy: integer("deleted_by").references(() => users.id),
   },
   (t) => [index("chat_messages_season_idx").on(t.seasonId, t.id), index("chat_messages_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Server-wide activity per clock hour, for the admin dashboard. Coins are split by where they came from or went. */
+export const statsHourly = pgTable(
+  "stats_hourly",
+  {
+    seasonId: integer("season_id")
+      .notNull()
+      .references(() => seasons.id),
+    hour: ts("hour").notNull(),
+    pixels: integer("pixels").notNull().default(0),
+    explosions: integer("explosions").notNull().default(0),
+    defuses: integer("defuses").notNull().default(0),
+    onlinePeak: integer("online_peak").notNull().default(0),
+    mintedPixels: integer("minted_pixels").notNull().default(0),
+    mintedDaily: integer("minted_daily").notNull().default(0),
+    mintedBombBonus: integer("minted_bomb_bonus").notNull().default(0),
+    mintedDefuse: integer("minted_defuse").notNull().default(0),
+    mintedAdmin: integer("minted_admin").notNull().default(0),
+    spentBomb: integer("spent_bomb").notNull().default(0),
+    spentDetector: integer("spent_detector").notNull().default(0),
+    spentDefuser: integer("spent_defuser").notNull().default(0),
+    spentColor: integer("spent_color").notNull().default(0),
+    spentBoost: integer("spent_boost").notNull().default(0),
+    spentPenalty: integer("spent_penalty").notNull().default(0),
+    spentAdmin: integer("spent_admin").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.seasonId, t.hour] })],
 );
 
 export const gameConfig = pgTable("game_config", {

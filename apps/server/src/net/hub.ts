@@ -48,6 +48,8 @@ export interface HubOptions {
   /** Puts the user's player into the engine on connect; without it, players must already be there. */
   ensurePlayer?: (user: SessionUser) => Promise<void>;
   metrics?: Metrics;
+  /** Called with every online count broadcast (dashboard peak). */
+  onOnline?: (count: number) => void;
   /** Current chat mute of a user, for their player view. */
   chatMute?: (userId: number) => ChatMute | null;
 }
@@ -114,6 +116,11 @@ export class Hub {
     this.timeline.push(entry);
     const extra = this.timeline.length - this.historySize();
     if (extra > 0) this.timeline.splice(0, extra);
+  }
+
+  /** Open global subscriptions: everyone watching, logged in or not (what players see as "online"). */
+  onlineCount(): number {
+    return this.server?.subscriberCount(GLOBAL_TOPIC) ?? 0;
   }
 
   /** Users with at least one ready socket. */
@@ -318,6 +325,7 @@ export class Hub {
       if (!server) return;
       const count = server.subscriberCount(GLOBAL_TOPIC);
       server.publish(GLOBAL_TOPIC, JSON.stringify({ type: "online", count } satisfies ServerMessage));
+      this.options.onOnline?.(count);
     }, this.onlineDebounceMs);
   }
 }

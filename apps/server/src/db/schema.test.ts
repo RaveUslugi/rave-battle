@@ -24,6 +24,7 @@ test("migrations create every table of the spec", async () => {
     "seasons",
     "sessions",
     "stats_daily",
+    "stats_hourly",
     "unlocked_colors",
     "users",
   ]);

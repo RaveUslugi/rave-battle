@@ -5,6 +5,8 @@ import { z } from "zod";
 import { isAdmin } from "../auth/admin";
 import { users } from "../db/schema";
 import { MOD_ACTIONS } from "../engine/types";
+import { DASHBOARD_PERIODS } from "../admin/dashboard";
+import { PLAYER_FILTERS, PLAYER_SORTS } from "../admin/players";
 import type { ChatService } from "../chat/service";
 import type { AppDeps } from "../net/deps";
 import { toPlayerView } from "../net/views";
@@ -13,10 +15,12 @@ import { adminProcedure, playerProcedure, publicProcedure, router, userProcedure
 
 const TOP = 50;
 
-function chatOf(deps: AppDeps): ChatService {
-  if (!deps.chat) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Chat is not available" });
-  return deps.chat;
+function need<T>(service: T | undefined, what: string): T {
+  if (!service) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${what} is not available` });
+  return service;
 }
+
+const chatOf = (deps: AppDeps): ChatService => need(deps.chat, "Chat");
 
 /** Counts the action in the metrics once the engine answered. */
 async function tracked<T extends { ok: boolean; code?: string }>(deps: AppDeps, type: string, result: Promise<T>): Promise<T> {
@@ -70,7 +74,20 @@ export const appRouter = router({
 
   admin: router({
     whoami: publicProcedure.query(({ ctx }) => ({ admin: ctx.user !== null && isAdmin(ctx.user.discordId, ctx.deps.config) })),
+    dashboard: adminProcedure
+      .input(z.object({ period: z.enum(DASHBOARD_PERIODS) }))
+      .query(({ ctx, input }) => need(ctx.deps.dashboard, "dashboard").get(input.period)),
     players: router({
+      list: adminProcedure
+        .input(
+          z.object({
+            filter: z.enum(PLAYER_FILTERS).default("all"),
+            sort: z.enum(PLAYER_SORTS).default("pixels7d"),
+            dir: z.enum(["asc", "desc"]).default("desc"),
+            page: z.number().int().min(0).max(10_000).default(0),
+          }),
+        )
+        .query(({ ctx, input }) => need(ctx.deps.playerList, "player list").list(input)),
       search: adminProcedure.input(z.object({ q: z.string().trim().min(1).max(64) })).query(({ ctx, input }) => ctx.deps.admin.search(input.q)),
       get: adminProcedure.input(z.object({ userId })).query(async ({ ctx, input }) => {
         const player = await ctx.deps.admin.player(input.userId);

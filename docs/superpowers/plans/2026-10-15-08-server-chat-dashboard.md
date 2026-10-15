@@ -57,11 +57,11 @@
 
 ## 8c. Дашборд и список игроков
 
-- [ ] Миграция: `stats_hourly` (`season_id`, `hour timestamptz`, `pixels`, `explosions`, `defuses`, `online_peak`, `minted_pixels`, `minted_daily`, `minted_bomb_bonus`, `minted_defuse`, `minted_admin`, `spent_bomb`, `spent_detector`, `spent_defuser`, `spent_color`, `spent_boost`, `spent_penalty`, `spent_admin`; PK `(season_id, hour)`); индекс `pixel_events (season_id, created_at)`.
-- [ ] `stats/hourly.ts` — `HourlyStats`: копит счётчики из закоммиченных событий (`onCommit`) и пик онлайна (Hub), раз в минуту и при остановке пишет upsert-ом (суммы — сложением, пик — `greatest`).
-- [ ] `admin.dashboard({ period: "1h" | "24h" | "7d" })`: онлайн сейчас и пик; пиксели, взрывы, обезвреживания; активные бомбы; монеты выпущено/потрачено по источникам и в обороте (сумма балансов в движке); ряд по часам; новые игроки и отклонённые по возрасту; топ-5 активных за час (пиксели, поставленные бомбы, подрывы); последние 5 записей `mod_log`; снимок метрик сервера. Перед запросом — сброс накопленного.
-- [ ] `admin.players.list({ filter, sort, dir, page })`: фильтры `all | online | banned | new | muted` со счётчиками, сортировка по пикселям за 7 дней, монетам, активным бомбам, последнему входу, имени; по 50 на страницу.
-- [ ] Тесты: агрегатор (события → колонки, пик, переживает рестарт), дашборд на синтетических данных, список игроков (каждый фильтр, сортировка, страницы).
+- [x] Миграция: `stats_hourly` (`season_id`, `hour timestamptz`, `pixels`, `explosions`, `defuses`, `online_peak`, `minted_pixels`, `minted_daily`, `minted_bomb_bonus`, `minted_defuse`, `minted_admin`, `spent_bomb`, `spent_detector`, `spent_defuser`, `spent_color`, `spent_boost`, `spent_penalty`, `spent_admin`; PK `(season_id, hour)`); индекс `pixel_events (season_id, created_at)`.
+- [x] `stats/hourly.ts` — `HourlyStats`: копит счётчики из закоммиченных событий (`onCommit`) и пик онлайна (Hub), раз в минуту и при остановке пишет upsert-ом (суммы — сложением, пик — `greatest`).
+- [x] `admin.dashboard({ period: "1h" | "24h" | "7d" })`: онлайн сейчас и пик; пиксели, взрывы, обезвреживания; активные бомбы; монеты выпущено/потрачено по источникам и в обороте (сумма балансов в движке); ряд по часам; новые игроки и отклонённые по возрасту; топ-5 активных за час (пиксели, поставленные бомбы, подрывы); последние 5 записей `mod_log`; снимок метрик сервера. Перед запросом — сброс накопленного.
+- [x] `admin.players.list({ filter, sort, dir, page })`: фильтры `all | online | banned | new | muted` со счётчиками, сортировка по пикселям за 7 дней, монетам, активным бомбам, последнему входу, имени; по 50 на страницу.
+- [x] Тесты: агрегатор (события → колонки, пик, переживает рестарт), дашборд на синтетических данных, список игроков (каждый фильтр, сортировка, страницы).
 
 ## Порядок и проверки
 
