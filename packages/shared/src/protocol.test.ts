@@ -19,8 +19,17 @@ describe("client frames", () => {
   });
 
   test("subscribe round-trips", () => {
-    const frame = encodeSubscribe([{ cx: 0, cy: 1 }, { cx: 2, cy: 3 }]);
-    expect(decodeClientMessage(frame)).toEqual({ op: ClientOp.Subscribe, chunks: [{ cx: 0, cy: 1 }, { cx: 2, cy: 3 }] });
+    const frame = encodeSubscribe([
+      { cx: 0, cy: 1 },
+      { cx: 2, cy: 3 },
+    ]);
+    expect(decodeClientMessage(frame)).toEqual({
+      op: ClientOp.Subscribe,
+      chunks: [
+        { cx: 0, cy: 1 },
+        { cx: 2, cy: 3 },
+      ],
+    });
   });
 
   test("decodes frames that are views into a larger buffer", () => {
@@ -43,7 +52,16 @@ describe("client frames", () => {
 
 describe("server frames", () => {
   test("chunk delta round-trips", () => {
-    const delta = { cx: 1, cy: 2, fromVersion: 9, toVersion: 10, cells: [{ index: 0, colorId: 5 }, { index: 65_535, colorId: 31 }] };
+    const delta = {
+      cx: 1,
+      cy: 2,
+      fromVersion: 9,
+      toVersion: 10,
+      cells: [
+        { index: 0, colorId: 5 },
+        { index: 65_535, colorId: 31 },
+      ],
+    };
     expect(decodeChunkDelta(encodeChunkDelta(delta))).toEqual(delta);
   });
 

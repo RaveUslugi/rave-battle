@@ -65,13 +65,7 @@ export function DailyTab() {
           );
         })}
       </ol>
-      <button
-        type="button"
-        className={styles.claim}
-        aria-disabled={blocked || undefined}
-        aria-busy={pending || undefined}
-        onClick={() => void claim()}
-      >
+      <button type="button" className={styles.claim} aria-disabled={blocked || undefined} aria-busy={pending || undefined} onClick={() => void claim()}>
         {claimedToday ? "Сегодня уже получено — приходите завтра" : pending ? "…" : "Забрать награду"}
       </button>
     </div>

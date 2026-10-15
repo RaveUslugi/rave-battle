@@ -48,11 +48,7 @@ describe("readings store", () => {
   test("expired and malformed entries are dropped on load and prune", () => {
     let now = READING_TTL_MS + 10;
     const storage = memoryStorage({
-      "rb:readings:1": JSON.stringify([
-        { x: 0, y: 0, count: 1, at: 5 },
-        { x: 1, y: 0, count: 1, at: READING_TTL_MS },
-        { x: "bad" },
-      ]),
+      "rb:readings:1": JSON.stringify([{ x: 0, y: 0, count: 1, at: 5 }, { x: 1, y: 0, count: 1, at: READING_TTL_MS }, { x: "bad" }]),
     });
     const store = createReadingsStore(storage, () => now);
     store.getState().setUser(1);
@@ -68,10 +64,18 @@ describe("readings store", () => {
     store.getState().setUser(1);
     expect(store.getState().readings).toEqual([]);
     const throwing: ReadingsStorage = {
-      getItem: () => { throw new Error("blocked"); },
-      setItem: () => { throw new Error("blocked"); },
-      removeItem: () => { throw new Error("blocked"); },
-      key: () => { throw new Error("blocked"); },
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+      key: () => {
+        throw new Error("blocked");
+      },
       length: 0,
     };
     const other = createReadingsStore(throwing, () => 0);

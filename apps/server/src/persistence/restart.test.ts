@@ -73,9 +73,7 @@ describe("restart", () => {
     const first = await bootWithPlayers();
     const next = structuredClone(first.engine.config);
     next.canvas.width = 768;
-    const res = await first.runtime.run((e, now) =>
-      e.applyConfig(next, { baseVersion: 1, adminId: b, comment: "grow", action: "config_save" }, now),
-    );
+    const res = await first.runtime.run((e, now) => e.applyConfig(next, { baseVersion: 1, adminId: b, comment: "grow", action: "config_save" }, now));
     expect(res).toEqual({ ok: true, version: 2 });
     await place(first.runtime, 700, 9, 4);
     await first.runtime.stop();
@@ -97,7 +95,11 @@ describe("restart", () => {
     await run((e, now) => e.claimDaily(a, now));
 
     const second = await boot();
-    for (const [x, y] of [[5, 5], [7, 7], [300, 10]] as const) {
+    for (const [x, y] of [
+      [5, 5],
+      [7, 7],
+      [300, 10],
+    ] as const) {
       expect(second.engine.canvas.get(x, y)).toEqual(first.engine.canvas.get(x, y));
     }
     expect(second.engine.canvas.territoryOf(a)).toBe(3);
@@ -133,7 +135,12 @@ describe("restart", () => {
   test("snapshot plus log replay restores every pixel", async () => {
     const first = await bootWithPlayers();
     const run = first.runtime.run.bind(first.runtime);
-    for (const [x, y] of [[0, 0], [1, 0], [2, 0], [300, 300]] as const) {
+    for (const [x, y] of [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [300, 300],
+    ] as const) {
       await run((e, now) => e.placePixel(a, pl(x, y), now));
     }
     await first.runtime.flush({ snapshot: true });
@@ -143,7 +150,14 @@ describe("restart", () => {
 
     expect(await t.db.select().from(chunkSnapshots)).toHaveLength(2);
     const second = await boot();
-    for (const [x, y] of [[0, 0], [1, 0], [2, 0], [3, 0], [300, 300], [301, 300]] as const) {
+    for (const [x, y] of [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [300, 300],
+      [301, 300],
+    ] as const) {
       expect(second.engine.canvas.get(x, y)).toEqual(first.engine.canvas.get(x, y));
     }
     expect(second.engine.canvas.get(0, 0)).toEqual({ colorId: 7, ownerId: a });

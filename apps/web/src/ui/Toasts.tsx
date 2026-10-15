@@ -21,10 +21,18 @@ export function Toasts() {
   return (
     <div className={styles.stack}>
       <div className={styles.region} role="alert">
-        {toasts.filter((t) => t.kind === "error").map((t) => <ToastItem key={t.id} toast={t} />)}
+        {toasts
+          .filter((t) => t.kind === "error")
+          .map((t) => (
+            <ToastItem key={t.id} toast={t} />
+          ))}
       </div>
       <div className={styles.region} role="status">
-        {toasts.filter((t) => t.kind === "info").map((t) => <ToastItem key={t.id} toast={t} />)}
+        {toasts
+          .filter((t) => t.kind === "info")
+          .map((t) => (
+            <ToastItem key={t.id} toast={t} />
+          ))}
       </div>
     </div>
   );

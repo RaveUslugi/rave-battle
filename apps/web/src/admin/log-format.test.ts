@@ -13,7 +13,9 @@ describe("details", () => {
     expect(details({ action: "unban", params: { reason: "ошибка" } })).toBe("ошибка");
   });
   test("player_edit", () => {
-    expect(details({ action: "player_edit", params: { changes: { coins: 500, bomb: -2 }, comment: "компенсация" } })).toBe("Монеты +500, Бомбы −2 — компенсация");
+    expect(details({ action: "player_edit", params: { changes: { coins: 500, bomb: -2 }, comment: "компенсация" } })).toBe(
+      "Монеты +500, Бомбы −2 — компенсация",
+    );
   });
   test("config_save and config_rollback", () => {
     expect(details({ action: "config_save", params: { version: 5, comment: "правка" } })).toBe("версия 5 — правка");

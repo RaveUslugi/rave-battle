@@ -16,9 +16,7 @@ describe("applyConfig", () => {
     expect(engine.config).toBe(next);
     expect(engine.configVersion).toBe(2);
     const events = engine.drainEvents();
-    expect(eventsOf(events, "config_changed")).toEqual([
-      { type: "config_changed", version: 2, config: next, createdBy: admin, comment: "tweak", at: T0 },
-    ]);
+    expect(eventsOf(events, "config_changed")).toEqual([{ type: "config_changed", version: 2, config: next, createdBy: admin, comment: "tweak", at: T0 }]);
     expect(eventsOf(events, "mod_log")).toEqual([
       { type: "mod_log", adminId: admin, action: "config_save", targetUserId: null, params: { version: 2, comment: "tweak" }, at: T0 },
     ]);

@@ -21,7 +21,8 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyStep: 0,
   dailyLastClaim: null,
   bannedUntil: null,
-  blocks: [], banReason: null,
+  blocks: [],
+  banReason: null,
   playableAt: null,
   unlimited: false,
   serverNow: NOW,
@@ -61,7 +62,21 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   const client = new GameClient({ game, ui, readings, tools, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
-  return { game, ui, readings, toolCalls, client, sent, pendingCalls, selections, flashes, areas, timeouts, cleared, advance: (ms: number) => void (now += ms) };
+  return {
+    game,
+    ui,
+    readings,
+    toolCalls,
+    client,
+    sent,
+    pendingCalls,
+    selections,
+    flashes,
+    areas,
+    timeouts,
+    cleared,
+    advance: (ms: number) => void (now += ms),
+  };
 }
 
 const placed = (reqId: number, result: Placed["result"]): Placed => ({ type: "placed", reqId, result });
@@ -300,7 +315,13 @@ describe("GameClient", () => {
     });
     t.client.detach();
     const pendingSizes: number[] = [];
-    c.attach({ sendPlace: () => true, setPending: (cells) => void pendingSizes.push(cells.length), setSelection: () => {}, setArea: () => {}, flash: () => {} });
+    c.attach({
+      sendPlace: () => true,
+      setPending: (cells) => void pendingSizes.push(cells.length),
+      setSelection: () => {},
+      setArea: () => {},
+      flash: () => {},
+    });
     c.onCellTap({ x: 1, y: 1 }, "mouse");
     wall -= 3_600_000; // the wall clock jumps back an hour
     mono += 10_001;

@@ -220,9 +220,7 @@ export class Hub {
   private subscribe(ws: Socket, chunks: Array<{ cx: number; cy: number }>): void {
     const canvas = this.options.runtime.engine.canvas;
     const next = new Map<string, { cx: number; cy: number }>(
-      chunks
-        .filter((c) => c.cx * CHUNK_SIZE < canvas.width && c.cy * CHUNK_SIZE < canvas.height)
-        .map((c) => [`${c.cx}:${c.cy}`, c]),
+      chunks.filter((c) => c.cx * CHUNK_SIZE < canvas.width && c.cy * CHUNK_SIZE < canvas.height).map((c) => [`${c.cx}:${c.cy}`, c]),
     );
     const added: Array<{ cx: number; cy: number; version: number }> = [];
     for (const key of ws.data.chunks) if (!next.has(key)) ws.unsubscribe(chunkTopic(key));

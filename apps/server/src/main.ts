@@ -24,8 +24,7 @@ async function main(): Promise<void> {
   });
   const { db, close } = createDb(config.databaseUrl);
   await runMigrations(db);
-  const purgeSessions = () =>
-    deleteExpiredSessions(db, Date.now()).catch((error) => console.error("Session cleanup failed", error));
+  const purgeSessions = () => deleteExpiredSessions(db, Date.now()).catch((error) => console.error("Session cleanup failed", error));
   await purgeSessions();
   setInterval(purgeSessions, 60 * 60 * 1000).unref();
 

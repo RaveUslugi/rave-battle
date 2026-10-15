@@ -59,5 +59,13 @@ export function Heatmap({ data }: { data: HeatmapData }) {
   }, [data, layout, config]);
 
   if (!layout) return null;
-  return <canvas ref={ref} className={styles.heatmap} style={{ width: layout.width, height: layout.height }} role="img" aria-label="Тепловая карта поставленных пикселей" />;
+  return (
+    <canvas
+      ref={ref}
+      className={styles.heatmap}
+      style={{ width: layout.width, height: layout.height }}
+      role="img"
+      aria-label="Тепловая карта поставленных пикселей"
+    />
+  );
 }

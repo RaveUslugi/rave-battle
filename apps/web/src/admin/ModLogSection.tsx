@@ -18,7 +18,8 @@ export function ModLogSection() {
   const [playerText, setPlayerText] = useState("");
   const trimmed = playerText.trim();
   const playerNumber = trimmed === "" ? undefined : Number(trimmed);
-  const badPlayer = playerNumber !== undefined && (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(playerNumber) || playerNumber < 1 || playerNumber > MAX_USER_ID);
+  const badPlayer =
+    playerNumber !== undefined && (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(playerNumber) || playerNumber < 1 || playerNumber > MAX_USER_ID);
   const targetUserId = badPlayer ? undefined : playerNumber;
 
   const log = useInfiniteQuery(

@@ -55,8 +55,7 @@ export function createGameStore(clock: () => number = Date.now) {
     setConfig: (config) => set({ config }),
     // The count belongs to a connection: drop it when the connection goes away.
     // "outdated" is final: the tab needs a reload, so late socket statuses must not hide it.
-    setStatus: (status) =>
-      set((s) => (s.status === "outdated" ? {} : status === "open" ? { status } : { status, online: 0 })),
+    setStatus: (status) => set((s) => (s.status === "outdated" ? {} : status === "open" ? { status } : { status, online: 0 })),
     setOnline: (online) => set({ online }),
     setHover: (hover) => set({ hover }),
     setView: (view) => set({ view }),

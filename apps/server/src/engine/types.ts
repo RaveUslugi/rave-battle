@@ -54,13 +54,7 @@ export type Rejected = { ok: false; code: RejectCode };
 export type LedgerItem = "coins" | ItemKey;
 export type LedgerReason = "shop" | "daily" | "explosion" | "bomb_bonus" | "defuse" | "use" | "admin";
 export type AdjustResult = { ok: true } | { ok: false; code: "nothing_to_change" | "negative_balance" };
-export type StatKey =
-  | "pixels"
-  | "coinsFromPixels"
-  | "bombsTriggered"
-  | "explosionsSuffered"
-  | "selfExplosions"
-  | "defused";
+export type StatKey = "pixels" | "coinsFromPixels" | "bombsTriggered" | "explosionsSuffered" | "selfExplosions" | "defused";
 
 export type PixelKind = "place" | "mod_rollback" | "mod_clear";
 

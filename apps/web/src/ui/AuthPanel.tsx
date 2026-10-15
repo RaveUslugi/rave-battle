@@ -37,14 +37,7 @@ export function AuthPanel() {
       </a>
       {import.meta.env.DEV && (
         <form className={styles.dev} action="/auth/dev" method="get">
-          <input
-            name="name"
-            placeholder="dev-имя"
-            aria-label="Имя для dev-входа"
-            pattern="[A-Za-z0-9_]{1,32}"
-            autoComplete="off"
-            required
-          />
+          <input name="name" placeholder="dev-имя" aria-label="Имя для dev-входа" pattern="[A-Za-z0-9_]{1,32}" autoComplete="off" required />
           <button type="submit" className={styles.button}>
             Dev
           </button>

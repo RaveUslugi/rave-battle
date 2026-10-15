@@ -12,7 +12,11 @@ export const itemKeySchema = z.enum(ITEM_KEYS);
 export type ItemKey = z.infer<typeof itemKeySchema>;
 
 export const paletteEntrySchema = z.object({
-  id: z.number().int().min(0).max(MAX_PALETTE_SIZE - 1),
+  id: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_PALETTE_SIZE - 1),
   type: z.enum(["solid", "animated", "gradient"]),
   /** Fallback color: clients that do not know `type` render the entry with it. */
   base: hexColor,

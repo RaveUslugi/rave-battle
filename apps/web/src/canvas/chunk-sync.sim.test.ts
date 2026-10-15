@@ -165,13 +165,9 @@ function simulate(seed: number, writeGap: number): string[] {
 
 describe("ChunkSync simulation", () => {
   // 3 000 simulations: ~6 s on a 4-vCPU container, more on shared CI runners. Slow, not flaky.
-  test(
-    "every chunk converges to the server under reconnects, load failures and churn",
-    () => {
-      const bad: string[] = [];
-      for (const writeGap of [10, 40, 200]) for (let seed = 1; seed <= 1000; seed++) bad.push(...simulate(seed, writeGap));
-      expect(bad).toEqual([]);
-    },
-    30_000,
-  );
+  test("every chunk converges to the server under reconnects, load failures and churn", () => {
+    const bad: string[] = [];
+    for (const writeGap of [10, 40, 200]) for (let seed = 1; seed <= 1000; seed++) bad.push(...simulate(seed, writeGap));
+    expect(bad).toEqual([]);
+  }, 30_000);
 });

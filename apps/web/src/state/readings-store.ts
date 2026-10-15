@@ -34,8 +34,14 @@ const MAX_COUNT = 9;
 function isReading(value: unknown): value is Reading {
   const r = value as Reading;
   return (
-    typeof r === "object" && r !== null &&
-    Number.isInteger(r.x) && Number.isInteger(r.y) && Number.isInteger(r.count) && r.count >= 0 && r.count <= MAX_COUNT && Number.isFinite(r.at)
+    typeof r === "object" &&
+    r !== null &&
+    Number.isInteger(r.x) &&
+    Number.isInteger(r.y) &&
+    Number.isInteger(r.count) &&
+    r.count >= 0 &&
+    r.count <= MAX_COUNT &&
+    Number.isFinite(r.at)
   );
 }
 

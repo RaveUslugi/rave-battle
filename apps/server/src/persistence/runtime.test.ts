@@ -52,7 +52,10 @@ describe("GameRuntime", () => {
       runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now)),
       runtime.run((engine, now) => engine.placePixel(a, pixel(-1, 1), now)),
     ]);
-    expect(results).toEqual([{ ok: true, outcome: "placed" }, { ok: false, code: "out_of_bounds" }]);
+    expect(results).toEqual([
+      { ok: true, outcome: "placed" },
+      { ok: false, code: "out_of_bounds" },
+    ]);
     expect(await t.db.select().from(pixelEvents)).toHaveLength(1);
     const [state] = await t.db.select().from(playerState);
     expect(state?.coins).toBe(101);
@@ -147,8 +150,7 @@ describe("GameRuntime hooks and lifecycle", () => {
       ...options,
     });
   }
-  const join = (runtime: GameRuntime) =>
-    runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+  const join = (runtime: GameRuntime) => runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
 
   test("onCommit sees committed events before the command resolves", async () => {
     const seen: string[] = [];

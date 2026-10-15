@@ -24,7 +24,10 @@ test("a ban committed between resolveSession and ensurePlayer is applied", async
   const session = (await resolveSession(t.db, token, Date.now()))!;
   expect(session.bannedUntil).toBeNull();
   // The ban lands in the DB after the session was resolved; the player is not in the engine yet.
-  await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" }).where(eq(users.id, id));
+  await t.db
+    .update(users)
+    .set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" })
+    .where(eq(users.id, id));
   await ensurePlayer({ db: t.db, runtime, accessQueue: new AccessQueue() }, session);
   const player = runtime.engine.players.get(id);
   expect(player.banReason).toBe("raced");
@@ -46,7 +49,10 @@ test("a second concurrent first join returns only after the re-read was applied"
     const id = await insertUser(t.db, `twin${i}`);
     const { token } = await createSession(t.db, id, 86_400_000, Date.now());
     const session = (await resolveSession(t.db, token, Date.now()))!;
-    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" }).where(eq(users.id, id));
+    await t.db
+      .update(users)
+      .set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "raced" })
+      .where(eq(users.id, id));
     const queue = new AccessQueue();
     const first = ensurePlayer({ db: t.db, runtime, accessQueue: queue }, session);
     // Take the batch now: the player is no longer "pending", so a second addPlayer resolves without waiting for the commit.

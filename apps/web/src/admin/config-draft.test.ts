@@ -83,7 +83,10 @@ describe("configDiff", () => {
 
 describe("unknown server paths", () => {
   test("a path outside the sections goes to the general group", () => {
-    const issues = serverIssues([{ path: "mystery.field", message: "bad" }, { path: "", message: "root" }]);
+    const issues = serverIssues([
+      { path: "mystery.field", message: "bad" },
+      { path: "", message: "root" },
+    ]);
     expect(issues.general).toEqual(["mystery.field: bad", "root"]);
     expect(issues.canvas).toBeUndefined();
   });

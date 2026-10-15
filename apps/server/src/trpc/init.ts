@@ -14,10 +14,7 @@ export interface TrpcContext {
 const isDev = process.env.NODE_ENV !== "production";
 
 /** Internal errors may carry DB/driver details; outside dev the client only sees a generic message. */
-export function formatError(
-  { shape, error }: { shape: TRPCDefaultErrorShape; error: TRPCError },
-  dev: boolean,
-): TRPCDefaultErrorShape {
+export function formatError({ shape, error }: { shape: TRPCDefaultErrorShape; error: TRPCError }, dev: boolean): TRPCDefaultErrorShape {
   if (dev || error.code !== "INTERNAL_SERVER_ERROR") return shape;
   return { ...shape, message: "Internal server error" };
 }

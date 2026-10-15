@@ -7,9 +7,22 @@ import { defuseText, SapperTools, type DefuseAnswer, type DetectAnswer, type Too
 
 const NOW = 5_000_000;
 const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
-  coins: 0, charges: 5, chargesUpdatedAt: NOW, chargeCap: 10, frozenUntil: 0,
-  inventory: { bomb: 0, detector: 2, defuser: 1 }, unlockedColors: [], dailyStep: 0,
-  dailyLastClaim: null, bannedUntil: null, blocks: [], banReason: null, playableAt: null, unlimited: false, serverNow: NOW, ...overrides,
+  coins: 0,
+  charges: 5,
+  chargesUpdatedAt: NOW,
+  chargeCap: 10,
+  frozenUntil: 0,
+  inventory: { bomb: 0, detector: 2, defuser: 1 },
+  unlockedColors: [],
+  dailyStep: 0,
+  dailyLastClaim: null,
+  bannedUntil: null,
+  blocks: [],
+  banReason: null,
+  playableAt: null,
+  unlimited: false,
+  serverNow: NOW,
+  ...overrides,
 });
 
 function setup(answers: { detect?: DetectAnswer; defuse?: DefuseAnswer; throws?: boolean } = {}) {

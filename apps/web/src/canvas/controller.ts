@@ -105,13 +105,10 @@ export class CanvasController {
       this.timers.set(() => this.run(this.sync.retry(cx, cy, requestId)), this.retryMs);
     };
     const timeout = this.timers.set(fail, this.loadTimeoutMs);
-    this.deps.loadChunk(cx, cy).then(
-      ({ version, colors }) => {
-        this.timers.clear(timeout);
-        // A result that arrives after a timeout is still fine if nothing superseded it; ChunkSync decides.
-        this.run(this.sync.onLoaded(cx, cy, requestId, version, colors));
-      },
-      fail,
-    );
+    this.deps.loadChunk(cx, cy).then(({ version, colors }) => {
+      this.timers.clear(timeout);
+      // A result that arrives after a timeout is still fine if nothing superseded it; ChunkSync decides.
+      this.run(this.sync.onLoaded(cx, cy, requestId, version, colors));
+    }, fail);
   }
 }

@@ -34,15 +34,27 @@ describe("BombStore", () => {
     bombs.add({ x: 1, y: 1, ownerId: 1, createdAt: 0 });
     bombs.add({ x: 5, y: 5, ownerId: 2, createdAt: 0 });
     bombs.add({ x: 9, y: 9, ownerId: 1, createdAt: 0 });
-    expect(bombs.ownedBy(1).map((b) => [b.x, b.y])).toEqual([[1, 1], [9, 9]]);
+    expect(bombs.ownedBy(1).map((b) => [b.x, b.y])).toEqual([
+      [1, 1],
+      [9, 9],
+    ]);
     expect(bombs.ownedBy(3)).toEqual([]);
-    expect(bombs.inRect({ x1: 1, y1: 1, x2: 5, y2: 5 }).map((b) => [b.x, b.y])).toEqual([[1, 1], [5, 5]]);
+    expect(bombs.inRect({ x1: 1, y1: 1, x2: 5, y2: 5 }).map((b) => [b.x, b.y])).toEqual([
+      [1, 1],
+      [5, 5],
+    ]);
     expect(bombs.inRect({ x1: 2, y1: 2, x2: 4, y2: 4 })).toEqual([]);
   });
 
   test("countAround counts the 3x3 square including the center", () => {
     const bombs = new BombStore();
-    for (const [x, y] of [[4, 4], [5, 6], [6, 6], [8, 8], [5, 5]] as const) {
+    for (const [x, y] of [
+      [4, 4],
+      [5, 6],
+      [6, 6],
+      [8, 8],
+      [5, 5],
+    ] as const) {
       bombs.add({ x, y, ownerId: 1, createdAt: 0 });
     }
     expect(bombs.countAround(5, 5)).toBe(4);

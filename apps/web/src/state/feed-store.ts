@@ -33,7 +33,9 @@ export function feedParts(e: FeedMessage): Array<string | UserRef> {
 
 /** Who and whose bomb — never where. */
 export function feedText(e: FeedMessage): string {
-  return feedParts(e).map((p) => (typeof p === "string" ? p : p.name)).join("");
+  return feedParts(e)
+    .map((p) => (typeof p === "string" ? p : p.name))
+    .join("");
 }
 
 export const feedStore = createFeedStore();

@@ -22,12 +22,7 @@ export interface SessionUser {
 /** Sessions are stored and identified by the SHA-256 of their token. */
 export const sessionIdOf = (token: string) => new Bun.CryptoHasher("sha256").update(token).digest("hex");
 
-export async function createSession(
-  db: Db,
-  userId: number,
-  ttlMs: number,
-  now: number,
-): Promise<{ token: string; expiresAt: Date }> {
+export async function createSession(db: Db, userId: number, ttlMs: number, now: number): Promise<{ token: string; expiresAt: Date }> {
   const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const expiresAt = new Date(now + ttlMs);
   await db.insert(sessions).values({ id: sessionIdOf(token), userId, expiresAt });
@@ -68,7 +63,10 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
 
 /** Returns how many sessions were removed. */
 export async function deleteExpiredSessions(db: Db, now: number): Promise<number> {
-  const removed = await db.delete(sessions).where(lt(sessions.expiresAt, new Date(now))).returning({ id: sessions.id });
+  const removed = await db
+    .delete(sessions)
+    .where(lt(sessions.expiresAt, new Date(now)))
+    .returning({ id: sessions.id });
   return removed.length;
 }
 
@@ -93,7 +91,5 @@ export function sessionCookie(token: string, expiresAt: Date, secure: boolean): 
 }
 
 export function clearSessionCookie(secure: boolean): string {
-  return [`${sessionCookieName(secure)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"]
-    .concat(secure ? ["Secure"] : [])
-    .join("; ");
+  return [`${sessionCookieName(secure)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"].concat(secure ? ["Secure"] : []).join("; ");
 }

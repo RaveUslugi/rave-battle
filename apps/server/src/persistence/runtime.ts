@@ -95,9 +95,7 @@ export class GameRuntime {
     if (this.engine.players.has(init.userId)) {
       const existing = this.engine.players.get(init.userId);
       const pending = this.newPlayers.some((entry) => entry.player.userId === init.userId);
-      return pending
-        ? this.afterCommit().then(() => ({ player: existing, created: false }))
-        : Promise.resolve({ player: existing, created: false });
+      return pending ? this.afterCommit().then(() => ({ player: existing, created: false })) : Promise.resolve({ player: existing, created: false });
     }
     const now = this.now();
     const player = createPlayer({ ...init, now }, this.engine.config);

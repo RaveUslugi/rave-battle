@@ -3,15 +3,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { Server } from "bun";
 import { DEV_ADMIN_DISCORD_ID } from "../auth/dev-admin";
 import { finishDiscordLogin, startDiscordLogin } from "../auth/discord-routes";
-import {
-  clearSessionCookie,
-  createSession,
-  deleteSession,
-  readSessionToken,
-  resolveSession,
-  sessionCookie,
-  sessionIdOf,
-} from "../auth/session";
+import { clearSessionCookie, createSession, deleteSession, readSessionToken, resolveSession, sessionCookie, sessionIdOf } from "../auth/session";
 import { upsertUser } from "../auth/users";
 import { appRouter } from "../trpc/router";
 import type { AppDeps } from "./deps";

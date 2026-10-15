@@ -3,8 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { CONFIRM_FROM, offerBlocked, shopOffers } from "./shop";
 
 // The view carries only the total cap; the bonus is `chargeCap - charges.max` (10 by default).
-const player = (overrides: Partial<PlayerView> = {}) =>
-  ({ coins: 260, chargeCap: 10, unlockedColors: [33], unlimited: false, ...overrides }) as PlayerView;
+const player = (overrides: Partial<PlayerView> = {}) => ({ coins: 260, chargeCap: 10, unlockedColors: [33], unlimited: false, ...overrides }) as PlayerView;
 
 describe("shopOffers", () => {
   test("items, boost and colors with affordability and confirmation", () => {

@@ -22,17 +22,19 @@ beforeEach(async () => {
 });
 afterAll(() => t.close());
 
-const write = (batch: Partial<Batch>) =>
-  t.db.transaction((tx) =>
-    writeBatch(tx, { seasonId, events: [], players: [], newPlayers: [], chunks: [], ...batch }),
-  );
+const write = (batch: Partial<Batch>) => t.db.transaction((tx) => writeBatch(tx, { seasonId, events: [], players: [], newPlayers: [], chunks: [], ...batch }));
 
 /** Engine with players a and b already persisted. */
 async function setup() {
   const ctx = makeEngine();
   const pa = ctx.addPlayer(a);
   const pb = ctx.addPlayer(b);
-  await write({ newPlayers: [{ player: snapshotPlayer(pa), at: T0 }, { player: snapshotPlayer(pb), at: T0 }] });
+  await write({
+    newPlayers: [
+      { player: snapshotPlayer(pa), at: T0 },
+      { player: snapshotPlayer(pb), at: T0 },
+    ],
+  });
   return { ...ctx, pa, pb };
 }
 
@@ -42,9 +44,7 @@ describe("writeBatch", () => {
     engine.adminAdjust(a, { coins: 5 }, T0, { adminId: b, comment: "c" });
     await write({ events: engine.drainEvents(), players: [snapshotPlayer(pa)] });
     const rows = await t.db.select().from(modLog);
-    expect(rows.map((r) => [r.adminId, r.action, r.targetUserId, r.params])).toEqual([
-      [b, "player_edit", a, { changes: { coins: 5 }, comment: "c" }],
-    ]);
+    expect(rows.map((r) => [r.adminId, r.action, r.targetUserId, r.params])).toEqual([[b, "player_edit", a, { changes: { coins: 5 }, comment: "c" }]]);
     expect(rows[0]!.createdAt.getTime()).toBe(T0);
     const admin = await t.db.select().from(ledger).where(eq(ledger.reason, "admin"));
     expect(admin).toHaveLength(1);
@@ -72,7 +72,11 @@ describe("writeBatch", () => {
     expect(state!.chargesUpdatedAt.getTime()).toBe(T0);
 
     const items = await t.db.select().from(inventory).where(eq(inventory.userId, a)).orderBy(asc(inventory.item));
-    expect(items.map((i) => [i.item, i.amount])).toEqual([["bomb", 3], ["defuser", 0], ["detector", 5]]);
+    expect(items.map((i) => [i.item, i.amount])).toEqual([
+      ["bomb", 3],
+      ["defuser", 0],
+      ["detector", 5],
+    ]);
 
     const start = await t.db.select().from(ledger).where(eq(ledger.userId, a)).orderBy(asc(ledger.id));
     expect(start.map((r) => [r.item, r.delta, r.balanceAfter, r.reason])).toEqual([

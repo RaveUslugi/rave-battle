@@ -103,7 +103,12 @@ export function PaletteTable({ value, onChange }: { value: PaletteEntry[]; onCha
                   </div>
                 </td>
                 <td>
-                  <select className={styles.input} aria-label="type" value={e.type} onChange={(ev) => update(i, { type: ev.target.value as PaletteEntry["type"] })}>
+                  <select
+                    className={styles.input}
+                    aria-label="type"
+                    value={e.type}
+                    onChange={(ev) => update(i, { type: ev.target.value as PaletteEntry["type"] })}
+                  >
                     {TYPES.map((t) => (
                       <option key={t}>{t}</option>
                     ))}

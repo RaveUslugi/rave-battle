@@ -24,7 +24,10 @@ describe("adminAdjust", () => {
     const { engine, addPlayer } = makeEngine();
     const p = addPlayer(1);
     const before = structuredClone({ coins: p.coins, inventory: p.inventory });
-    expect(engine.adminAdjust(1, { coins: 10, bomb: -(p.inventory.bomb + 1) }, T0, { adminId: 9, comment: "x" })).toEqual({ ok: false, code: "negative_balance" });
+    expect(engine.adminAdjust(1, { coins: 10, bomb: -(p.inventory.bomb + 1) }, T0, { adminId: 9, comment: "x" })).toEqual({
+      ok: false,
+      code: "negative_balance",
+    });
     expect({ coins: p.coins, inventory: p.inventory }).toEqual(before);
     expect(engine.drainEvents()).toEqual([]);
   });

@@ -28,10 +28,7 @@ export type AdminActionResult =
 export type ConfigAnswer = ConfigResult | { ok: false; code: "not_found" };
 
 /** A stored config version, re-validated against the current schema (old versions may no longer pass). */
-export type ConfigVersionAnswer =
-  | { ok: true; config: GameConfig }
-  | { ok: false; code: "not_found" }
-  | { ok: false; code: "invalid"; issues: ConfigIssue[] };
+export type ConfigVersionAnswer = { ok: true; config: GameConfig } | { ok: false; code: "not_found" } | { ok: false; code: "invalid"; issues: ConfigIssue[] };
 
 export interface ModLogEntry {
   id: number;
@@ -360,7 +357,10 @@ export class AdminService {
     params: Record<string, unknown>,
   ): Promise<void> {
     await this.deps.db.transaction(async (tx) => {
-      await tx.update(users).set({ bannedUntil: banToDate(until), banReason: reason }).where(eq(users.id, userId));
+      await tx
+        .update(users)
+        .set({ bannedUntil: banToDate(until), banReason: reason })
+        .where(eq(users.id, userId));
       await tx.insert(modLog).values({ adminId: admin.id, action, targetUserId: userId, params });
     });
     await this.deps.runtime.run((engine) => {

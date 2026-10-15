@@ -103,7 +103,17 @@ export function SidePanel() {
         </button>
       </header>
       <div className={styles.body}>
-        {panel === "shop" ? <ShopTab /> : panel === "daily" ? <DailyTab /> : panel === "leaders" ? <LeadersTab /> : panel === "moderation" ? <ModerationTab /> : <ProfileTab />}
+        {panel === "shop" ? (
+          <ShopTab />
+        ) : panel === "daily" ? (
+          <DailyTab />
+        ) : panel === "leaders" ? (
+          <LeadersTab />
+        ) : panel === "moderation" ? (
+          <ModerationTab />
+        ) : (
+          <ProfileTab />
+        )}
       </div>
     </aside>
   );

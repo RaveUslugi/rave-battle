@@ -116,10 +116,14 @@ export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh
                         Показать
                       </button>{" "}
                       {!isCurrent && (
-                        <button type="button" className={styles.button} onClick={() => {
+                        <button
+                          type="button"
+                          className={styles.button}
+                          onClick={() => {
                             setRolling(h.version);
                             setProblems([]);
-                          }}>
+                          }}
+                        >
                           Откатить к этой
                         </button>
                       )}

@@ -49,9 +49,7 @@ export function details(entry: { action: ModAction; params: Record<string, unkno
       return `с ${fmt(Number(p.from))} по ${fmt(Number(p.to))}, ${where}${p.removeBombs ? ", со снятием бомб" : ""}: ${counts(p)}`;
     }
     case "clear_area":
-      return p.mode === "to_time"
-        ? `${area(p.area)}, возврат к состоянию на ${fmt(Number(p.at))}: ${counts(p)}`
-        : `${area(p.area)}, очистка: ${counts(p)}`;
+      return p.mode === "to_time" ? `${area(p.area)}, возврат к состоянию на ${fmt(Number(p.at))}: ${counts(p)}` : `${area(p.area)}, очистка: ${counts(p)}`;
     case "remove_bombs":
       return `${p.userId !== undefined ? `все бомбы игрока #${String(p.userId)}` : area(p.area)}: ${counts(p)}`;
   }

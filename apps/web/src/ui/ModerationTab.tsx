@@ -63,7 +63,15 @@ function Inspector({ cell }: { cell: { x: number; y: number } }) {
         <Swatch colorId={d.colorId} />
         <span>{d.owner ? playerLink(d.owner) : "Никто не рисовал"}</span>
       </div>
-      <p className={styles.balance}>{d.bomb ? <>💣 Бомба игрока {playerLink(d.bomb.owner)} с {fmt(d.bomb.createdAt)}</> : "Бомбы нет"}</p>
+      <p className={styles.balance}>
+        {d.bomb ? (
+          <>
+            💣 Бомба игрока {playerLink(d.bomb.owner)} с {fmt(d.bomb.createdAt)}
+          </>
+        ) : (
+          "Бомбы нет"
+        )}
+      </p>
       <h3 className={styles.section}>История</h3>
       {d.history.length === 0 ? (
         <p className={styles.hint}>Пусто</p>
@@ -198,19 +206,19 @@ function AreaTools({ area }: { area: Rect }) {
 
   const stagedBlock = (section: Section) =>
     staged?.section === section && (
-        <div className={styles.notice} role="status">
-          <p className={styles.balance}>{staged.what}</p>
-          <p className={styles.balance}>{staged.text}</p>
-          <div className={styles.segments}>
-            <button type="button" className={styles.armed} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>
-              Применить
-            </button>
-            <button type="button" className={styles.buy} disabled={busy} onClick={() => setStaged(null)}>
-              Отмена
-            </button>
-          </div>
+      <div className={styles.notice} role="status">
+        <p className={styles.balance}>{staged.what}</p>
+        <p className={styles.balance}>{staged.text}</p>
+        <div className={styles.segments}>
+          <button type="button" className={styles.armed} disabled={busy} onClick={() => apply.mutate({ action: staged.action })}>
+            Применить
+          </button>
+          <button type="button" className={styles.buy} disabled={busy} onClick={() => setStaged(null)}>
+            Отмена
+          </button>
         </div>
-      );
+      </div>
+    );
 
   return (
     <div className={styles.tab}>
@@ -233,12 +241,16 @@ function AreaTools({ area }: { area: Rect }) {
       <label className={styles.check}>
         <input type="radio" name="clear-mode" checked={clearMode === "to_time"} onChange={() => setClearMode("to_time")} /> Откатить к моменту
       </label>
-      {clearMode === "to_time" && <input type="datetime-local" className={styles.input} aria-label="Момент отката" value={clearAt} onChange={(e) => setClearAt(e.target.value)} />}
+      {clearMode === "to_time" && (
+        <input type="datetime-local" className={styles.input} aria-label="Момент отката" value={clearAt} onChange={(e) => setClearAt(e.target.value)} />
+      )}
       <button
         type="button"
         className={styles.buy}
         disabled={blocked || busy || (clearMode === "to_time" && !Number.isFinite(clearTime))}
-        onClick={() => calc(clearMode === "fill" ? { kind: "clear_area", area, mode: "fill" } : { kind: "clear_area", area, mode: "to_time", at: clearTime }, "clear")}
+        onClick={() =>
+          calc(clearMode === "fill" ? { kind: "clear_area", area, mode: "fill" } : { kind: "clear_area", area, mode: "to_time", at: clearTime }, "clear")
+        }
       >
         Посчитать
       </button>
@@ -260,10 +272,15 @@ function AreaTools({ area }: { area: Rect }) {
           {ownerList.map((o) => (
             <li key={o.user.id}>
               <label className={styles.check}>
-                <input type="radio" name="rollback-owner" checked={owner === o.user.id} onChange={() => {
+                <input
+                  type="radio"
+                  name="rollback-owner"
+                  checked={owner === o.user.id}
+                  onChange={() => {
                     setOwner(o.user.id);
                     setMessage(null);
-                  }} />
+                  }}
+                />
                 <span className={styles.name}>{o.user.name}</span>
                 <span className={styles.hint}>{o.cells}</span>
               </label>
@@ -273,11 +290,22 @@ function AreaTools({ area }: { area: Rect }) {
       )}
       <div className={styles.segments} role="group" aria-label="Период">
         {PERIOD_PRESETS.map((p) => (
-          <button key={p.id} type="button" className={period === p.id ? styles.segmentOn : styles.segment} aria-pressed={period === p.id} onClick={() => setPeriod(p.id)}>
+          <button
+            key={p.id}
+            type="button"
+            className={period === p.id ? styles.segmentOn : styles.segment}
+            aria-pressed={period === p.id}
+            onClick={() => setPeriod(p.id)}
+          >
             {p.label}
           </button>
         ))}
-        <button type="button" className={period === "custom" ? styles.segmentOn : styles.segment} aria-pressed={period === "custom"} onClick={() => setPeriod("custom")}>
+        <button
+          type="button"
+          className={period === "custom" ? styles.segmentOn : styles.segment}
+          aria-pressed={period === "custom"}
+          onClick={() => setPeriod("custom")}
+        >
           своё
         </button>
       </div>
@@ -296,16 +324,13 @@ function AreaTools({ area }: { area: Rect }) {
       <label className={styles.check}>
         <input type="checkbox" checked={removeBombs} onChange={(e) => setRemoveBombs(e.target.checked)} /> Также снять все бомбы игрока в области
       </label>
-      <button
-        type="button"
-        className={styles.buy}
-        disabled={blocked || busy || !rollbackReady}
-        onClick={calcRollback}
-      >
+      <button type="button" className={styles.buy} disabled={blocked || busy || !rollbackReady} onClick={calcRollback}>
         Посчитать
       </button>
       {stagedBlock("rollback")}
-      <p className={styles.hint}>Для рейда нескольких игроков надёжнее «Очистка → Откатить к моменту»: откат игрока не трогает клетки, восстановленные прошлой модерацией.</p>
+      <p className={styles.hint}>
+        Для рейда нескольких игроков надёжнее «Очистка → Откатить к моменту»: откат игрока не трогает клетки, восстановленные прошлой модерацией.
+      </p>
 
       {message && (
         <p className={message.error ? styles.notice : styles.balance} role={message.error ? "alert" : "status"}>

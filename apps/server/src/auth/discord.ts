@@ -110,11 +110,6 @@ export async function fetchProfile(fetchFn: FetchFn, accessToken: string): Promi
 
 /** A user can be in at most 200 guilds, so one page is the whole list. */
 export async function isGuildMember(fetchFn: FetchFn, accessToken: string, guildId: string): Promise<boolean> {
-  const guilds = await request(
-    fetchFn,
-    `${DISCORD_API}/users/@me/guilds?limit=200`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-    guildsSchema,
-  );
+  const guilds = await request(fetchFn, `${DISCORD_API}/users/@me/guilds?limit=200`, { headers: { Authorization: `Bearer ${accessToken}` } }, guildsSchema);
   return guilds.some((g) => g.id === guildId);
 }

@@ -24,7 +24,13 @@ export function LeadersTab() {
     <div className={styles.tab}>
       <div className={styles.segments} role="group" aria-label="Рейтинг">
         {BOARD_TABS.map((b) => (
-          <button key={b.board} type="button" className={b.board === board ? styles.segmentOn : styles.segment} aria-pressed={b.board === board} onClick={() => setBoard(b.board)}>
+          <button
+            key={b.board}
+            type="button"
+            className={b.board === board ? styles.segmentOn : styles.segment}
+            aria-pressed={b.board === board}
+            onClick={() => setBoard(b.board)}
+          >
             <span aria-hidden="true">{b.icon}</span> {b.title}
           </button>
         ))}
@@ -32,7 +38,13 @@ export function LeadersTab() {
       {periodsFor(board).length > 0 && (
         <div className={styles.segments} role="group" aria-label="Период">
           {periodsFor(board).map((p) => (
-            <button key={p.period} type="button" className={p.period === period ? styles.segmentOn : styles.segment} aria-pressed={p.period === period} onClick={() => setPeriod(p.period)}>
+            <button
+              key={p.period}
+              type="button"
+              className={p.period === period ? styles.segmentOn : styles.segment}
+              aria-pressed={p.period === period}
+              onClick={() => setPeriod(p.period)}
+            >
               {p.title}
             </button>
           ))}
@@ -46,7 +58,11 @@ export function LeadersTab() {
         // While another board or period loads, the previous list stays on screen, dimmed.
         <ol className={styles.ranking} role="list" aria-busy={query.isPlaceholderData || undefined}>
           {query.data.top.map((row) => (
-            <li key={row.user.id} className={row.user.id === user?.id ? styles.rankMe : styles.rank} aria-current={row.user.id === user?.id ? "true" : undefined}>
+            <li
+              key={row.user.id}
+              className={row.user.id === user?.id ? styles.rankMe : styles.rank}
+              aria-current={row.user.id === user?.id ? "true" : undefined}
+            >
               <span className={styles.place}>{row.rank}</span>
               <button type="button" className={styles.player} title={row.user.name} onClick={() => uiStore.getState().openProfile(row.user.id)}>
                 {row.user.name}

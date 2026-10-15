@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { TRPCClientError } from "@trpc/client";
 import { call } from "./api";
 
-const trpcError = (code: string) =>
-  TRPCClientError.from({ error: { message: "x", code: -32000, data: { code, httpStatus: 429 } } });
+const trpcError = (code: string) => TRPCClientError.from({ error: { message: "x", code: -32000, data: { code, httpStatus: 429 } } });
 
 describe("call", () => {
   test("passes results through", async () => {

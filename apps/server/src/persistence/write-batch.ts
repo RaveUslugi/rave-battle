@@ -54,10 +54,7 @@ function assertKnownEvents(events: EngineEvent[]): void {
 
 async function insertNewPlayer(tx: Tx, seasonId: number, p: PlayerSnapshot, at: number): Promise<void> {
   await upsertPlayer(tx, seasonId, p);
-  const start = [
-    { item: "coins" as const, amount: p.coins },
-    ...ITEM_KEYS.map((item) => ({ item, amount: p.inventory[item] })),
-  ].filter((s) => s.amount > 0);
+  const start = [{ item: "coins" as const, amount: p.coins }, ...ITEM_KEYS.map((item) => ({ item, amount: p.inventory[item] }))].filter((s) => s.amount > 0);
   if (start.length === 0) return;
   await tx.insert(ledger).values(
     start.map((s) => ({
@@ -163,9 +160,9 @@ async function insertLedger(tx: Tx, batch: Batch): Promise<void> {
 async function insertModLog(tx: Tx, batch: Batch): Promise<void> {
   const rows = ofType(batch.events, "mod_log");
   if (rows.length === 0) return;
-  await tx.insert(modLog).values(
-    rows.map((e) => ({ adminId: e.adminId, action: e.action, targetUserId: e.targetUserId, params: e.params, createdAt: new Date(e.at) })),
-  );
+  await tx
+    .insert(modLog)
+    .values(rows.map((e) => ({ adminId: e.adminId, action: e.action, targetUserId: e.targetUserId, params: e.params, createdAt: new Date(e.at) })));
 }
 
 async function addStats(tx: Tx, batch: Batch): Promise<void> {

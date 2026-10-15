@@ -68,7 +68,10 @@ describe("ui store", () => {
     store.getState().pushToast("info", "x");
     const second = store.getState().pushToast("error", "Нет зарядов");
     expect(second).not.toBe(first);
-    expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([["info", "x"], ["error", "Нет зарядов"]]);
+    expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([
+      ["info", "x"],
+      ["error", "Нет зарядов"],
+    ]);
   });
 
   test("switching tools clears the selection", () => {

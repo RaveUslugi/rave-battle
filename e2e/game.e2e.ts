@@ -48,7 +48,10 @@ test("a pixel placed by one player shows up for another in real time", async ({ 
   // Before the click B sees the background in the centre.
   await expect.poll(() => centerPixel(b).then((p) => isClose(p, background))).toBe(true);
 
-  await a.getByRole("radiogroup", { name: "Цвет" }).getByRole("radio", { name: `Цвет ${COLOR_ID}`, exact: true }).click();
+  await a
+    .getByRole("radiogroup", { name: "Цвет" })
+    .getByRole("radio", { name: `Цвет ${COLOR_ID}`, exact: true })
+    .click();
   await canvasOf(a).click();
 
   await expect.poll(() => centerPixel(b).then((p) => isClose(p, placed)), { timeout: 5_000 }).toBe(true);

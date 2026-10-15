@@ -40,7 +40,11 @@ export function PanelMenu() {
           }}
         >
           <span aria-hidden="true">{item.icon}</span>
-          {item.panel === "daily" && dailyReady && <span className={styles.badge} aria-hidden="true">!</span>}
+          {item.panel === "daily" && dailyReady && (
+            <span className={styles.badge} aria-hidden="true">
+              !
+            </span>
+          )}
         </button>
       ))}
     </nav>

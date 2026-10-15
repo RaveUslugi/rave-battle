@@ -1,14 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  authorizeUrl,
-  DiscordError,
-  exchangeCode,
-  fetchProfile,
-  isGuildMember,
-  snowflakeCreatedAt,
-  type DiscordConfig,
-  type FetchFn,
-} from "./discord";
+import { authorizeUrl, DiscordError, exchangeCode, fetchProfile, isGuildMember, snowflakeCreatedAt, type DiscordConfig, type FetchFn } from "./discord";
 
 const cfg: DiscordConfig = { clientId: "cid", clientSecret: "secret", redirectUri: "http://localhost:5173/auth/discord/callback", guildId: "42" };
 

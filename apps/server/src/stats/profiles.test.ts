@@ -44,7 +44,10 @@ describe("Profiles", () => {
     expect(p.banned).toBe(false);
     expect(p.heatmap).toMatchObject({ step: 8, width: 64, height: 64 });
     // (1,1) and (2,1) share block 0; (300,9) is block x=37, y=1.
-    expect(p.heatmap.cells.sort((a, b) => a[0] - b[0])).toEqual([[0, 2], [1 * 64 + 37, 1]]);
+    expect(p.heatmap.cells.sort((a, b) => a[0] - b[0])).toEqual([
+      [0, 2],
+      [1 * 64 + 37, 1],
+    ]);
   });
 
   test("a user without activity gets zeros; unknown users get null", async () => {
@@ -77,7 +80,10 @@ describe("Profiles", () => {
     const p = (await (await profiles()).profile(ann))!;
     expect(p.heatmap).toMatchObject({ step: 12, width: 64, height: 43 });
     // (700,10) -> 0*64 + 58; (10,500) -> 41*64 + 0.
-    expect(p.heatmap.cells.sort((a, b) => a[0] - b[0])).toEqual([[58, 1], [2624, 1]]);
+    expect(p.heatmap.cells.sort((a, b) => a[0] - b[0])).toEqual([
+      [58, 1],
+      [2624, 1],
+    ]);
   });
 
   test("the ban comes from the engine when the player is loaded, else from users.banned_until", async () => {
@@ -85,10 +91,16 @@ describe("Profiles", () => {
     await runtime.run((engine) => engine.setAccess(ann, { bannedUntil: Date.now() + DAY_MS }));
     expect((await service.profile(ann))!.banned).toBe(true);
     await runtime.run((engine) => engine.setAccess(ann, { bannedUntil: 0 }));
-    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + DAY_MS) }).where(eq(users.id, ann));
+    await t.db
+      .update(users)
+      .set({ bannedUntil: new Date(Date.now() + DAY_MS) })
+      .where(eq(users.id, ann));
     expect((await service.profile(ann))!.banned).toBe(false);
     const stranger = await insertUser(t.db, "stranger");
-    await t.db.update(users).set({ bannedUntil: new Date(Date.now() + DAY_MS) }).where(eq(users.id, stranger));
+    await t.db
+      .update(users)
+      .set({ bannedUntil: new Date(Date.now() + DAY_MS) })
+      .where(eq(users.id, stranger));
     expect((await (await profiles()).profile(stranger))!.banned).toBe(true);
   });
 

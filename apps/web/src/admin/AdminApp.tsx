@@ -44,7 +44,9 @@ export default function AdminApp() {
         <div className={styles.page}>
           <h1 className={styles.title}>Нет доступа</h1>
           <p className={styles.message}>Если вы администратор, сначала войдите на главной странице.</p>
-          <a className={styles.link} href="/">← К холсту</a>
+          <a className={styles.link} href="/">
+            ← К холсту
+          </a>
         </div>
       </div>
     );
@@ -55,7 +57,9 @@ export default function AdminApp() {
       <div className={styles.page}>
         <header className={styles.header}>
           <h1 className={styles.title}>Rave Battle · админка</h1>
-          <a className={styles.link} href="/">← К холсту</a>
+          <a className={styles.link} href="/">
+            ← К холсту
+          </a>
         </header>
         <nav className={styles.tabs}>
           {TABS.map((t) => (

@@ -1,14 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  CHUNK_SIZE,
-  decodeChunkBody,
-  decodeChunkDelta,
-  decodeOverview,
-  encodePlace,
-  encodeSubscribe,
-  type ChunkDelta,
-  type ServerMessage,
-} from "@rave/shared";
+import { CHUNK_SIZE, decodeChunkBody, decodeChunkDelta, decodeOverview, encodePlace, encodeSubscribe, type ChunkDelta, type ServerMessage } from "@rave/shared";
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
 import { isAdmin } from "../auth/admin";
@@ -38,7 +29,16 @@ let base = "";
 const sockets: WebSocket[] = [];
 
 async function start(
-  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean; ipLimiter?: KeyedRateLimiter<string>; staticLimiter?: KeyedRateLimiter<string>; trustProxy?: boolean } = {},
+  options: {
+    devLogin?: boolean;
+    hub?: Partial<HubOptions>;
+    discord?: DiscordConfig | null;
+    fetch?: FetchFn;
+    keepDb?: boolean;
+    ipLimiter?: KeyedRateLimiter<string>;
+    staticLimiter?: KeyedRateLimiter<string>;
+    trustProxy?: boolean;
+  } = {},
 ) {
   if (!options.keepDb) await t.reset();
   const users = await UserDirectory.load(t.db);
@@ -68,7 +68,19 @@ async function start(
   hubRef = hub;
   const stats = new StatsService(t.db, runtime, users);
   const admin = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
-  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, accessQueue, fetch: options.fetch, ipLimiter: options.ipLimiter, staticLimiter: options.staticLimiter });
+  server = startServer({
+    db: t.db,
+    runtime,
+    hub,
+    users,
+    config,
+    stats,
+    admin,
+    accessQueue,
+    fetch: options.fetch,
+    ipLimiter: options.ipLimiter,
+    staticLimiter: options.staticLimiter,
+  });
   base = `http://localhost:${server.port}`;
 }
 
@@ -183,7 +195,13 @@ describe("http", () => {
 
   test("websocket upgrades from foreign origins are refused", async () => {
     const res = await fetch(`${base}/ws`, {
-      headers: { Origin: "http://evil.test", Upgrade: "websocket", Connection: "Upgrade", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==", "Sec-WebSocket-Version": "13" },
+      headers: {
+        Origin: "http://evil.test",
+        Upgrade: "websocket",
+        Connection: "Upgrade",
+        "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+        "Sec-WebSocket-Version": "13",
+      },
     });
     expect(res.status).toBe(403);
   });
@@ -377,7 +395,12 @@ describe("websocket", () => {
     alice.ws.send(encodePlace({ reqId: 1, x: 3, y: 4, colorId: 5, withBomb: false }));
     await placed(alice, 1);
     alice.ws.send(encodeSubscribe([]));
-    alice.ws.send(encodeSubscribe([{ cx: 0, cy: 0 }, { cx: 0, cy: 0 }]));
+    alice.ws.send(
+      encodeSubscribe([
+        { cx: 0, cy: 0 },
+        { cx: 0, cy: 0 },
+      ]),
+    );
     expect((await waitFor(() => acks(alice)[1])).chunks).toEqual([{ cx: 0, cy: 0, version: 1 }]);
     await Bun.sleep(20);
     expect(acks(alice)).toHaveLength(2);

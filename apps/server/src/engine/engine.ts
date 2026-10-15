@@ -325,7 +325,14 @@ export class GameEngine {
       else p.inventory[item] += delta;
       this.ledger(p, item, delta, "admin", now, { adminId: meta.adminId, comment: meta.comment });
     }
-    this.emit({ type: "mod_log", adminId: meta.adminId, action: "player_edit", targetUserId: userId, params: { changes: Object.fromEntries(entries), comment: meta.comment }, at: now });
+    this.emit({
+      type: "mod_log",
+      adminId: meta.adminId,
+      action: "player_edit",
+      targetUserId: userId,
+      params: { changes: Object.fromEntries(entries), comment: meta.comment },
+      at: now,
+    });
     this.emit({ type: "player", userId });
     return { ok: true };
   }
@@ -346,7 +353,17 @@ export class GameEngine {
       }
       if (current.colorId === w.colorId && current.ownerId === w.ownerId) continue;
       const prev = this.canvas.set(w.x, w.y, w.colorId, w.ownerId);
-      this.emit({ type: "pixel", kind: plan.kind, x: w.x, y: w.y, userId: w.ownerId, colorId: w.colorId, prevColorId: prev.colorId, prevUserId: prev.ownerId, at: now });
+      this.emit({
+        type: "pixel",
+        kind: plan.kind,
+        x: w.x,
+        y: w.y,
+        userId: w.ownerId,
+        colorId: w.colorId,
+        prevColorId: prev.colorId,
+        prevUserId: prev.ownerId,
+        at: now,
+      });
       cells++;
     }
     let bombs = 0;
@@ -356,7 +373,14 @@ export class GameEngine {
       this.emit({ type: "bomb_removed", x, y, ownerId: bomb.ownerId, reason: "moderated", removedBy: meta.adminId, at: now });
       bombs++;
     }
-    this.emit({ type: "mod_log", adminId: meta.adminId, action: meta.action, targetUserId: meta.targetUserId, params: { ...meta.params, cells, skipped, bombs }, at: now });
+    this.emit({
+      type: "mod_log",
+      adminId: meta.adminId,
+      action: meta.action,
+      targetUserId: meta.targetUserId,
+      params: { ...meta.params, cells, skipped, bombs },
+      at: now,
+    });
     return { ok: true, cells, skipped, bombs };
   }
 

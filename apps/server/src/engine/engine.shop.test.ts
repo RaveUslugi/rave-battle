@@ -63,9 +63,7 @@ describe("buyColor", () => {
     expect(engine.buyColor(1, 40, T0)).toEqual({ ok: true });
     expect(a.coins).toBe(100);
     expect(a.unlockedColors.has(40)).toBe(true);
-    expect(eventsOf(engine.drainEvents(), "color_unlocked")).toEqual([
-      { type: "color_unlocked", userId: 1, colorId: 40, source: "shop", at: T0 },
-    ]);
+    expect(eventsOf(engine.drainEvents(), "color_unlocked")).toEqual([{ type: "color_unlocked", userId: 1, colorId: 40, source: "shop", at: T0 }]);
     expect(engine.buyColor(1, 40, T0)).toEqual({ ok: false, code: "already_unlocked" });
   });
 

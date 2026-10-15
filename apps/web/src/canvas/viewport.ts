@@ -82,9 +82,7 @@ export function visibleChunks(cam: Camera, size: ScreenSize, canvas: CanvasSize,
   const onScreen = chunkRange(cam, size, canvas, 0);
   const onScreenKeys = new Set(onScreen.map((c) => `${c.cx}:${c.cy}`));
   const rest = chunks.filter((c) => !onScreenKeys.has(`${c.cx}:${c.cy}`));
-  return [...onScreen.sort(byDistance), ...rest.sort(byDistance)]
-    .slice(0, MAX_SUBSCRIBED_CHUNKS)
-    .sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+  return [...onScreen.sort(byDistance), ...rest.sort(byDistance)].slice(0, MAX_SUBSCRIBED_CHUNKS).sort((a, b) => a.cy - b.cy || a.cx - b.cx);
 }
 
 function chunkRange(cam: Camera, size: ScreenSize, canvas: CanvasSize, margin: number): Array<{ cx: number; cy: number }> {

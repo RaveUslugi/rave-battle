@@ -169,15 +169,15 @@ describe("appRouter", () => {
     const me = await as(bob).me();
     expect(me?.player?.blocks).toEqual(["banned"]);
     expect(me?.player?.banReason).toBe("spam");
-    expect(await as(admin).admin.players.search({ q: "bob" })).toEqual([
-      { id: bob.id, name: "bob", discordId: "discord-bob", banned: true },
-    ]);
+    expect(await as(admin).admin.players.search({ q: "bob" })).toEqual([{ id: bob.id, name: "bob", discordId: "discord-bob", banned: true }]);
     await expect(as(admin).admin.players.get({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("moderation actions with mixed variant fields are rejected", async () => {
     const area = { x1: 0, y1: 0, x2: 1, y2: 1 };
-    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 
   test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
@@ -206,6 +206,11 @@ describe("appRouter", () => {
     const wide = { kind: "clear_area", area: { x1: 0, y1: 0, x2: 256, y2: 255 }, mode: "fill" } as const;
     expect(await as(admin).admin.moderation.preview({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
     expect(await as(admin).admin.moderation.execute({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
-    expect(await as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: alice.id } })).toEqual({ ok: true, cells: 0, bombs: 0, bbox: null });
+    expect(await as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: alice.id } })).toEqual({
+      ok: true,
+      cells: 0,
+      bombs: 0,
+      bbox: null,
+    });
   });
 });

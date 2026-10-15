@@ -1,9 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { describeAction, pluralCells, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
+import {
+  describeAction,
+  pluralCells,
+  kindText,
+  moderationErrorText,
+  PERIOD_PRESETS,
+  presetRange,
+  previewText,
+  rectText,
+  resultText,
+} from "./moderation-format";
 
 describe("moderation-format", () => {
   test("pluralCells", () => {
-    const expected: Array<[number, string]> = [[1, "1 клетка"], [2, "2 клетки"], [5, "5 клеток"], [11, "11 клеток"], [12, "12 клеток"], [21, "21 клетка"], [22, "22 клетки"], [25, "25 клеток"], [111, "111 клеток"]];
+    const expected: Array<[number, string]> = [
+      [1, "1 клетка"],
+      [2, "2 клетки"],
+      [5, "5 клеток"],
+      [11, "11 клеток"],
+      [12, "12 клеток"],
+      [21, "21 клетка"],
+      [22, "22 клетки"],
+      [25, "25 клеток"],
+      [111, "111 клеток"],
+    ];
     for (const [n, text] of expected) expect(pluralCells(n)).toBe(text);
   });
 
@@ -48,7 +68,9 @@ describe("moderation-format", () => {
 
   test("describeAction", () => {
     const fmt = (ms: number) => `t${ms}`;
-    expect(describeAction({ kind: "rollback_player", userId: 3, from: 0, to: 5, removeBombs: true }, { player: "Вася", period: "24 ч", fmt })).toBe("Откат игрока Вася за 24 ч, со снятием бомб");
+    expect(describeAction({ kind: "rollback_player", userId: 3, from: 0, to: 5, removeBombs: true }, { player: "Вася", period: "24 ч", fmt })).toBe(
+      "Откат игрока Вася за 24 ч, со снятием бомб",
+    );
     expect(describeAction({ kind: "rollback_player", userId: 3, from: 1, to: 5, removeBombs: false }, { fmt })).toBe("Откат игрока #3 за t1 — t5");
     expect(describeAction({ kind: "clear_area", mode: "fill" }, { fmt })).toBe("Очистка: залить фоном");
     expect(describeAction({ kind: "clear_area", mode: "to_time", at: 9 }, { fmt })).toBe("Очистка: откат к t9");

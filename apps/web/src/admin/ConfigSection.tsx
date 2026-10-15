@@ -169,7 +169,11 @@ export function ConfigSection() {
               <input className={styles.input} value={comment} maxLength={COMMENT_MAX} onChange={(e) => setComment(e.target.value)} />
             </label>
             <div className={styles.row}>
-              <button type="submit" className={styles.button} disabled={save.isPending || staleNow || hasErrors || diff.length === 0 || comment.trim().length === 0}>
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={save.isPending || staleNow || hasErrors || diff.length === 0 || comment.trim().length === 0}
+              >
                 Сохранить как версию {version + 1}
               </button>
               <button type="button" className={styles.button} onClick={() => setOpen(false)}>
@@ -184,7 +188,9 @@ export function ConfigSection() {
           </p>
         )}
         {staleNow && (
-          <p className={styles.error}>Конфиг уже изменили (версия {version}), а черновик собран на версии {draftBase}. Сохранить его нельзя — загрузите текущую версию.</p>
+          <p className={styles.error}>
+            Конфиг уже изменили (версия {version}), а черновик собран на версии {draftBase}. Сохранить его нельзя — загрузите текущую версию.
+          </p>
         )}
         {staleNow && (
           <button type="button" className={styles.button} onClick={reload}>

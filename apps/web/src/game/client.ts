@@ -67,9 +67,7 @@ export class GameClient {
     this.timers = deps.timers ?? defaultTimers;
     this.ttlMs = deps.pendingTtlMs ?? 10_000;
     this.sapper =
-      deps.tools && deps.readings
-        ? new SapperTools({ game: deps.game, ui: deps.ui, readings: deps.readings, api: deps.tools, now: this.now })
-        : null;
+      deps.tools && deps.readings ? new SapperTools({ game: deps.game, ui: deps.ui, readings: deps.readings, api: deps.tools, now: this.now }) : null;
   }
 
   attach(port: CanvasPort): void {

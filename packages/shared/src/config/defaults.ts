@@ -2,10 +2,38 @@ import type { GameConfig, PaletteEntry } from "./schema";
 
 // r/place 2022 palette, black first: id 0 is the empty-canvas background.
 const BASE_COLORS = [
-  "#000000", "#6D001A", "#BE0039", "#FF4500", "#FFA800", "#FFD635", "#FFF8B8", "#00A368",
-  "#00CC78", "#7EED56", "#00756F", "#009EAA", "#00CCC0", "#2450A4", "#3690EA", "#51E9F4",
-  "#493AC1", "#6A5CFF", "#94B3FF", "#811E9F", "#B44AC0", "#E4ABFF", "#DE107F", "#FF3881",
-  "#FF99AA", "#6D482F", "#9C6926", "#FFB470", "#515252", "#898D90", "#D4D7D9", "#FFFFFF",
+  "#000000",
+  "#6D001A",
+  "#BE0039",
+  "#FF4500",
+  "#FFA800",
+  "#FFD635",
+  "#FFF8B8",
+  "#00A368",
+  "#00CC78",
+  "#7EED56",
+  "#00756F",
+  "#009EAA",
+  "#00CCC0",
+  "#2450A4",
+  "#3690EA",
+  "#51E9F4",
+  "#493AC1",
+  "#6A5CFF",
+  "#94B3FF",
+  "#811E9F",
+  "#B44AC0",
+  "#E4ABFF",
+  "#DE107F",
+  "#FF3881",
+  "#FF99AA",
+  "#6D482F",
+  "#9C6926",
+  "#FFB470",
+  "#515252",
+  "#898D90",
+  "#D4D7D9",
+  "#FFFFFF",
 ];
 
 /** Neon extras sold in the shop (slots 32–39). */
@@ -24,9 +52,7 @@ export const defaultConfig: GameConfig = {
   canvas: { width: 512, height: 512 },
   palette: [
     ...BASE_COLORS.map((base, id): PaletteEntry => ({ id, type: "solid", base, params: {}, unlock: "default" })),
-    ...SHOP_COLORS.map(
-      ([base, price], i): PaletteEntry => ({ id: BASE_COLORS.length + i, type: "solid", base, params: {}, unlock: "shop", price }),
-    ),
+    ...SHOP_COLORS.map(([base, price], i): PaletteEntry => ({ id: BASE_COLORS.length + i, type: "solid", base, params: {}, unlock: "shop", price })),
   ],
   charges: { max: 10, regenMs: 30_000 },
   coinsPerPixel: 1,
