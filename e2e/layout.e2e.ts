@@ -31,13 +31,18 @@ test("desktop 1440×900: the top bar, the dock and the chat do not overlap; the 
     chat: page.getByRole("region", { name: "Чат и события" }),
     rail: page.getByRole("navigation", { name: "Разделы" }),
   });
-  const radios = palette.getByRole("radio");
-  await expect(radios).toHaveCount(defaultConfig.palette.length);
-  const area = await boxOf(palette);
-  for (const radio of await radios.all()) {
-    const box = await boxOf(radio);
-    expect(box.y >= area.y - 1 && box.y + box.height <= area.y + area.height + 1, "every swatch is in view without scrolling").toBe(true);
-  }
+  await expect(palette.getByRole("radio")).toHaveCount(defaultConfig.palette.length);
+  // One round trip for all swatches: is each one inside the palette's box, i.e. visible without scrolling?
+  const hidden = await palette.evaluate((group) => {
+    const area = group.getBoundingClientRect();
+    return [...group.querySelectorAll('[role="radio"]')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top < area.top - 1 || r.bottom > area.bottom + 1;
+      })
+      .map((el) => el.getAttribute("aria-label"));
+  });
+  expect(hidden, "every swatch is in view without scrolling").toEqual([]);
 });
 
 test("desktop: a section opens next to the rail and Esc closes it", async ({ browser }) => {

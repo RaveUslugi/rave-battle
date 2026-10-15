@@ -17,13 +17,28 @@ export function swatchBackground(entry: PaletteEntry, t: number): string {
   return effectColorAt(entry, 0, 0, t);
 }
 
+/** One timer for every animated swatch on the page, running only while some are mounted. */
+const ticks = new Set<(now: number) => void>();
+let timer: ReturnType<typeof setInterval> | null = null;
+
+function subscribeTick(listener: (now: number) => void): () => void {
+  ticks.add(listener);
+  timer ??= setInterval(() => {
+    const now = performance.now();
+    for (const tick of ticks) tick(now);
+  }, FRAME_MS);
+  return () => {
+    ticks.delete(listener);
+    if (ticks.size === 0 && timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
+
 function useNow(active: boolean): number {
   const [now, setNow] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setNow(performance.now()), FRAME_MS);
-    return () => clearInterval(id);
-  }, [active]);
+  useEffect(() => (active ? subscribeTick(setNow) : undefined), [active]);
   return now;
 }
 

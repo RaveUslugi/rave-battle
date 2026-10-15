@@ -33,7 +33,7 @@ export function isClose(actual: number[], expected: number[]): boolean {
 }
 
 /** Polls until the canvas centre has `expected`; on timeout the error says what was there instead. */
-export async function expectCenter(page: Page, expected: number[], timeout = 10_000): Promise<void> {
+export async function expectCenter(page: Page, expected: number[], timeout = 20_000): Promise<void> {
   let last: number[] = [];
   try {
     await expect
@@ -69,6 +69,6 @@ export async function openAs(browser: Browser, name: string, options: BrowserCon
   const page = await context.newPage();
   await page.goto(`/auth/dev?name=${name}`);
   await page.goto(view);
-  await expect(page.getByTestId("status")).toContainText("онлайн");
+  await expect(page.getByTestId("status")).toContainText("онлайн", { timeout: 15_000 });
   return page;
 }

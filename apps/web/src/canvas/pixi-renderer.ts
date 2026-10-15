@@ -72,7 +72,7 @@ export class PixiRenderer implements Renderer {
     this.state = "initializing";
     await this.app.init({
       resizeTo: host,
-      background: "#07020f",
+      background: "#0b0a12",
       antialias: false,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
