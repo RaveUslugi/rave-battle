@@ -3,27 +3,16 @@ import { fetchOverview } from "../canvas/chunk-loader";
 import { clampRect, minimapLayout, minimapToCanvas, viewportRect, type MinimapLayout } from "../canvas/minimap-math";
 import { buildPaletteLut, paintRgba } from "../canvas/palette";
 import type { CanvasSize } from "../canvas/viewport";
+import { useTranslation } from "../i18n";
 import { gameStore, useGame } from "../state/game-store";
 import styles from "./Minimap.module.css";
 
 const BOX = 160;
 const REFRESH_MS = 15_000;
-const OPEN_KEY = "rb:minimap";
 
-function initiallyOpen(): boolean {
-  try {
-    const stored = window.localStorage.getItem(OPEN_KEY);
-    if (stored !== null) return stored === "1";
-  } catch {
-    // Blocked storage: fall through to the screen-size default.
-  }
-  return !window.matchMedia("(max-width: 900px)").matches;
-}
-
-/** Whole-canvas overview with the current viewport; click or drag to move the camera there. */
-export default function Minimap() {
+/** Whole-canvas overview with the current viewport; click or drag to move the camera there. Shown while `open`. */
+export default function Minimap({ open, className }: { open: boolean; className?: string }) {
   const config = useGame((s) => s.config);
-  const [open, setOpen] = useState(initiallyOpen);
   const [image, setImage] = useState<HTMLCanvasElement | null>(null);
   const layout = useMemo(() => (config ? minimapLayout(config.canvas, BOX) : null), [config]);
 
@@ -63,30 +52,17 @@ export default function Minimap() {
     };
   }, [open, config]);
 
-  if (!config || !layout) return null;
-
-  const toggle = () =>
-    setOpen((was) => {
-      try {
-        window.localStorage.setItem(OPEN_KEY, was ? "0" : "1");
-      } catch {
-        // Not remembered; fine.
-      }
-      return !was;
-    });
-
+  if (!config || !layout || !open) return null;
   return (
-    <div className={styles.minimap}>
-      <button type="button" className={styles.toggle} aria-expanded={open} onClick={toggle}>
-        <span aria-hidden="true">🗺 </span>Карта
-      </button>
-      {open && <MinimapMap layout={layout} image={image} canvas={config.canvas} />}
+    <div className={[styles.minimap, className].filter(Boolean).join(" ")}>
+      <MinimapMap layout={layout} image={image} canvas={config.canvas} />
     </div>
   );
 }
 
 /** The open map: the only part that follows the camera, so a collapsed minimap never redraws. */
 function MinimapMap({ layout, image, canvas }: { layout: MinimapLayout; image: HTMLCanvasElement | null; canvas: CanvasSize }) {
+  const { t } = useTranslation();
   const view = useGame((s) => s.view);
   const mapRef = useRef<HTMLCanvasElement>(null);
 
@@ -109,7 +85,7 @@ function MinimapMap({ layout, image, canvas }: { layout: MinimapLayout; image: H
     if (view) {
       const lineWidth = 1.5;
       const r = clampRect(viewportRect(view, layout), layout, lineWidth / 2);
-      ctx.strokeStyle = "#22f3ff";
+      ctx.strokeStyle = "#3de8ff";
       ctx.lineWidth = lineWidth;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
     }
@@ -127,7 +103,7 @@ function MinimapMap({ layout, image, canvas }: { layout: MinimapLayout; image: H
       className={styles.map}
       style={{ width: layout.width, height: layout.height }}
       role="img"
-      aria-label="Миникарта холста"
+      aria-label={t("sections.minimapLabel")}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         jump(e);

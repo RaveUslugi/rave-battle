@@ -22,9 +22,10 @@ test("status, online count and hover are stored", () => {
 test("the online count is cleared when the connection is lost", () => {
   const { setStatus, setOnline } = gameStore.getState();
   setStatus("open");
-  setOnline(7);
+  setOnline(7, [{ id: 1, name: "a" }]);
+  expect(gameStore.getState().onlineSample).toEqual([{ id: 1, name: "a" }]);
   setStatus("reconnecting");
-  expect(gameStore.getState().online).toBe(0);
+  expect(gameStore.getState()).toMatchObject({ online: 0, onlineSample: [] });
   setStatus("open");
   expect(gameStore.getState().online).toBe(0);
 });

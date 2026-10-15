@@ -422,3 +422,8 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.preview {
+  position: relative;
+  display: block;
+}

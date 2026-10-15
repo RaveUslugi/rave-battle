@@ -1,5 +1,6 @@
 import { defaultConfig, type PlayerView } from "@rave/shared";
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { applyLocale } from "../i18n";
 import { createGameStore } from "../state/game-store";
 import { createReadingsStore } from "../state/readings-store";
 import { createUiStore } from "../state/ui-store";
@@ -50,20 +51,22 @@ function setup(answers: { detect?: DetectAnswer; defuse?: DefuseAnswer; throws?:
   return { game, ui, readings, calls, tools, toasts };
 }
 
+beforeEach(() => applyLocale("ru"));
+
 describe("SapperTools", () => {
   test("a detector reading is stored and announced", async () => {
     const t = setup();
     await t.tools.use("detector", { x: 4, y: 5 });
     expect(t.calls).toEqual(["detect 4,5"]);
     expect(t.readings.getState().readings).toEqual([{ x: 4, y: 5, count: 2, at: NOW }]);
-    expect(t.toasts()).toEqual(["🔍 Бомб рядом: 2"]);
+    expect(t.toasts()).toEqual(["Бомб рядом: 2"]);
   });
 
   test("defuse results become toasts", async () => {
     const t = setup();
     await t.tools.use("defuser", { x: 1, y: 1 });
-    expect(t.toasts()).toEqual(["🧯 Бомба обезврежена! +20 монет"]);
-    expect(defuseText({ found: true, reward: 0 })).toBe("🧯 Снята ваша собственная бомба");
+    expect(t.toasts()).toEqual(["Бомба обезврежена! +20 монет"]);
+    expect(defuseText({ found: true, reward: 0 })).toBe("Снята ваша собственная бомба");
     expect(defuseText({ found: false, reward: 0 })).toBe("Бомбы не было — дефьюзер потрачен");
   });
 

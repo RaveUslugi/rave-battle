@@ -8,6 +8,6 @@ export { useReducedMotion } from "./motion";
 export { Panel } from "./Panel";
 export { type SegmentOption, Segmented } from "./Segmented";
 export { heightAfterDrag, SHEET_HEIGHTS, Sheet, type SheetHeight } from "./Sheet";
-export { Swatch, swatchBackground } from "./Swatch";
+export { ColorPreview, Swatch, swatchBackground } from "./Swatch";
 export { type TabItem, Tabs } from "./Tabs";
 export { Toast, type ToastTone } from "./Toast";

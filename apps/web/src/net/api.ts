@@ -1,4 +1,4 @@
-import type { ItemKey, Reward } from "@rave/shared/client";
+import type { ChatSendCode, ItemKey, Locale, Reward } from "@rave/shared/client";
 import { TRPCClientError } from "@trpc/client";
 import type { ToolsApi } from "../game/tools";
 import { trpcClient as trpc } from "./trpc";
@@ -32,4 +32,20 @@ export const shopApi = {
 
 export const dailyApi = {
   claim: (): Promise<ClaimAnswer> => call(() => trpc.daily.claim.mutate()),
+};
+
+export type ChatAnswer =
+  | { ok: true; id: number }
+  | { ok: false; code: Exclude<ChatSendCode, "muted" | "cooldown"> | "unauthorized" | "rate_limited" | "unavailable" }
+  | { ok: false; code: "muted"; until: number | "permanent" }
+  | { ok: false; code: "cooldown"; retryAt: number };
+
+export const chatApi = {
+  send: (text: string): Promise<ChatAnswer> => call(() => trpc.chat.send.mutate({ text })) as Promise<ChatAnswer>,
+  /** Admin only; the server checks the rights. */
+  remove: (id: number): Promise<{ ok: boolean }> => call(() => trpc.admin.chat.delete.mutate({ id })),
+};
+
+export const settingsApi = {
+  setLocale: (locale: Locale | null): Promise<{ ok: boolean }> => call(() => trpc.settings.setLocale.mutate({ locale })),
 };

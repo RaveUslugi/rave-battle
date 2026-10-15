@@ -545,7 +545,17 @@ describe("websocket", () => {
     const a = await connect();
     await connect();
     const online = await waitFor(() => a.json.find((m) => m.type === "online" && m.count === 2));
-    expect(online).toEqual({ type: "online", count: 2 });
+    expect(online).toEqual({ type: "online", count: 2, sample: [] });
+  });
+
+  test("the online message names the latest logged-in players, newest first, each once", async () => {
+    const watcher = await connect();
+    const alice = await login("alice");
+    await connect(alice);
+    await connect(await login("bob"));
+    await connect(alice);
+    const online = await waitFor(() => watcher.json.find((m) => m.type === "online" && m.count === 4));
+    expect(online.type === "online" ? online.sample?.map((u) => u.name) : null).toEqual(["alice", "bob"]);
   });
 });
 

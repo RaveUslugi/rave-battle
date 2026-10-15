@@ -68,16 +68,34 @@ describe("ui store", () => {
     expect(store.getState().explosion).toBeNull();
   });
 
-  test("a repeated toast replaces the identical one with a fresh id", () => {
+  test("a repeated toast counts up, moves to the end and gets a fresh id", () => {
     const store = createUiStore(null);
     const first = store.getState().pushToast("error", "Нет зарядов");
-    store.getState().pushToast("info", "x");
+    store.getState().pushToast("info", "x", "detector");
     const second = store.getState().pushToast("error", "Нет зарядов");
     expect(second).not.toBe(first);
-    expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([
-      ["info", "x"],
-      ["error", "Нет зарядов"],
+    expect(store.getState().toasts.map((t) => [t.tone, t.text, t.count, t.icon])).toEqual([
+      ["info", "x", 1, "detector"],
+      ["error", "Нет зарядов", 2, undefined],
     ]);
+  });
+
+  test("recent colours: newest first, no repeats, eight at most, restored with the selected colour first", () => {
+    const storage = memoryStorage({ "rb:color": "3", "rb:recent-colors": '[7,3,"x",900,2]' });
+    const store = createUiStore(storage);
+    expect(store.getState().recentColors).toEqual([3, 7, 2]);
+    for (const id of [10, 11, 12, 13, 14, 15, 2]) store.getState().selectColor(id);
+    expect(store.getState().recentColors).toEqual([2, 15, 14, 13, 12, 11, 10, 3]);
+    expect(createUiStore(storage).getState().recentColors).toEqual([2, 15, 14, 13, 12, 11, 10, 3]);
+    expect(createUiStore(memoryStorage({ "rb:recent-colors": "{" })).getState().recentColors).toEqual([5]);
+  });
+
+  test("the shop opens on an offer; opening it from the menu drops the focus", () => {
+    const store = createUiStore(null);
+    store.getState().openShop("item:bomb");
+    expect(store.getState()).toMatchObject({ panel: "shop", shopFocus: "item:bomb" });
+    store.getState().openPanel("shop");
+    expect(store.getState().shopFocus).toBeNull();
   });
 
   test("switching tools clears the selection", () => {

@@ -22,7 +22,7 @@ export function heatRects(h: HeatmapData, layout: MinimapLayout) {
 
 /** Neon cyan (cold) to pink (hot), more opaque when hotter. */
 export function heatColor(t: number): string {
-  const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
-  const alpha = Math.round((0.35 + 0.65 * t) * 100) / 100;
-  return `rgba(${mix(34, 255)}, ${mix(243, 43)}, ${mix(255, 214)}, ${alpha})`;
+  // One hue (the accent pink) by opacity, matching the "less → more" legend.
+  const alpha = Math.round((0.3 + 0.55 * t) * 100) / 100;
+  return `rgba(255, 61, 174, ${alpha})`;
 }

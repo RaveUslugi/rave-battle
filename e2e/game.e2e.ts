@@ -1,78 +1,6 @@
+import { expect, test } from "@playwright/test";
 import { defaultConfig } from "../packages/shared/src/config/defaults";
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { PNG } from "pngjs";
-
-const COLOR_ID = 5;
-const TOLERANCE = 8;
-const VIEW = "/?x=100.5&y=100.5&z=24";
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = Number.parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-/** The main game canvas (the minimap is a second canvas with role="img"). */
-const canvasOf = (page: Page) => page.locator("canvas:not([role])");
-
-/**
- * The pixel at the centre of the canvas. Only a 3×3 CSS-pixel clip is captured, without freezing
- * animations: a full-canvas screenshot is slow on software-rendered CI runners (the first one takes
- * 2–3 s), which left the 5 s polls one or two tries.
- */
-async function centerPixel(page: Page): Promise<[number, number, number]> {
-  const box = await canvasOf(page).boundingBox();
-  if (!box) return [-1, -1, -1];
-  const clip = { x: Math.floor(box.x + box.width / 2) - 1, y: Math.floor(box.y + box.height / 2) - 1, width: 3, height: 3 };
-  const png = PNG.sync.read(await page.screenshot({ clip, animations: "allow", caret: "initial" }));
-  // The middle of the clip, in device pixels (HiDPI-safe).
-  const at = (Math.floor(png.height / 2) * png.width + Math.floor(png.width / 2)) * 4;
-  return [png.data[at] ?? -1, png.data[at + 1] ?? -1, png.data[at + 2] ?? -1];
-}
-
-function isClose(actual: number[], expected: number[]): boolean {
-  return actual.every((c, i) => Math.abs(c - (expected[i] ?? 0)) <= TOLERANCE);
-}
-
-/** Polls until the canvas centre has `expected`; on timeout the error says what was there instead. */
-async function expectCenter(page: Page, expected: number[], timeout = 10_000): Promise<void> {
-  let last: number[] = [];
-  try {
-    await expect
-      .poll(
-        async () => {
-          last = await centerPixel(page);
-          return isClose(last, expected);
-        },
-        { timeout },
-      )
-      .toBe(true);
-  } catch (error) {
-    const box = await canvasOf(page).boundingBox();
-    const onTop = await page.evaluate(
-      ({ x, y }) => {
-        const el = document.elementFromPoint(x, y);
-        return el ? `${el.tagName.toLowerCase()}.${String(el.className)} ${el.getAttribute("aria-label") ?? ""}`.trim() : "nothing";
-      },
-      { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 },
-    );
-    const status = await page.getByTestId("status").textContent();
-    throw new Error(
-      `centre is rgb(${last.join(",")}), expected rgb(${expected.join(",")}); on top: ${onTop}; status: ${status}; canvas: ${JSON.stringify(box)}`,
-      {
-        cause: error,
-      },
-    );
-  }
-}
-
-async function openAs(browser: Browser, name: string): Promise<Page> {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto(`/auth/dev?name=${name}`);
-  await page.goto(VIEW);
-  await expect(page.getByTestId("status")).toContainText("онлайн");
-  return page;
-}
+import { COLOR_ID, canvasOf, expectCenter, hexToRgb, openAs } from "./helpers";
 
 test("a pixel placed by one player shows up for another in real time", async ({ browser }) => {
   const entry = defaultConfig.palette.find((e) => e.id === COLOR_ID);
@@ -89,7 +17,7 @@ test("a pixel placed by one player shows up for another in real time", async ({ 
   await expectCenter(b, background);
 
   await a
-    .getByRole("radiogroup", { name: "Цвет" })
+    .getByRole("radiogroup", { name: "Цвет", exact: true })
     .getByRole("radio", { name: `Цвет ${COLOR_ID}`, exact: true })
     .click();
   await canvasOf(a).click();

@@ -1,38 +1,17 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
-import styles from "./App.module.css";
+import { useEffect, useMemo } from "react";
 import { GameClient } from "./game/client";
+import { i18n } from "./i18n";
 import { toolsApi } from "./net/api";
 import { queryClient, useTRPC } from "./net/trpc";
 import { gameStore } from "./state/game-store";
 import { bindReadings, readingsStore } from "./state/readings-store";
-import { uiStore, useUi } from "./state/ui-store";
-import { AccessBanner } from "./ui/AccessBanner";
-import { AuthPanel } from "./ui/AuthPanel";
-import { ChunkBoundary } from "./ui/ChunkBoundary";
-import { ConfirmBar } from "./ui/ConfirmBar";
-import { ExplosionFlash } from "./ui/ExplosionFlash";
-import { Feed } from "./ui/Feed";
-import { FreezeBanner } from "./ui/FreezeBanner";
-import { Hud } from "./ui/Hud";
-import { PaletteBar } from "./ui/PaletteBar";
-import { PanelMenu } from "./ui/PanelMenu";
-import { SidePanel } from "./ui/SidePanel";
-import { StatusBar } from "./ui/StatusBar";
-import { Toasts } from "./ui/Toasts";
+import { uiStore } from "./state/ui-store";
+import { GameLayout } from "./ui/game/GameLayout";
 
-const CanvasView = lazy(() => import("./canvas/CanvasView").then((m) => ({ default: m.CanvasView })));
-const Minimap = lazy(() => import("./ui/Minimap"));
-
-const LOGIN_ERRORS: Record<string, string> = {
-  denied: "Вход отменён",
-  discord: "Не удалось войти через Discord, попробуйте ещё раз",
-  state: "Сессия входа устарела, попробуйте ещё раз",
-};
+const LOGIN_ERRORS = ["denied", "discord", "state"] as const;
 
 export function App() {
   const client = useMemo(() => new GameClient({ game: gameStore, ui: uiStore, readings: readingsStore, tools: toolsApi }), []);
-
-  const panel = useUi((s) => s.panel);
 
   useEffect(() => bindReadings(gameStore, readingsStore), []);
 
@@ -53,46 +32,12 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     const error = params.get("login_error");
     if (error === null) return;
-    uiStore.getState().pushToast("error", LOGIN_ERRORS[error] ?? "Не удалось войти");
+    const known = LOGIN_ERRORS.find((e) => e === error);
+    uiStore.getState().pushToast("error", i18n.t(known ? `login.${known}` : "login.fallback"));
     params.delete("login_error");
     const search = params.size > 0 ? `?${params.toString()}` : "";
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${search}${window.location.hash}`);
   }, []);
 
-  return (
-    <div className={styles.app} data-panel={panel === null ? undefined : "open"}>
-      <ChunkBoundary fallback="reload">
-        <Suspense fallback={null}>
-          <CanvasView client={client} />
-        </Suspense>
-      </ChunkBoundary>
-      <ExplosionFlash />
-      <div className={styles.top}>
-        <div className={styles.topLeft}>
-          <StatusBar />
-          <Hud />
-        </div>
-        <div className={styles.topCenter}>
-          <FreezeBanner />
-          <AccessBanner />
-          <Toasts />
-        </div>
-        <div className={styles.topRight}>
-          <AuthPanel />
-          <PanelMenu />
-          <ChunkBoundary fallback={null}>
-            <Suspense fallback={null}>
-              <Minimap />
-            </Suspense>
-          </ChunkBoundary>
-        </div>
-      </div>
-      <div className={styles.bottom}>
-        <Feed />
-        <ConfirmBar client={client} />
-        <PaletteBar />
-      </div>
-      <SidePanel />
-    </div>
-  );
+  return <GameLayout client={client} />;
 }

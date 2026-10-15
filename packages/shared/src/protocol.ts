@@ -192,6 +192,9 @@ export function decodeOverview(bytes: Uint8Array): Overview | null {
 
 // ---- Server → client: JSON text messages ----
 
+/** How many online players the `online` message names. */
+export const ONLINE_SAMPLE = 3;
+
 export interface UserRef {
   id: number;
   name: string;
@@ -276,7 +279,8 @@ export type ServerMessage =
   | { type: "chat_deleted"; ids: number[] }
   /** Sent once right after `hello`: the latest feed events and chat messages, oldest first. Replaces whatever the client showed before. */
   | { type: "timeline_history"; entries: TimelineEntry[] }
-  | { type: "online"; count: number }
+  /** `sample`: up to ONLINE_SAMPLE logged-in players who connected most recently, newest first (avatars next to the count). */
+  | { type: "online"; count: number; sample?: UserRef[] }
   /**
    * Answer to SUBSCRIBE listing only newly added chunks with their current version. Deltas for them
    * follow from that version on, so a client must reload any chunk loaded at a lower version.

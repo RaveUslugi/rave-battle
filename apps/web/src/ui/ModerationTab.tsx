@@ -5,7 +5,7 @@ import { useTRPC } from "../net/trpc";
 import { useGame } from "../state/game-store";
 import { uiStore, useUi } from "../state/ui-store";
 import { describeAction, kindText, moderationErrorText, PERIOD_PRESETS, presetRange, previewText, rectText, resultText } from "./moderation-format";
-import styles from "./Tabs.module.css";
+import styles from "./moderation.module.css";
 
 const fmt = (ms: number) => new Date(ms).toLocaleString("ru-RU");
 
@@ -16,15 +16,46 @@ type Action =
   | { kind: "remove_bombs"; area: Rect };
 
 /** Admin side panel: cell inspector or area actions. Every call is checked on the server again. */
+/** Inspector and area tools; they act on the next tap on the canvas instead of painting. */
+function ToolSwitch() {
+  const tool = useUi((s) => s.tool);
+  const pick = (next: "inspect" | "area") => uiStore.getState().setTool(tool === next ? "paint" : next);
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a styled group of toggle buttons, not a form fieldset
+    <div className={styles.segments} role="group" aria-label="Инструмент модерации">
+      <button
+        type="button"
+        className={tool === "inspect" ? styles.segmentOn : styles.segment}
+        aria-pressed={tool === "inspect"}
+        onClick={() => pick("inspect")}
+      >
+        Клетка
+      </button>
+      <button type="button" className={tool === "area" ? styles.segmentOn : styles.segment} aria-pressed={tool === "area"} onClick={() => pick("area")}>
+        Область
+      </button>
+    </div>
+  );
+}
+
 export function ModerationTab() {
+  return (
+    <div className={styles.tab}>
+      <ToolSwitch />
+      <ModerationBody />
+    </div>
+  );
+}
+
+function ModerationBody() {
   const cell = useUi((s) => s.moderation.cell);
   const area = useUi((s) => s.moderation.area);
   if (cell) return <Inspector cell={cell} />;
   if (area) return <AreaTools area={area} />;
   return (
     <div className={styles.tab}>
-      <p className={styles.hint}>Выберите 🔎 клетку или ▭ область на холсте</p>
-      <p className={styles.hint}>▭: протяните мышью, чтобы выделить; для перемещения холста выключите инструмент</p>
+      <p className={styles.hint}>Включите «Клетка» или «Область» выше и выберите место на холсте</p>
+      <p className={styles.hint}>Область: протяните мышью или коснитесь двух углов; чтобы двигать холст, выключите инструмент</p>
     </div>
   );
 }

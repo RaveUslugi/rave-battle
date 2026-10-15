@@ -21,7 +21,7 @@ describe("heatmap", () => {
   });
 
   test("colors go from cyan to pink", () => {
-    expect(heatColor(0)).toBe("rgba(34, 243, 255, 0.35)");
-    expect(heatColor(1)).toBe("rgba(255, 43, 214, 1)");
+    expect(heatColor(0)).toBe("rgba(255, 61, 174, 0.3)");
+    expect(heatColor(1)).toBe("rgba(255, 61, 174, 0.85)");
   });
 });

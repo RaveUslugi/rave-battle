@@ -3,7 +3,6 @@ import { createGameStore } from "./game-store";
 import {
   bindReadings,
   createReadingsStore,
-  formatAge,
   MAX_READINGS,
   READING_FADE_MS,
   READING_TTL_MS,
@@ -137,12 +136,6 @@ describe("reading helpers", () => {
     expect(readingAlpha(READING_FADE_MS / 2)).toBeCloseTo(0.65);
     expect(readingAlpha(READING_FADE_MS * 5)).toBeCloseTo(0.3);
     expect(readingAlpha(-1000)).toBe(1);
-  });
-
-  test("ages read naturally", () => {
-    expect(formatAge(30_000)).toBe("только что");
-    expect(formatAge(12 * 60_000)).toBe("12 мин назад");
-    expect(formatAge(3 * 3_600_000 + 5)).toBe("3 ч назад");
   });
 
   test("readingAt finds the reading of a cell", () => {

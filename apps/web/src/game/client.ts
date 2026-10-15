@@ -4,6 +4,7 @@ import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";
 import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
+import { formatNumber, i18n } from "../i18n";
 import { rejectText } from "./messages";
 import { PendingPlacements } from "./pending";
 import { tapCorner } from "./area";
@@ -181,11 +182,9 @@ export class GameClient {
       bombOwner: result.bombOwner.name,
       at: this.now(),
     });
-    const freeze = result.frozenUntil > 0 ? ", заморозка" : "";
-    const text = result.self
-      ? `Вы подорвались на собственной бомбе! −${result.coinsLost} монет${freeze}`
-      : `💥 Бомба игрока ${result.bombOwner.name}! −${result.coinsLost} монет${freeze}`;
-    this.deps.ui.getState().pushToast("error", text);
+    const n = formatNumber(result.coinsLost);
+    const text = result.self ? i18n.t("toast.explodedSelf", { n }) : i18n.t("toast.exploded", { owner: result.bombOwner.name, n });
+    this.deps.ui.getState().pushToast("error", result.frozenUntil > 0 ? i18n.t("toast.explodedFreeze", { text }) : text, "boom");
   };
 
   /** True when the placement was sent. */

@@ -163,7 +163,7 @@ describe("Swatch", () => {
       </div>,
     );
     expect(screen.current.getByRole("radio", { name: "Неон-розовый" }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.current.getByRole("radio", { name: "#46, Эффект, Закрыто" })).toBeTruthy();
+    expect(screen.current.getByRole("radio", { name: "Цвет 46, Эффект, Закрыто" })).toBeTruthy();
     fireEvent.click(screen.current.getByRole("radio", { name: "Неон-розовый" }));
     expect(onSelect).toHaveBeenCalledTimes(1);
     act(() => applyLocale("en"));

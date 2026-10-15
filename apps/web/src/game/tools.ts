@@ -4,6 +4,7 @@ import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
 import { effectiveAccess } from "./access";
 import { isFrozen } from "./charges";
+import { formatNumber, i18n } from "../i18n";
 import { rejectText } from "./messages";
 
 type Cell = { x: number; y: number };
@@ -27,8 +28,8 @@ export interface ToolDeps {
 }
 
 export function defuseText(answer: { found: boolean; reward: number }): string {
-  if (!answer.found) return "Бомбы не было — дефьюзер потрачен";
-  return answer.reward > 0 ? `🧯 Бомба обезврежена! +${answer.reward} монет` : "🧯 Снята ваша собственная бомба";
+  if (!answer.found) return i18n.t("toast.defusedNone");
+  return answer.reward > 0 ? i18n.t("toast.defused", { n: formatNumber(answer.reward) }) : i18n.t("toast.defusedOwn");
 }
 
 /** Detector and defuser: one request at a time; answers become toasts and stored readings. */
@@ -43,7 +44,7 @@ export class SapperTools {
   /** Starts the request and returns its completion, or null when refused locally (a toast explains why) or busy. */
   use(tool: Tool, cell: Cell): Promise<void> | null {
     if (this.busy) {
-      this.deps.ui.getState().pushToast("info", "Подождите, предыдущий запрос ещё выполняется");
+      this.deps.ui.getState().pushToast("info", i18n.t("toast.busy"));
       return null;
     }
     const problem = this.check(tool);
@@ -79,12 +80,12 @@ export class SapperTools {
         if (stale()) return;
         if (!answer.ok) return this.toast(answer.code);
         this.deps.readings.getState().add({ x: cell.x, y: cell.y, count: answer.count, at: this.now() });
-        this.deps.ui.getState().pushToast("info", `🔍 Бомб рядом: ${answer.count}`);
+        this.deps.ui.getState().pushToast("info", i18n.t("toast.detected", { count: answer.count }), "detector");
       } else {
         const answer = await this.deps.api.defuse(cell);
         if (stale()) return;
         if (!answer.ok) return this.toast(answer.code);
-        this.deps.ui.getState().pushToast("info", defuseText(answer));
+        this.deps.ui.getState().pushToast(answer.found ? "success" : "info", defuseText(answer), "defuser");
       }
     } catch {
       if (!stale()) this.toast("unavailable");

@@ -1,5 +1,6 @@
 import { defaultConfig, type PlayerView, type Rect, type ServerMessage } from "@rave/shared";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { applyLocale } from "../i18n";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
 import { bindReadings, createReadingsStore } from "../state/readings-store";
@@ -95,6 +96,7 @@ const toastTexts = (ui: ReturnType<typeof createUiStore>) => ui.getState().toast
 describe("GameClient", () => {
   let t: ReturnType<typeof setup>;
   beforeEach(() => {
+    applyLocale("ru");
     t = setup();
     t.ui.getState().selectColor(7);
   });
@@ -206,7 +208,7 @@ describe("GameClient", () => {
   test("an explosion without a freeze does not mention one", () => {
     t.client.onCellTap({ x: 9, y: 8 }, "mouse");
     t.client.onPlaced(placed(1, { ok: true, outcome: "exploded", self: false, frozenUntil: 0, coinsLost: 0, bombOwner: { id: 2, name: "neko" } }));
-    expect(toastTexts(t.ui)[0]).toBe("💥 Бомба игрока neko! −0 монет");
+    expect(toastTexts(t.ui)[0]).toBe("Бомба игрока neko! −0 монет");
   });
 
   test("answers for unknown requests are ignored", () => {

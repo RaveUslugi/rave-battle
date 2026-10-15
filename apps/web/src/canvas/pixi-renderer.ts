@@ -16,8 +16,14 @@ interface ChunkView {
 const GRID_MIN_ZOOM = 12;
 const BOARD_COLOR = 0x000000;
 const FLASH_MS = 700;
-const PENDING_BORDER = 0xff2bd6;
-const SELECTION_BORDER = 0x22f3ff;
+const PENDING_BORDER = 0xff3dae;
+/** Area frames (admin). */
+const SELECTION_BORDER = 0x3de8ff;
+const CELL_FRAME = 0xffffff;
+const CELL_SHADOW = 0x0b0a12;
+/** Dashed frame around the picked cell: this far out from the cell, in screen px. */
+const DASH_MARGIN = 8;
+const DASH = 4;
 const FLASH_COLOR = 0xff7a2b;
 const READING_FONT_SIZE = 48;
 const READING_STYLE = new TextStyle({
@@ -49,6 +55,7 @@ export class PixiRenderer implements Renderer {
   private readings: Reading[] = [];
   private pendingCells: Array<Cell & { colorId: number }> = [];
   private selectedCell: Cell | null = null;
+  private ghost: (Cell & { colorId: number }) | null = null;
   private areaRect: Rect | null = null;
   private flashes: Array<Cell & { start: number; still: boolean }> = [];
   private fxDrawn = false;
@@ -187,6 +194,13 @@ export class PixiRenderer implements Renderer {
     this.drawOverlay();
   }
 
+  /** The cell under the mouse, painted in the colour a click would place; null hides it. */
+  setGhost(ghost: (Cell & { colorId: number }) | null): void {
+    if (ghost?.x === this.ghost?.x && ghost?.y === this.ghost?.y && ghost?.colorId === this.ghost?.colorId) return;
+    this.ghost = ghost;
+    this.drawOverlay();
+  }
+
   /** Moderation frame around an inclusive rectangle; null hides it. Stored before init too. */
   setArea(rect: Rect | null): void {
     this.areaRect = rect;
@@ -243,13 +257,19 @@ export class PixiRenderer implements Renderer {
         .fill({ color: this.rgbOf(p.colorId), alpha: 0.6 })
         .stroke({ width: 2, color: PENDING_BORDER, alpha: 0.9 });
     }
+    const ghost = this.ghost;
+    if (ghost && (ghost.x !== this.selectedCell?.x || ghost.y !== this.selectedCell?.y)) {
+      const { x, y, size } = this.cellFrame(ghost, origin, zoom);
+      this.overlay.rect(x, y, size, size).fill({ color: this.rgbOf(ghost.colorId), alpha: 1 });
+      this.overlay.rect(x - 2, y - 2, size + 4, size + 4).stroke({ width: 2, color: CELL_SHADOW, alpha: 1 });
+      this.overlay.rect(x, y, size, size).stroke({ width: 2, color: CELL_FRAME, alpha: 1 });
+    }
     const sel = this.selectedCell;
     if (sel) {
-      // Inset by 1px when zoomed in; at low zoom a minimum-size frame centred on the cell stays visible.
-      const size = Math.max(zoom - 2, 6);
-      const x = origin.x + (sel.x + 0.5) * zoom - size / 2;
-      const y = origin.y + (sel.y + 0.5) * zoom - size / 2;
-      this.overlay.rect(x, y, size, size).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
+      const { x, y, size } = this.cellFrame(sel, origin, zoom);
+      this.overlay.rect(x - 2, y - 2, size + 4, size + 4).stroke({ width: 2, color: CELL_SHADOW, alpha: 1 });
+      this.overlay.rect(x, y, size, size).stroke({ width: 2, color: CELL_FRAME, alpha: 1 });
+      this.dashedRect(x - DASH_MARGIN, y - DASH_MARGIN, size + DASH_MARGIN * 2, size + DASH_MARGIN * 2);
     }
     const area = this.areaRect;
     if (area) {
@@ -257,6 +277,34 @@ export class PixiRenderer implements Renderer {
       const y = origin.y + area.y1 * zoom;
       this.overlay.rect(x, y, (area.x2 + 1 - area.x1) * zoom, (area.y2 + 1 - area.y1) * zoom).stroke({ width: 2, color: SELECTION_BORDER, alpha: 1 });
     }
+  }
+
+  /** A cell's square on screen; at low zoom a minimum-size square centred on the cell stays visible. */
+  private cellFrame(cell: Cell, origin: { x: number; y: number }, zoom: number): { x: number; y: number; size: number } {
+    const size = Math.max(zoom, 6);
+    return { x: origin.x + (cell.x + 0.5) * zoom - size / 2, y: origin.y + (cell.y + 0.5) * zoom - size / 2, size };
+  }
+
+  /** Pixi has no dashed strokes: short segments along each side. */
+  private dashedRect(x: number, y: number, w: number, h: number): void {
+    const style = { width: 2, color: CELL_FRAME, alpha: 0.6 };
+    for (let d = 0; d < w; d += DASH * 2) {
+      const len = Math.min(DASH, w - d);
+      this.overlay
+        .moveTo(x + d, y)
+        .lineTo(x + d + len, y)
+        .moveTo(x + d, y + h)
+        .lineTo(x + d + len, y + h);
+    }
+    for (let d = 0; d < h; d += DASH * 2) {
+      const len = Math.min(DASH, h - d);
+      this.overlay
+        .moveTo(x, y + d)
+        .lineTo(x, y + d + len)
+        .moveTo(x + w, y + d)
+        .lineTo(x + w, y + d + len);
+    }
+    this.overlay.stroke(style);
   }
 
   /** One white Text per visible reading, tinted by count and scaled to the cell (fixed font size, no re-rasterising on zoom). */

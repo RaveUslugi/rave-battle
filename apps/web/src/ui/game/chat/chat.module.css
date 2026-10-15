@@ -1,0 +1,359 @@
+/* Chat and events: the desktop block, the phone ticker and the sheet tab. */
+
+.block {
+  position: absolute;
+  left: 16px;
+  bottom: var(--side-bottom, 16px);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  width: 288px;
+  height: min(400px, calc(100dvh - var(--side-bottom, 16px) - 112px));
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px4);
+}
+.block[data-collapsed] {
+  height: auto;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--line);
+}
+.block[data-collapsed] .head {
+  border-bottom: 0;
+}
+.live {
+  width: 8px;
+  height: 8px;
+  background: var(--lime);
+}
+.title {
+  flex: 1;
+  margin: 0;
+  font: 400 13px / 1 var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.unread {
+  padding: 0 6px;
+  background: var(--pink);
+  color: var(--bg);
+  font: 400 12px / 18px var(--font-display);
+  clip-path: var(--px2);
+}
+.eventsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+.eventsToggle[aria-pressed="true"] {
+  background: var(--red-deep);
+  color: var(--red-soft);
+}
+.eventsToggle[data-compact] {
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: var(--card);
+  color: var(--muted);
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+.block[data-collapsed] .fold svg {
+  transform: rotate(180deg);
+}
+
+.feedWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.feed {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overscroll-behavior: contain;
+}
+/* Short feeds sit at the bottom, next to the field. */
+.feed > :first-child {
+  margin-top: auto;
+}
+.empty {
+  font-size: 13px;
+  color: var(--muted);
+}
+.message {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.section .message {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.body {
+  flex: 1;
+  min-width: 0;
+}
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.author {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.author[data-mine] {
+  color: var(--pink);
+}
+.time {
+  font-size: 11px;
+  color: var(--dim);
+}
+.delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+}
+.message:hover .delete,
+.delete:focus-visible {
+  opacity: 1;
+}
+.delete:hover {
+  color: var(--red);
+}
+@media (hover: none) {
+  .delete {
+    opacity: 1;
+    width: 28px;
+    height: 28px;
+  }
+}
+.text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.event {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 4px 6px;
+  background: var(--card);
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.35;
+  clip-path: var(--px2);
+}
+.section .event {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.eventIcon {
+  display: inline-flex;
+  margin-top: 2px;
+}
+.eventIcon[data-tone="red"] {
+  color: var(--red);
+}
+.eventIcon[data-tone="gold"] {
+  color: var(--gold);
+}
+.eventIcon[data-tone="lime"] {
+  color: var(--lime);
+}
+.eventName {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.fresh {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--pink);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 2px solid var(--line);
+}
+.composer[data-big] {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 12px calc(14px + env(safe-area-inset-bottom));
+}
+form.composer[data-big] {
+  flex-direction: column;
+  align-items: stretch;
+}
+.composerRow {
+  display: flex;
+  gap: 6px;
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--cyan);
+}
+.input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+[data-big] .input {
+  height: 44px;
+  font-size: 16px; /* 16px keeps iOS from zooming on focus */
+}
+.send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: var(--pink);
+  color: var(--bg);
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+[data-big] .send {
+  width: 44px;
+  height: 44px;
+}
+.error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--red-soft);
+}
+.blocked {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.guest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Phone */
+.ticker {
+  position: absolute;
+  top: calc(68px + env(safe-area-inset-top));
+  left: 12px;
+  right: 12px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: rgba(22, 19, 34, 0.94);
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+.tickerIcon {
+  color: var(--text-soft);
+}
+.tickerText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tickerCount {
+  padding: 0 5px;
+  background: var(--pink);
+  color: var(--bg);
+  font: 400 12px / 18px var(--font-display);
+  clip-path: var(--px2);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

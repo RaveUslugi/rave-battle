@@ -123,13 +123,6 @@ export function readingAlpha(ageMs: number): number {
   return 1 - 0.7 * Math.min(1, Math.max(0, ageMs) / READING_FADE_MS);
 }
 
-export function formatAge(ageMs: number): string {
-  const minutes = Math.floor(ageMs / 60_000);
-  if (minutes < 1) return "только что";
-  if (minutes < 60) return `${minutes} мин назад`;
-  return `${Math.floor(minutes / 60)} ч назад`;
-}
-
 export function readingAt(readings: Reading[], cell: { x: number; y: number }): Reading | null {
   return readings.find((r) => r.x === cell.x && r.y === cell.y) ?? null;
 }

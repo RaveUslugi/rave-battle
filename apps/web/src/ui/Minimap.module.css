@@ -1,25 +1,13 @@
 .minimap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.toggle {
-  min-height: 36px;
-  padding: 0 12px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
+  padding: 2px;
+  background: #000;
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px4);
 }
 
 .map {
   display: block;
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  box-shadow: var(--glow-cyan);
   touch-action: none;
   cursor: crosshair;
+  image-rendering: pixelated;
 }

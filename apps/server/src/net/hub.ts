@@ -10,6 +10,8 @@ import {
   type ChatMessage,
   type ServerMessage,
   type TimelineEntry,
+  ONLINE_SAMPLE,
+  type UserRef,
 } from "@rave/shared";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import type { SessionUser } from "../auth/session";
@@ -128,6 +130,18 @@ export class Hub {
     const ids = new Set<number>();
     for (const ws of this.sockets) if (ws.data.ready && ws.data.user) ids.add(ws.data.user.id);
     return ids;
+  }
+
+  /** Logged-in players who connected most recently, newest first, each once. */
+  onlineSample(): UserRef[] {
+    const seen = new Map<number, UserRef>();
+    for (const ws of [...this.sockets].reverse()) {
+      const user = ws.data.user;
+      if (!ws.data.ready || !user || seen.has(user.id)) continue;
+      seen.set(user.id, { id: user.id, name: user.username });
+      if (seen.size === ONLINE_SAMPLE) break;
+    }
+    return [...seen.values()];
   }
 
   attach(server: Server<SocketData>): void {
@@ -325,7 +339,7 @@ export class Hub {
       const server = this.server;
       if (!server) return;
       const count = server.subscriberCount(GLOBAL_TOPIC);
-      server.publish(GLOBAL_TOPIC, JSON.stringify({ type: "online", count } satisfies ServerMessage));
+      server.publish(GLOBAL_TOPIC, JSON.stringify({ type: "online", count, sample: this.onlineSample() } satisfies ServerMessage));
       this.options.onOnline?.(count);
     }, this.onlineDebounceMs);
   }
