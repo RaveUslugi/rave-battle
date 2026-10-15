@@ -14,9 +14,17 @@ function hexToRgb(hex: string): [number, number, number] {
 /** The main game canvas (the minimap is a second canvas with role="img"). */
 const canvasOf = (page: Page) => page.locator("canvas:not([role])");
 
-/** The pixel at the centre of the canvas screenshot (device pixels, so HiDPI-safe). */
+/**
+ * The pixel at the centre of the canvas. Only a 3×3 CSS-pixel clip is captured, without freezing
+ * animations: a full-canvas screenshot is slow on software-rendered CI runners (the first one takes
+ * 2–3 s), which left the 5 s polls one or two tries.
+ */
 async function centerPixel(page: Page): Promise<[number, number, number]> {
-  const png = PNG.sync.read(await canvasOf(page).screenshot());
+  const box = await canvasOf(page).boundingBox();
+  if (!box) return [-1, -1, -1];
+  const clip = { x: Math.floor(box.x + box.width / 2) - 1, y: Math.floor(box.y + box.height / 2) - 1, width: 3, height: 3 };
+  const png = PNG.sync.read(await page.screenshot({ clip, animations: "allow", caret: "initial" }));
+  // The middle of the clip, in device pixels (HiDPI-safe).
   const at = (Math.floor(png.height / 2) * png.width + Math.floor(png.width / 2)) * 4;
   return [png.data[at] ?? -1, png.data[at + 1] ?? -1, png.data[at + 2] ?? -1];
 }
@@ -26,7 +34,7 @@ function isClose(actual: number[], expected: number[]): boolean {
 }
 
 /** Polls until the canvas centre has `expected`; on timeout the error says what was there instead. */
-async function expectCenter(page: Page, expected: number[], timeout = 5_000): Promise<void> {
+async function expectCenter(page: Page, expected: number[], timeout = 10_000): Promise<void> {
   let last: number[] = [];
   try {
     await expect
