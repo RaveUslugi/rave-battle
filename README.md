@@ -72,4 +72,5 @@ bun run e2e
 ## Документация
 
 - [Спецификация](docs/superpowers/specs/2026-10-07-rave-battle-design.md): правила игры и архитектура
+- [Спецификация v1.1](docs/superpowers/specs/2026-10-15-rave-battle-v1.1-design.md): i18n, эффектные цвета, Biome и CI, нагрузочный тест, метрики
 - [Roadmap](docs/superpowers/plans/2026-10-07-00-roadmap.md): планы реализации и что осталось после v1
