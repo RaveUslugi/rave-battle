@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, DAY_MS, dateKey, defaultConfig, gameConfigSchema, type GameConfig } from "@rave/shared";
+import { CHUNK_SIZE, DAY_MS, dateKey, defaultConfig, gameConfigSchema, type GameConfig, upgradeStoredConfig } from "@rave/shared";
 import { and, asc, desc, eq, gt, gte, isNull } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { bombs, chunkSnapshots, gameConfig, inventory, pixelEvents, playerState, seasons, unlockedColors, users } from "../db/schema";
@@ -41,7 +41,7 @@ export async function ensureSeason(db: Db): Promise<number> {
 
 export async function loadConfig(db: Db): Promise<{ config: GameConfig; version: number }> {
   const [latest] = await db.select().from(gameConfig).orderBy(desc(gameConfig.version)).limit(1);
-  if (latest) return { config: gameConfigSchema.parse(latest.data), version: latest.version };
+  if (latest) return { config: gameConfigSchema.parse(upgradeStoredConfig(latest.data)), version: latest.version };
   const [seeded] = await db.insert(gameConfig).values({ data: defaultConfig, comment: "initial" }).returning({ version: gameConfig.version });
   return { config: gameConfigSchema.parse(defaultConfig), version: seeded!.version };
 }

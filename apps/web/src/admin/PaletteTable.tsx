@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { PaletteEntry } from "@rave/shared";
+import { defaultPaletteParams, type PaletteEntry, type PaletteType } from "@rave/shared";
 import styles from "./admin.module.css";
 
-const TYPES: PaletteEntry["type"][] = ["solid", "animated", "gradient"];
+const TYPES: PaletteType[] = ["solid", "animated", "gradient"];
 const UNLOCKS: PaletteEntry["unlock"][] = ["default", "shop", "daily", "achievement"];
 const FIRST_FREE_ID = 32;
 
@@ -44,7 +44,8 @@ function ParamsInput({ value, onChange }: { value: Record<string, unknown>; onCh
 }
 
 export function PaletteTable({ value, onChange }: { value: PaletteEntry[]; onChange: (palette: PaletteEntry[]) => void }) {
-  const update = (index: number, patch: Partial<PaletteEntry>) => onChange(value.map((e, i) => (i === index ? { ...e, ...patch } : e)));
+  // The draft may be invalid while the admin edits it; checkDraft runs the schema before anything is saved.
+  const update = (index: number, patch: Record<string, unknown>) => onChange(value.map((e, i) => (i === index ? ({ ...e, ...patch } as PaletteEntry) : e)));
 
   const add = () => {
     const used = new Set(value.map((e) => e.id));
@@ -108,7 +109,10 @@ export function PaletteTable({ value, onChange }: { value: PaletteEntry[]; onCha
                     className={styles.input}
                     aria-label="type"
                     value={e.type}
-                    onChange={(ev) => update(i, { type: ev.target.value as PaletteEntry["type"] })}
+                    onChange={(ev) => {
+                      const type = ev.target.value as PaletteType;
+                      update(i, { type, params: defaultPaletteParams(type, e.base) });
+                    }}
                   >
                     {TYPES.map((t) => (
                       <option key={t}>{t}</option>

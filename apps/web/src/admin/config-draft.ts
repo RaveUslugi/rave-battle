@@ -1,6 +1,19 @@
-import { gameConfigSchema, type GameConfig, type PaletteEntry } from "@rave/shared";
+import { type ConfigIssue, configIssuesFromZod, gameConfigSchema, type GameConfig, type PaletteEntry } from "@rave/shared";
 
-export const SECTIONS = ["canvas", "charges", "coinsPerPixel", "explosion", "bombs", "antiFarm", "defuse", "shop", "starting", "daily", "access"] as const;
+export const SECTIONS = [
+  "canvas",
+  "charges",
+  "coinsPerPixel",
+  "explosion",
+  "bombs",
+  "antiFarm",
+  "defuse",
+  "shop",
+  "starting",
+  "daily",
+  "access",
+  "chat",
+] as const;
 /** "general" collects issues whose path does not belong to any section. */
 export type Section = (typeof SECTIONS)[number] | "palette" | "general";
 export type Issues = Partial<Record<Section, string[]>>;
@@ -40,13 +53,61 @@ function addIssue(issues: Issues, path: ReadonlyArray<PropertyKey>, message: str
   issues[section].push(where === "" ? message : `${where}: ${message}`);
 }
 
-/** Server issues carry dot-joined paths ("palette.3.price"); numeric parts become indexes. */
-export function serverIssues(list: Array<{ path: string; message: string }>): Issues {
-  const issues: Issues = {};
-  for (const { path, message } of list) {
-    const parts = path === "" ? [] : path.split(".").map((p) => (/^\d+$/.test(p) ? Number(p) : p));
-    addIssue(issues, parts, message);
+const num = (v: unknown) => (typeof v === "number" || typeof v === "bigint" ? String(v) : "?");
+
+function boundText(params: Record<string, unknown>, kind: "min" | "max"): string {
+  const value = num(kind === "min" ? params.minimum : params.maximum);
+  const inclusive = params.inclusive !== false;
+  if (params.origin === "array") return kind === "min" ? `Минимум ${value} элем.` : `Максимум ${value} элем.`;
+  if (params.origin === "string") return kind === "min" ? `Минимум ${value} симв.` : `Максимум ${value} симв.`;
+  if (kind === "min") return inclusive ? `Не меньше ${value}` : `Больше ${value}`;
+  return inclusive ? `Не больше ${value}` : `Меньше ${value}`;
+}
+
+/** Text for an issue code from the server or the shared schema. */
+export function issueText(issue: ConfigIssue): string {
+  const p = issue.params ?? {};
+  switch (issue.code) {
+    case "canvas_shrink":
+      return `Холст может только расти (сейчас ${num(p.current)})`;
+    case "color_in_use_removed":
+      return `Цвет ${num(p.id)} есть на холсте (${num(p.used)} пикс.) — удалить нельзя`;
+    case "color_in_use_type_changed":
+      return `Цвет ${num(p.id)} есть на холсте — менять его тип нельзя`;
+    case "duplicate_palette_id":
+      return `Цвет ${num(p.id)} встречается дважды`;
+    case "shop_color_needs_price":
+      return `Цвету ${num(p.id)} из магазина нужна цена`;
+    case "base_color_missing":
+      return `Базовый цвет ${num(p.id)} должен быть в палитре и открыт по умолчанию`;
+    case "unknown_timezone":
+      return "Неизвестный часовой пояс";
+    case "zod_too_small":
+      return boundText(p, "min");
+    case "zod_too_big":
+      return boundText(p, "max");
+    case "zod_not_multiple_of":
+      return `Должно быть кратно ${num(p.divisor)}`;
+    case "zod_invalid_type":
+      return typeof p.expected === "string" ? `Неверный тип: нужен ${p.expected}` : "Неверный тип";
+    case "zod_invalid_format":
+      return "Неверный формат";
+    case "zod_unrecognized_keys":
+      return "Лишние поля";
+    case "zod_invalid_union":
+    case "zod_invalid_value":
+      return "Недопустимое значение";
+    default:
+      return "Некорректное значение";
   }
+}
+
+const pathParts = (path: string) => (path === "" ? [] : path.split(".").map((p) => (/^\d+$/.test(p) ? Number(p) : p)));
+
+/** Server issues carry dot-joined paths ("palette.3.price"); numeric parts become indexes. */
+export function serverIssues(list: ConfigIssue[]): Issues {
+  const issues: Issues = {};
+  for (const issue of list) addIssue(issues, pathParts(issue.path), issueText(issue));
   return issues;
 }
 
@@ -65,7 +126,7 @@ export function checkDraft(draft: Draft): { config: GameConfig | null; issues: I
 
   const parsed = gameConfigSchema.safeParse(raw);
   if (parsed.success) return { config: parsed.data, issues };
-  for (const issue of parsed.error.issues) addIssue(issues, issue.path, issue.message);
+  for (const issue of configIssuesFromZod(parsed.error.issues)) addIssue(issues, pathParts(issue.path), issueText(issue));
   return { config: null, issues };
 }
 

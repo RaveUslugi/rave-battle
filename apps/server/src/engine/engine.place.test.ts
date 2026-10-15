@@ -31,12 +31,12 @@ describe("placePixel: plain pixels", () => {
 
   test("rejects locked colors until unlocked", () => {
     const { engine, addPlayer } = makeEngine((cfg) => {
-      cfg.palette.push({ id: 40, type: "animated", base: "#FF00FF", params: {}, unlock: "shop", price: 200 });
+      cfg.palette.push({ id: 60, type: "animated", base: "#FF00FF", params: { frames: ["#FF00FF", "#000000"], periodMs: 1000 }, unlock: "shop", price: 200 });
     });
     const a = addPlayer(1);
-    expect(engine.placePixel(1, place(0, 0, 40), T0)).toEqual({ ok: false, code: "color_locked" });
-    a.unlockedColors.add(40);
-    expect(engine.placePixel(1, place(0, 0, 40), T0)).toEqual({ ok: true, outcome: "placed" });
+    expect(engine.placePixel(1, place(0, 0, 60), T0)).toEqual({ ok: false, code: "color_locked" });
+    a.unlockedColors.add(60);
+    expect(engine.placePixel(1, place(0, 0, 60), T0)).toEqual({ ok: true, outcome: "placed" });
   });
 
   test("rejects when out of charges and accepts again after regen", () => {

@@ -49,7 +49,7 @@ describe("applyConfig", () => {
     const next = structuredClone(cfg);
     next.canvas.width = 256;
     const res = engine.applyConfig(next, change(1), T0);
-    expect(res).toMatchObject({ ok: false, code: "invalid" });
+    expect(res).toEqual({ ok: false, code: "invalid", issues: [{ path: "canvas.width", code: "canvas_shrink", params: { current: 512 } }] });
     expect(engine.configVersion).toBe(1);
     expect(engine.drainEvents()).toEqual([]);
   });

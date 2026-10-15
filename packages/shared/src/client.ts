@@ -5,5 +5,5 @@
 export * from "./constants";
 export * from "./time";
 export * from "./protocol";
-export type { GameConfig, ItemKey, PaletteEntry, Reward } from "./config/schema";
+export type { ConfigIssue, GameConfig, ItemKey, PaletteEntry, PaletteType, Reward } from "./config/schema";
 export * from "./admin";

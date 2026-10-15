@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { defaultConfig } from "@rave/shared";
+import { CHAT_DEFAULTS, defaultConfig } from "@rave/shared";
 import { eq } from "drizzle-orm";
 import { createSession, resolveSession, type SessionUser } from "../auth/session";
 import { gameConfig, ledger, modLog, users } from "../db/schema";
@@ -242,7 +242,16 @@ describe("config", () => {
     bad.charges.max = -1;
     const result = await service.saveConfig(admin, { baseVersion: 1, config: bad, comment: "x" });
     expect(result).toMatchObject({ ok: false, code: "invalid" });
-    if (!result.ok && result.code === "invalid") expect(result.issues.map((i) => i.path)).toContain("charges.max");
+    if (!result.ok && result.code === "invalid") {
+      expect(result.issues).toContainEqual({ path: "charges.max", code: "zod_too_small", params: { minimum: 0, inclusive: false, origin: "number" } });
+    }
+  });
+
+  test("a version saved before the chat section existed parses with chat defaults", async () => {
+    const { chat: _chat, ...old } = draft();
+    await t.db.insert(gameConfig).values({ version: 2, data: old, comment: "pre-chat" });
+    const got = await service.configVersion(2);
+    expect(got.ok && got.config.chat).toEqual(CHAT_DEFAULTS);
   });
 
   test("saveConfig rejects a stale base version", async () => {

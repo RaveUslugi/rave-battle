@@ -14,8 +14,9 @@ describe("shopOffers", () => {
     expect(defuser).toMatchObject({ price: 150, affordable: true, confirm: true });
     const boost = offers.find((o) => o.key === "boost")!;
     expect(boost).toMatchObject({ price: 500, affordable: false, maxed: false, title: "⚡ Ёмкость зарядов +5 (0/10)" });
-    expect(offers.filter((o) => o.kind === "color").map((o) => o.key)).toEqual([32, 33, 34, 35, 36, 37, 38, 39].map((id) => `color:${id}`));
-    expect(offers.find((o) => o.key === "color:33")).toMatchObject({ owned: true });
+    const colors = offers.filter((o) => o.kind === "color");
+    expect(colors.map((o) => o.key)).toEqual(Array.from({ length: 16 }, (_, i) => `color:${32 + i}`));
+    expect(offers.find((o) => o.key === "color:33")).toMatchObject({ owned: true, title: "Кислотный циан" });
     expect(CONFIRM_FROM).toBe(100);
   });
 

@@ -1,15 +1,15 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import type { GameConfig } from "@rave/shared";
+import type { ConfigIssue, GameConfig } from "@rave/shared";
 import { useTRPC } from "../net/trpc";
-import { configDiff } from "./config-draft";
+import { configDiff, issueText } from "./config-draft";
 import { adminErrorText } from "./labels";
 import styles from "./admin.module.css";
 
 export type ConfigAnswer =
   | { ok: true; version: number }
   | { ok: false; code: "stale"; currentVersion: number }
-  | { ok: false; code: "invalid"; issues: Array<{ path: string; message: string }> }
+  | { ok: false; code: "invalid"; issues: ConfigIssue[] }
   | { ok: false; code: "not_found" };
 
 export function DiffList({ diff }: { diff: ReturnType<typeof configDiff> }) {
@@ -63,7 +63,7 @@ export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh
         setProblems([]);
         onAnswer(res);
       } else if (res.code === "invalid") {
-        setProblems(res.issues.map((i) => `${i.path}: ${i.message}`));
+        setProblems(res.issues.map((i) => `${i.path}: ${issueText(i)}`));
       } else if (res.code === "stale") {
         setProblems([`Конфиг уже изменили (версия ${res.currentVersion}). Обновите страницу и повторите откат`]);
         onRefresh();
@@ -144,7 +144,7 @@ export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh
           {preview.data && !preview.data.ok && (
             <p className={styles.error}>
               {preview.data.code === "invalid"
-                ? `Версия не проходит текущую схему: ${preview.data.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`
+                ? `Версия не проходит текущую схему: ${preview.data.issues.map((i) => `${i.path}: ${issueText(i)}`).join("; ")}`
                 : "Версия не найдена"}
             </p>
           )}

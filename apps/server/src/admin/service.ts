@@ -1,4 +1,4 @@
-import { gameConfigSchema, type GameConfig, type ItemKey, type Rect, type UserRef } from "@rave/shared";
+import { configIssuesFromZod, gameConfigSchema, type GameConfig, type ItemKey, type Rect, type UserRef, upgradeStoredConfig } from "@rave/shared";
 import { and, desc, eq, ilike, lt, or, type SQL } from "drizzle-orm";
 import type { SessionUser } from "../auth/session";
 import type { Db } from "../db/client";
@@ -87,9 +87,6 @@ export interface AdminServiceDeps {
   isAdmin: (discordId: string) => boolean;
   now?: () => number;
 }
-
-const toIssues = (issues: Array<{ path: PropertyKey[]; message: string }>): ConfigIssue[] =>
-  issues.map((i) => ({ path: i.path.join("."), message: i.message }));
 
 const escapeLike = (q: string) => q.replace(/[\\%_]/g, (c) => `\\${c}`);
 
@@ -314,8 +311,8 @@ export class AdminService {
   async configVersion(version: number): Promise<ConfigVersionAnswer> {
     const [row] = await this.deps.db.select({ data: gameConfig.data }).from(gameConfig).where(eq(gameConfig.version, version)).limit(1);
     if (!row) return { ok: false, code: "not_found" };
-    const parsed = gameConfigSchema.safeParse(row.data);
-    if (!parsed.success) return { ok: false, code: "invalid", issues: toIssues(parsed.error.issues) };
+    const parsed = gameConfigSchema.safeParse(upgradeStoredConfig(row.data));
+    if (!parsed.success) return { ok: false, code: "invalid", issues: configIssuesFromZod(parsed.error.issues) };
     return { ok: true, config: parsed.data };
   }
 
@@ -341,7 +338,7 @@ export class AdminService {
   ): Promise<ConfigResult> {
     const parsed = gameConfigSchema.safeParse(raw);
     if (!parsed.success) {
-      return Promise.resolve({ ok: false, code: "invalid", issues: toIssues(parsed.error.issues) });
+      return Promise.resolve({ ok: false, code: "invalid", issues: configIssuesFromZod(parsed.error.issues) });
     }
     // The engine keeps the parsed object as the live config, so it must not be shared with anything else.
     return this.deps.runtime.run((engine, now) => engine.applyConfig(parsed.data, { ...change, adminId: admin.id }, now));

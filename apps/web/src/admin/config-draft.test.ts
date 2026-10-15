@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { defaultConfig, type GameConfig } from "@rave/shared";
-import { checkDraft, configDiff, draftFrom, serverIssues } from "./config-draft";
+import { checkDraft, configDiff, draftFrom, issueText, serverIssues } from "./config-draft";
 
 const clone = (): GameConfig => structuredClone(defaultConfig);
 
@@ -49,11 +49,14 @@ describe("serverIssues", () => {
   test("groups dotted server paths by section", () => {
     expect(
       serverIssues([
-        { path: "canvas.width", message: "x" },
-        { path: "palette", message: "y" },
-        { path: "palette.3.price", message: "z" },
+        { path: "canvas.width", code: "canvas_shrink", params: { current: 512 } },
+        { path: "palette", code: "color_in_use_type_changed", params: { id: 7 } },
+        { path: "palette.3.price", code: "zod_too_small", params: { minimum: 0, inclusive: false, origin: "number" } },
       ]),
-    ).toEqual({ canvas: ["width: x"], palette: ["y", "palette[3].price: z"] });
+    ).toEqual({
+      canvas: ["width: Холст может только расти (сейчас 512)"],
+      palette: ["Цвет 7 есть на холсте — менять его тип нельзя", "palette[3].price: Больше 0"],
+    });
   });
 });
 
@@ -71,11 +74,11 @@ describe("configDiff", () => {
   test("added and removed colors, changed base", () => {
     const next = clone();
     next.palette = next.palette.filter((e) => e.id !== 39);
-    next.palette.push({ id: 40, type: "solid", base: "#123456", params: {}, unlock: "shop", price: 300 });
+    next.palette.push({ id: 60, type: "solid", base: "#123456", params: {}, unlock: "shop", price: 300 });
     next.palette.find((e) => e.id === 33)!.base = "#000001";
     const diff = configDiff(defaultConfig, next);
     expect(diff).toContainEqual({ path: "palette#33.base", before: '"#00FFF0"', after: '"#000001"' });
-    expect(diff.find((d) => d.path === "palette#40")).toMatchObject({ before: "—" });
+    expect(diff.find((d) => d.path === "palette#60")).toMatchObject({ before: "—" });
     expect(diff.find((d) => d.path === "palette#39")).toMatchObject({ after: "—" });
     expect(diff).toHaveLength(3);
   });
@@ -84,10 +87,38 @@ describe("configDiff", () => {
 describe("unknown server paths", () => {
   test("a path outside the sections goes to the general group", () => {
     const issues = serverIssues([
-      { path: "mystery.field", message: "bad" },
-      { path: "", message: "root" },
+      { path: "mystery.field", code: "something_new" },
+      { path: "", code: "unknown_timezone" },
     ]);
-    expect(issues.general).toEqual(["mystery.field: bad", "root"]);
+    expect(issues.general).toEqual(["mystery.field: Некорректное значение", "Неизвестный часовой пояс"]);
     expect(issues.canvas).toBeUndefined();
+  });
+});
+
+describe("issueText", () => {
+  test("every code the server and the shared schema produce has its own text", () => {
+    const codes = [
+      "canvas_shrink",
+      "color_in_use_removed",
+      "color_in_use_type_changed",
+      "duplicate_palette_id",
+      "shop_color_needs_price",
+      "base_color_missing",
+      "unknown_timezone",
+      "zod_too_small",
+      "zod_too_big",
+      "zod_not_multiple_of",
+      "zod_invalid_type",
+      "zod_invalid_format",
+      "zod_unrecognized_keys",
+      "zod_invalid_union",
+      "zod_invalid_value",
+    ];
+    for (const code of codes) expect(issueText({ path: "", code })).not.toBe("Некорректное значение");
+  });
+
+  test("bounds read naturally for numbers, arrays and strings", () => {
+    expect(issueText({ path: "", code: "zod_too_big", params: { maximum: 10, inclusive: true, origin: "number" } })).toBe("Не больше 10");
+    expect(issueText({ path: "", code: "zod_too_small", params: { minimum: 2, inclusive: true, origin: "array" } })).toBe("Минимум 2 элем.");
   });
 });

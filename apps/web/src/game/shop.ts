@@ -48,7 +48,7 @@ export function shopOffers(config: GameConfig, player: Pick<PlayerView, "coins" 
   const unlocked = new Set(player.unlockedColors);
   const colors = config.palette
     .filter((e) => e.unlock === "shop" && e.price !== undefined)
-    .map((e): Offer => ({ kind: "color", colorId: e.id, base: e.base, ...base(`color:${e.id}`, `Цвет ${e.id}`, e.price!, unlocked.has(e.id)) }));
+    .map((e): Offer => ({ kind: "color", colorId: e.id, base: e.base, ...base(`color:${e.id}`, e.name?.ru ?? `Цвет ${e.id}`, e.price!, unlocked.has(e.id)) }));
   return [...items, boost, ...colors];
 }
 
