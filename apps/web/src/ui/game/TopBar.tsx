@@ -216,10 +216,8 @@ export function MobileTopBar() {
           <Avatar user={user} size={30} />
         </button>
       ) : (
-        <>
-          {import.meta.env.DEV && <DevLogin />}
-          <LoginButton />
-        </>
+        // Guests log in from the dock at the bottom.
+        import.meta.env.DEV && <DevLogin />
       )}
       <ConnectionStatus hidden={status === "open"} />
       {status === "outdated" && (

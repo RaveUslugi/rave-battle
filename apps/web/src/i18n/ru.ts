@@ -122,7 +122,6 @@ export const ru = {
     minimap: "Миникарта",
   },
   dock: {
-    guest: "Войдите, чтобы рисовать",
     tools: "Инструмент",
     brush: "Кисть",
     detector: "Детектор",

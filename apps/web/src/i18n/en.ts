@@ -120,7 +120,6 @@ export const en: Dictionary = {
     minimap: "Minimap",
   },
   dock: {
-    guest: "Log in to draw",
     tools: "Tool",
     brush: "Brush",
     detector: "Detector",

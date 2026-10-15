@@ -1,4 +1,5 @@
 import type { ItemKey, PaletteEntry } from "@rave/shared/client";
+import { LoginButton } from "./TopBar";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import type { GameClient } from "../../game/client";
 import { stepColor } from "../../game/hotkeys";
@@ -331,7 +332,10 @@ export function MobileDock({ client }: { client: GameClient }) {
       <div className={styles.mobileDock}>
         <div className={styles.mobileRow}>
           {mode === "guest" ? (
-            <p className={styles.guest}>{t("dock.guest")}</p>
+            // The phone's only login button: at the thumb, where the palette is once logged in.
+            <div className={styles.guest}>
+              <LoginButton wide />
+            </div>
           ) : (
             <>
               <Tools disabled={disabled} />
