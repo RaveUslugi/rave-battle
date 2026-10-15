@@ -47,6 +47,12 @@ bun run dev:web
 
 ## Проверки
 
+Линтер и форматтер — [Biome](https://biomejs.dev). `bun run lint` проверяет, `bun run check:fix` исправляет форматирование и безопасные замечания.
+
+```bash
+bun run lint
+```
+
 ```bash
 bun test
 ```
@@ -64,6 +70,8 @@ E2E-тесты (Playwright) поднимают отдельный прод-по�
 ```bash
 bun run e2e
 ```
+
+На каждый push и pull request GitHub Actions (`.github/workflows/ci.yml`) прогоняет lint, typecheck, тесты с Postgres, сборку клиента, а затем E2E.
 
 ## Деплой
 
