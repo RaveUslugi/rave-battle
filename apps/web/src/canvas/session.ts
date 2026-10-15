@@ -129,6 +129,14 @@ export class CanvasSession implements CanvasPort {
     this.renderer.flash(cell);
   }
 
+  /** Zooms around the centre of the screen (zoom buttons). */
+  zoomBy(factor: number): void {
+    if (!this.camera || !this.canvas) return;
+    const screen = this.renderer.screenSize();
+    this.camera = zoomAt(this.camera, screen, screen.w / 2, screen.h / 2, factor, this.zoomLimits(this.canvas));
+    this.applyCamera();
+  }
+
   private async start(): Promise<void> {
     try {
       await this.renderer.init(this.host);

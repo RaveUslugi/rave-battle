@@ -53,21 +53,6 @@
     0 calc(100% - 2px)
   );
   --bevel: inset 0 -3px 0 rgba(0, 0, 0, 0.3);
-
-  /* Legacy tokens: the current screens still use them; they go with those screens. */
-  --side-panel-width: min(380px, 100vw);
-  --board-edge: #1a0b33;
-  --panel: rgba(16, 6, 32, 0.78);
-  --panel-border: rgba(255, 43, 214, 0.35);
-  --neon-pink: #ff2bd6;
-  --neon-cyan: #22f3ff;
-  --neon-lime: #b6ff3b;
-  --radius: 12px;
-  --glow-pink: 0 0 8px rgba(255, 43, 214, 0.7), 0 0 24px rgba(255, 43, 214, 0.35);
-  --glow-cyan: 0 0 8px rgba(34, 243, 255, 0.7), 0 0 24px rgba(34, 243, 255, 0.3);
-  --danger: #ff4d6d;
-  --focus: #22f3ff;
-  --font: var(--font-text);
 }
 
 * {
@@ -81,7 +66,7 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font);
+  font-family: var(--font-text);
   overflow: hidden;
   overscroll-behavior: none;
 }

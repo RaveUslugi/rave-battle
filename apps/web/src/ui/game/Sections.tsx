@@ -3,7 +3,6 @@ import { useTranslation } from "../../i18n";
 import { useGame } from "../../state/game-store";
 import { type Panel, uiStore, useUi } from "../../state/ui-store";
 import { Icon, IconButton, type IconName, Sheet } from "../kit";
-import { ModerationTab } from "../ModerationTab";
 import { ChatSection } from "./chat/Chat";
 import { DailySection } from "./sections/DailySection";
 import { LeadersSection } from "./sections/LeadersSection";
@@ -12,8 +11,8 @@ import { ShopSection } from "./sections/ShopSection";
 import styles from "./layout.module.css";
 import { useDailyReady } from "./useGameState";
 
-type TitleKey = "sections.chat" | "sections.shop" | "sections.dailyTitle" | "sections.leadersTitle" | "sections.profile" | "sections.moderation";
-type LabelKey = "sections.chat" | "sections.shop" | "sections.daily" | "sections.leaders" | "sections.profile" | "sections.moderation";
+type TitleKey = "sections.chat" | "sections.shop" | "sections.dailyTitle" | "sections.leadersTitle" | "sections.profile";
+type LabelKey = "sections.chat" | "sections.shop" | "sections.daily" | "sections.leaders" | "sections.profile";
 
 interface SectionDef {
   panel: Panel;
@@ -30,12 +29,10 @@ const SECTIONS: SectionDef[] = [
   { panel: "daily", icon: "daily", label: "sections.daily", title: "sections.dailyTitle", guest: false },
   { panel: "leaders", icon: "trophy", label: "sections.leaders", title: "sections.leadersTitle", guest: true },
   { panel: "profile", icon: "user", label: "sections.profile", title: "sections.profile", guest: false },
-  { panel: "moderation", icon: "eye", label: "sections.moderation", title: "sections.moderation", guest: false },
 ];
 
 /** Whether this viewer may see a section right now. */
-export function sectionAllowed(panel: Panel, s: { loggedIn: boolean; admin: boolean; otherProfile: boolean }): boolean {
-  if (panel === "moderation") return s.admin;
+export function sectionAllowed(panel: Panel, s: { loggedIn: boolean; otherProfile: boolean }): boolean {
   if (panel === "profile") return s.loggedIn || s.otherProfile;
   const def = SECTIONS.find((d) => d.panel === panel);
   return def !== undefined && (def.guest || s.loggedIn);
@@ -46,21 +43,18 @@ export function useOpenSection(): Panel | null {
   const panel = useUi((s) => s.panel);
   const otherProfile = useUi((s) => s.profileUserId !== null);
   const loggedIn = useGame((s) => s.user !== null);
-  const admin = useGame((s) => s.admin);
-  return panel !== null && sectionAllowed(panel, { loggedIn, admin, otherProfile }) ? panel : null;
+  return panel !== null && sectionAllowed(panel, { loggedIn, otherProfile }) ? panel : null;
 }
 
 /**
- * Logging out closes what belonged to the player (shop, daily, own profile, moderation); losing admin
- * rights closes moderation.
+ * Logging out closes what belonged to the player (shop, daily, own profile).
  */
 export function usePanelRules(): void {
   const loggedIn = useGame((s) => s.user !== null);
-  const admin = useGame((s) => s.admin);
   useEffect(() => {
     const { panel, profileUserId, closePanel } = uiStore.getState();
-    if (panel !== null && !sectionAllowed(panel, { loggedIn, admin, otherProfile: profileUserId !== null })) closePanel();
-  }, [loggedIn, admin]);
+    if (panel !== null && !sectionAllowed(panel, { loggedIn, otherProfile: profileUserId !== null })) closePanel();
+  }, [loggedIn]);
 }
 
 export function SectionContent({ panel }: { panel: Panel }) {
@@ -68,11 +62,15 @@ export function SectionContent({ panel }: { panel: Panel }) {
   if (panel === "shop") return <ShopSection />;
   if (panel === "daily") return <DailySection />;
   if (panel === "leaders") return <LeadersSection />;
-  if (panel === "moderation") return <ModerationTab />;
   return <ProfileSection />;
 }
 
-/** Desktop: the column of section buttons, the minimap switch and, for admins, moderation. */
+/** The admin canvas centred where the camera is now. */
+export function adminCanvasHref(view: { camera: { x: number; y: number } } | null): string {
+  return view ? `/admin?tab=canvas&x=${Math.floor(view.camera.x)}&y=${Math.floor(view.camera.y)}` : "/admin?tab=canvas";
+}
+
+/** Desktop: the column of section buttons, the minimap switch and, for admins, a link to the admin canvas here. */
 export function Rail() {
   const { t } = useTranslation();
   const open = useOpenSection();
@@ -81,7 +79,8 @@ export function Rail() {
   const loggedIn = useGame((s) => s.user !== null);
   const admin = useGame((s) => s.admin);
   const dailyReady = useDailyReady();
-  const items = SECTIONS.filter((d) => d.panel !== "chat" && d.panel !== "moderation" && (d.guest || loggedIn));
+  const view = useGame((s) => s.view);
+  const items = SECTIONS.filter((d) => d.panel !== "chat" && (d.guest || loggedIn));
   // The profile button means your own profile; someone else's profile in the panel doesn't light it up.
   const isOn = (panel: Panel) => open === panel && (panel !== "profile" || ownProfile);
   const toggle = (panel: Panel) => {
@@ -106,14 +105,9 @@ export function Rail() {
       <span className={styles.railSep} aria-hidden="true" />
       <IconButton icon="map" size={52} label={t("sections.minimap")} pressed={minimap} onClick={() => uiStore.getState().setMinimapOpen(!minimap)} />
       {admin && (
-        <IconButton
-          icon="eye"
-          size={52}
-          label={t("sections.moderation")}
-          pressed={isOn("moderation")}
-          className={styles.modButton}
-          onClick={() => toggle("moderation")}
-        />
+        <a className={styles.modButton} href={adminCanvasHref(view)} aria-label={t("sections.moderation")}>
+          <Icon name="eye" size={24} />
+        </a>
       )}
     </nav>
   );
@@ -161,9 +155,8 @@ export function SectionsSheet() {
   const height = useUi((s) => s.sheetHeight);
   const ownProfile = useUi((s) => s.profileUserId === null);
   const loggedIn = useGame((s) => s.user !== null);
-  const admin = useGame((s) => s.admin);
   const dailyReady = useDailyReady();
-  const tabs = SECTIONS.filter((d) => (d.panel === "moderation" ? admin : d.guest || loggedIn));
+  const tabs = SECTIONS.filter((d) => d.guest || loggedIn);
   const def = SECTIONS.find((d) => d.panel === panel);
   return (
     <Sheet

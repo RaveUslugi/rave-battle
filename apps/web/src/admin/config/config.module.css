@@ -1,0 +1,230 @@
+.layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 300px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+  min-height: calc(100dvh - 48px);
+}
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  clip-path: var(--px2);
+  cursor: pointer;
+}
+.section:hover {
+  background: var(--card);
+}
+.section[aria-current="true"] {
+  background: var(--pink-deep);
+  box-shadow: inset 3px 0 0 var(--pink);
+  color: var(--pink);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+.dot[data-tone="gold"] {
+  background: var(--gold);
+}
+.dot[data-tone="red"] {
+  background: var(--red);
+}
+.form > h1 {
+  flex: none;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  max-width: 720px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.warning {
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--gold-deep);
+  color: var(--gold);
+  font-size: 12px;
+  clip-path: var(--px2);
+}
+.rewards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reward {
+  display: grid;
+  grid-template-columns: 70px 1fr 110px 36px;
+  gap: 8px;
+  align-items: center;
+}
+.reward[data-changed] input,
+.reward[data-changed] select {
+  border-color: var(--gold);
+}
+.day {
+  font: 400 13px / 1 var(--font-display);
+  color: var(--muted);
+}
+.history {
+  min-width: 0;
+}
+.versions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px2);
+  font-size: 13px;
+}
+.version[data-current] {
+  box-shadow: inset 0 0 0 2px var(--lime);
+}
+.versionComment {
+  overflow-wrap: anywhere;
+}
+.saveBar {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+  clip-path: var(--px4);
+}
+.summary {
+  flex: 1;
+  font-weight: 600;
+}
+.diff {
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.diff s {
+  color: var(--muted);
+}
+.path {
+  font-family: ui-monospace, monospace;
+  color: var(--cyan);
+}
+
+/* Palette */
+.palette {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 16px;
+  align-items: start;
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 40px);
+  gap: 6px;
+}
+.swatchCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.swatchCell[data-problem] {
+  outline: 2px solid var(--red);
+}
+.swatchId {
+  font: 400 10px / 1 var(--font-display);
+  color: var(--dim);
+}
+.colorEditor {
+  position: sticky;
+  top: 0;
+}
+.previewRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bigPreview {
+  width: 96px;
+  height: 96px;
+}
+.colorInput {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.colorInput input[type="color"] {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 2px solid var(--line);
+  background: var(--bg);
+}
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .history {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 899px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sections {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .section {
+    flex: none;
+  }
+  .palette {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

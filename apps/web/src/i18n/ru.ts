@@ -1,3 +1,4 @@
+import { adminRu } from "./admin-ru";
 /**
  * Russian strings: the reference dictionary. `en.ts` must have exactly the same keys (typecheck).
  * Interpolation uses {{name}}; plurals use i18next's _one/_few/_many/_other suffixes.
@@ -264,6 +265,7 @@ export const ru = {
     defused: "{{actor}} обезвредил бомбу {{owner}}",
     defusedSelf: "{{actor}} снял свою бомбу",
   },
+  admin: adminRu,
 };
 
 export type Dictionary = typeof ru;

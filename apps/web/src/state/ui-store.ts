@@ -8,11 +8,11 @@ import type { IconName } from "../ui/kit/icons";
 export type ActiveTool = "paint" | Tool | "inspect" | "area";
 
 /** A section of the side panel (desktop) or the bottom sheet (phone); the chat is a section only on the phone. */
-export type Panel = "chat" | "shop" | "daily" | "leaders" | "profile" | "moderation";
+export type Panel = "chat" | "shop" | "daily" | "leaders" | "profile";
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
-/** What the admin moderation panel works on. `corner` is the first tap of an area on a touch screen. */
+/** What the admin canvas page works on. `corner` is the first tap of an area on a touch screen. */
 export interface ModerationTarget {
   cell: { x: number; y: number } | null;
   area: Rect | null;
@@ -158,8 +158,8 @@ export function createUiStore(storage: StorageLike | null) {
       }),
     setBombMode: (bombMode) => set({ bombMode }),
     select: (selection) => set({ selection }),
-    inspectCell: (cell) => set({ panel: "moderation", moderation: { cell, area: null, corner: null } }),
-    setArea: (area) => set({ panel: "moderation", moderation: { cell: null, area, corner: null } }),
+    inspectCell: (cell) => set({ moderation: { cell, area: null, corner: null } }),
+    setArea: (area) => set({ moderation: { cell: null, area, corner: null } }),
     setCorner: (corner) => set((s) => ({ moderation: { ...s.moderation, corner } })),
     pushToast: (tone, text, icon) => {
       const id = nextId++;

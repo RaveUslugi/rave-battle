@@ -125,6 +125,12 @@ export function ProfileSection() {
           <p className={styles.hint}>{t("profile.noPixels")}</p>
         )}
       </section>
+      {own && admin && (
+        <a className={styles.link} href="/admin">
+          <Icon name="eye" />
+          {t("top.admin")}
+        </a>
+      )}
       {own && (
         <div className={styles.ownActions}>
           <LanguageSwitch />

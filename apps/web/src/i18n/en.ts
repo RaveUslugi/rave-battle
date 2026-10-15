@@ -1,3 +1,4 @@
+import { adminEn } from "./admin-en";
 import type { Dictionary } from "./ru";
 
 export const en: Dictionary = {
@@ -262,4 +263,5 @@ export const en: Dictionary = {
     defused: "{{actor}} defused {{owner}}'s bomb",
     defusedSelf: "{{actor}} removed their own bomb",
   },
+  admin: adminEn,
 };

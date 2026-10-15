@@ -54,12 +54,11 @@ describe("daily", () => {
 });
 
 describe("sections", () => {
-  const guest = { loggedIn: false, admin: false, otherProfile: false };
-  test("guests see the chat, the rankings and other players' profiles; moderation is for admins", () => {
+  const guest = { loggedIn: false, otherProfile: false };
+  test("guests see the chat, the rankings and other players' profiles", () => {
     expect(["chat", "leaders"].every((p) => sectionAllowed(p as "chat", guest))).toBe(true);
-    expect(["shop", "daily", "profile", "moderation"].some((p) => sectionAllowed(p as "shop", guest))).toBe(false);
+    expect(["shop", "daily", "profile"].some((p) => sectionAllowed(p as "shop", guest))).toBe(false);
     expect(sectionAllowed("profile", { ...guest, otherProfile: true })).toBe(true);
-    expect(sectionAllowed("moderation", { loggedIn: true, admin: false, otherProfile: false })).toBe(false);
-    expect(sectionAllowed("moderation", { loggedIn: true, admin: true, otherProfile: false })).toBe(true);
+    expect(sectionAllowed("shop", { loggedIn: true, otherProfile: false })).toBe(true);
   });
 });

@@ -119,11 +119,11 @@ describe("GameClient", () => {
     expect(t.selections.at(-1)).toBeNull();
   });
 
-  test("the inspect tool opens the moderation panel on any pointer without selecting or sending", () => {
+  test("the inspect tool picks the cell on any pointer without selecting or sending", () => {
     t.ui.getState().setTool("inspect");
     t.client.onCellTap({ x: 4, y: 5 }, "touch");
     expect(t.ui.getState().selection).toBeNull();
-    expect(t.ui.getState()).toMatchObject({ panel: "moderation", moderation: { cell: { x: 4, y: 5 } } });
+    expect(t.ui.getState()).toMatchObject({ moderation: { cell: { x: 4, y: 5 } } });
     t.client.onCellTap({ x: 6, y: 7 }, "mouse");
     expect(t.ui.getState().moderation.cell).toEqual({ x: 6, y: 7 });
     expect(t.sent).toHaveLength(0);

@@ -11,14 +11,31 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-/** A query-string value kept in sync with the address bar without adding history entries; all instances stay in sync. */
-export function useSearchParam(name: string): [string | null, (value: string) => void] {
-  const value = useSyncExternalStore(subscribe, () => new URLSearchParams(window.location.search).get(name));
-  const set = (next: string) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set(name, next);
-    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
-    for (const listener of listeners) listener();
-  };
-  return [value, set];
+const read = () => window.location.search;
+
+export type ParamUpdate = Record<string, string | number | null | undefined>;
+
+/** Changes the query string; `reset` drops every other parameter (switching admin pages). Null removes a parameter. */
+export function setSearchParams(update: ParamUpdate, reset = false): void {
+  const params = reset ? new URLSearchParams() : new URLSearchParams(window.location.search);
+  for (const [key, value] of Object.entries(update)) {
+    if (value === null || value === undefined || value === "") params.delete(key);
+    else params.set(key, String(value));
+  }
+  const search = params.size > 0 ? `?${params}` : "";
+  // Page switches are history entries (Back works); edits within a page replace the current one.
+  if (reset) window.history.pushState(null, "", `${window.location.pathname}${search}`);
+  else window.history.replaceState(null, "", `${window.location.pathname}${search}`);
+  for (const listener of listeners) listener();
+}
+
+/** The query string, kept in sync with the address bar across all components. */
+export function useSearchParams(): [URLSearchParams, typeof setSearchParams] {
+  const search = useSyncExternalStore(subscribe, read);
+  return [new URLSearchParams(search), setSearchParams];
+}
+
+export function useSearchParam(name: string): [string | null, (value: string | null) => void] {
+  const [params] = useSearchParams();
+  return [params.get(name), (value) => setSearchParams({ [name]: value })];
 }
