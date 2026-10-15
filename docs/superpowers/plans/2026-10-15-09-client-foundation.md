@@ -1,6 +1,6 @@
 # План 9: клиентская основа — Implementation Plan
 
-> **For agentic workers:** Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** фундамент нового интерфейса по спеке ревизии (разделы 2, 4) и i18n по спеке v1.1 (раздел 3): шрифты, токены, пиксельные иконки, набор компонентов `ui/kit`, переводы. Экраны игры и админки пока старые, они переводятся на кит в планах 10 и 11. Текущий интерфейс продолжает работать.
 
@@ -17,30 +17,30 @@
 ## Задачи
 
 ### 1. Зависимости, шрифты, токены
-- [ ] Пакеты (версии старше двух недель, точные).
-- [ ] Импорт шрифтов (Pixelify Sans 400/600/700, Golos Text 400/500/600/700) в `main.tsx`.
-- [ ] Токены 2.1 в `theme.css`, `body` на `--bg` и Golos Text.
+- [x] Пакеты (версии старше двух недель, точные).
+- [x] Импорт шрифтов (Pixelify Sans 400/600/700, Golos Text 400/500/600/700) в `main.tsx`.
+- [x] Токены 2.1 в `theme.css`, `body` на `--bg` и Golos Text.
 
 ### 2. Иконки
-- [ ] `ui/kit/icons.ts`: игровые и админские иконки из макетов.
-- [ ] `Icon` с `aria-hidden` по умолчанию и `label` для значимых иконок.
-- [ ] Тест: все имена рендерятся, пути только из горизонтальных и вертикальных отрезков (пиксельность).
+- [x] `ui/kit/icons.ts`: игровые и админские иконки из макетов.
+- [x] `Icon` с `aria-hidden` по умолчанию и `label` для значимых иконок.
+- [x] Тест: все имена рендерятся, пути только из горизонтальных и вертикальных отрезков (пиксельность).
 
 ### 3. i18n
-- [ ] `src/i18n/`: `ru.ts`, `en.ts`, `index.ts` (инициализация, `pickLocale`, `useLocale`, `setLocale`), форматтеры чисел и относительного времени через `Intl`.
-- [ ] `REJECT_CODES`, `CHAT_SEND_CODES` в `@rave/shared`; сервер использует их тип.
-- [ ] `rejectText` через i18n.
-- [ ] Язык подхватывается из `me`, выбор вошедшего сохраняется `settings.setLocale`.
-- [ ] Тесты: `pickLocale`, полнота словарей по кодам, одинаковый набор ключей в `ru` и `en`.
+- [x] `src/i18n/`: `ru.ts`, `en.ts`, `index.ts` (инициализация, `pickLocale`, `useLocale`, `setLocale`), форматтеры чисел и относительного времени через `Intl`.
+- [x] `REJECT_CODES`, `CHAT_SEND_CODES` в `@rave/shared`; сервер использует их тип.
+- [x] `rejectText` через i18n.
+- [x] Язык подхватывается из `me`, выбор вошедшего сохраняется `settings.setLocale`.
+- [x] Тесты: `pickLocale`, полнота словарей по кодам, одинаковый набор ключей в `ru` и `en`.
 
 ### 4. Кит
-- [ ] `Button` (primary / secondary / danger / ghost), `IconButton`.
-- [ ] `Segmented` (радиогруппа, стрелки, Home/End), `Checkbox`, `Field` + `Input`.
-- [ ] `Panel`, `Tabs` (tablist со стрелками), `Sheet` (ручка, высоты, `Esc`, возврат фокуса), `ConfirmDialog` (`<dialog>`).
-- [ ] `Toast`, `Avatar` (картинка Discord или инициал на цвете от id), `Swatch` (выбор, замок, эффект).
-- [ ] `effectColorAt(entry, x, y, t)` в `@rave/shared` — общая функция цвета эффекта (эталон для будущего шейдера); `Swatch` анимирует эффекты по ней, кроме режима «уменьшить движение».
-- [ ] Тесты компонентов: клавиатура `Segmented` и `Tabs`, `Sheet` (`Esc`, высоты, фокус), `ConfirmDialog`, `Swatch`, `Avatar`; `effectColorAt`.
+- [x] `Button` (primary / secondary / danger / ghost), `IconButton`.
+- [x] `Segmented` (радиогруппа, стрелки, Home/End), `Checkbox`, `Field` + `Input`.
+- [x] `Panel`, `Tabs` (tablist со стрелками), `Sheet` (ручка, высоты, `Esc`, возврат фокуса), `ConfirmDialog` (`<dialog>`).
+- [x] `Toast`, `Avatar` (картинка Discord или инициал на цвете от id), `Swatch` (выбор, замок, эффект).
+- [x] `effectColorAt(entry, x, y, t)` в `@rave/shared` — общая функция цвета эффекта (эталон для будущего шейдера); `Swatch` анимирует эффекты по ней, кроме режима «уменьшить движение».
+- [x] Тесты компонентов: клавиатура `Segmented` и `Tabs`, `Sheet` (`Esc`, высоты, фокус), `ConfirmDialog`, `Swatch`, `Avatar`; `effectColorAt`.
 
 ### 5. Страница `/kit` и проверки
-- [ ] Dev-only маршрут `/kit` со всеми компонентами в обоих языках.
-- [ ] lint, typecheck, тесты, сборка; push; CI зелёный.
+- [x] Dev-only маршрут `/kit` со всеми компонентами в обоих языках.
+- [x] lint, typecheck, тесты, сборка; push; CI зелёный.
