@@ -18,7 +18,8 @@
     "db:up": "docker compose -f compose.dev.yml up -d --wait",
     "db:down": "docker compose -f compose.dev.yml down",
     "config:defaults": "bun apps/server/src/scripts/push-default-config.ts",
-    "e2e": "sh scripts/e2e.sh"
+    "e2e": "sh scripts/e2e.sh",
+    "e2e:visual": "playwright test -c e2e/visual.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
