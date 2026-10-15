@@ -1,5 +1,6 @@
 import { CHUNK_SIZE } from "./constants";
 import type { GameConfig, ItemKey } from "./config/schema";
+import type { Locale } from "./locale";
 
 /** Bump on every incompatible message change; clients reload on mismatch. */
 export const PROTOCOL_VERSION = 3;
@@ -262,6 +263,8 @@ export type ServerMessage =
       player: PlayerView | null;
       /** Whether to show admin links; every admin call is checked on the server. */
       admin: boolean;
+      /** Interface language: the player's choice, otherwise Discord's; null for guests or to let the browser decide. */
+      locale?: Locale | null;
     }
   | { type: "player"; player: PlayerView }
   /** The live config changed; replaces the one from hello. Canvas size may grow. */

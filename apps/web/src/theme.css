@@ -1,20 +1,73 @@
 :root {
+  /* Redesign tokens (spec "ревизия интерфейса", 2.1). */
+  --bg: #0b0a12;
+  --surface: #161322;
+  --card: #1f1b2e;
+  --line: #2f2a44;
+  --line-strong: #47406a;
+  --text: #f2eefa;
+  --text-soft: #c9c2e0;
+  --muted: #a9a2c2;
+  --dim: #7a7396;
+  --pink: #ff3dae;
+  --pink-deep: #2a1430;
+  --cyan: #3de8ff;
+  --cyan-deep: #0e2a30;
+  --lime: #b4ff4d;
+  --lime-deep: #1e2a10;
+  --gold: #ffc83d;
+  --gold-deep: #3a2c0a;
+  --red: #ff4d5e;
+  --red-soft: #ff8a95;
+  --red-deep: #2e1016;
+  --ice: #9af3ff;
+  --font-display: "Pixelify Sans", ui-monospace, monospace;
+  --font-text: "Golos Text", system-ui, sans-serif;
+  /* Stepped "pixel" corners: clip-path polygons for 4 px and 2 px steps. */
+  --px4: polygon(
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+  --px2: polygon(
+    0 2px,
+    2px 2px,
+    2px 0,
+    calc(100% - 2px) 0,
+    calc(100% - 2px) 2px,
+    100% 2px,
+    100% calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 100%,
+    2px 100%,
+    2px calc(100% - 2px),
+    0 calc(100% - 2px)
+  );
+  --bevel: inset 0 -3px 0 rgba(0, 0, 0, 0.3);
+
+  /* Legacy tokens: the current screens still use them; they go with those screens. */
   --side-panel-width: min(380px, 100vw);
-  --bg: #07020f;
   --board-edge: #1a0b33;
   --panel: rgba(16, 6, 32, 0.78);
   --panel-border: rgba(255, 43, 214, 0.35);
   --neon-pink: #ff2bd6;
   --neon-cyan: #22f3ff;
   --neon-lime: #b6ff3b;
-  --text: #f2e9ff;
-  --muted: #9b8cb8;
   --radius: 12px;
   --glow-pink: 0 0 8px rgba(255, 43, 214, 0.7), 0 0 24px rgba(255, 43, 214, 0.35);
   --glow-cyan: 0 0 8px rgba(34, 243, 255, 0.7), 0 0 24px rgba(34, 243, 255, 0.3);
   --danger: #ff4d6d;
   --focus: #22f3ff;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: var(--font-text);
 }
 
 * {

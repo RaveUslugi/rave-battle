@@ -30,24 +30,8 @@ export interface PlayerState {
   guildMember: boolean;
 }
 
-export type RejectCode =
-  | "banned"
-  | "not_guild_member"
-  | "account_too_new"
-  | "frozen"
-  | "out_of_bounds"
-  | "invalid_color"
-  | "color_locked"
-  | "no_charges"
-  | "no_bombs"
-  | "bomb_limit"
-  | "no_detector"
-  | "no_defuser"
-  | "insufficient_coins"
-  | "boost_limit"
-  | "not_for_sale"
-  | "already_unlocked"
-  | "already_claimed";
+export type { RejectCode } from "@rave/shared";
+import type { RejectCode } from "@rave/shared";
 
 export type Rejected = { ok: false; code: RejectCode };
 

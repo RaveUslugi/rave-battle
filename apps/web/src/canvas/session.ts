@@ -1,6 +1,7 @@
 import { encodePlace, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { applyLocale } from "../i18n";
 import { onProtocolMismatch, waitForNewBundle } from "../net/version";
 import { uiStore } from "../state/ui-store";
 import { feedStore } from "../state/feed-store";
@@ -215,6 +216,8 @@ export class CanvasSession implements CanvasPort {
 
   private onHello(message: HelloMessage): void {
     gameStore.getState().applyHello(message);
+    // A logged-in player's language (their choice, else Discord's) wins over the guest default.
+    if (message.locale) applyLocale(message.locale);
     this.canvas = message.config.canvas;
     // Same boot (reconnect): the controller keeps its chunks, setVisible below sees no change and sends
     // nothing; GameSocket re-sends the stored subscription after this handler. New boot: the controller

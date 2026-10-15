@@ -239,6 +239,7 @@ export class Hub {
       config: this.options.runtime.engine.config,
       player,
       admin: user !== null && (this.options.isAdmin?.(user) ?? false),
+      locale: user?.locale ?? null,
     });
     send(ws, { type: "timeline_history", entries: [...this.timeline] });
     // Topics only after hello, so it is always the first message the client sees.
