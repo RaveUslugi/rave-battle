@@ -15,6 +15,7 @@ import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
+import { Metrics } from "./metrics";
 import { KeyedRateLimiter } from "./rate-limit";
 import { startServer } from "./server";
 import { UserDirectory } from "./user-directory";
@@ -26,6 +27,7 @@ let runtime: GameRuntime;
 let hub: Hub;
 let server: Server<SocketData>;
 let base = "";
+let metrics: Metrics;
 const sockets: WebSocket[] = [];
 
 async function start(
@@ -57,9 +59,11 @@ async function start(
     trustProxy: options.trustProxy ?? false,
   };
   const accessQueue = new AccessQueue();
+  metrics = new Metrics();
   hub = new Hub({
     runtime,
     users,
+    metrics,
     onlineDebounceMs: 10,
     isAdmin: (u) => isAdmin(u.discordId, config),
     ensurePlayer: (u) => ensurePlayer({ db: t.db, runtime, accessQueue }, u),
@@ -77,6 +81,7 @@ async function start(
     stats,
     admin,
     accessQueue,
+    metrics,
     fetch: options.fetch,
     ipLimiter: options.ipLimiter,
     staticLimiter: options.staticLimiter,
@@ -174,6 +179,22 @@ describe("http", () => {
 
   test("health", async () => {
     expect(await (await fetch(`${base}/health`)).text()).toBe("ok");
+  });
+
+  test("metrics count placements and are refused through a proxy", async () => {
+    const alice = await connect(await login("alice"));
+    alice.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    await placed(alice, 1);
+    alice.ws.send(encodePlace({ reqId: 2, x: 2, y: 1, colorId: 250, withBomb: false }));
+    await placed(alice, 2);
+    const res = await fetch(`${base}/metrics`);
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const text = await res.text();
+    expect(text).toContain('rave_actions_total{type="place"} 2');
+    expect(text).toContain('rave_rejects_total{code="invalid_color",type="place"} 1');
+    expect(text).toContain("rave_sockets 1");
+    expect(text).toContain("rave_players_online 1");
+    expect((await fetch(`${base}/metrics`, { headers: { "X-Forwarded-For": "1.2.3.4" } })).status).toBe(404);
   });
 
   test("chunk endpoint returns version and colors; out-of-range is 404", async () => {

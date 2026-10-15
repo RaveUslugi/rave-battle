@@ -16,29 +16,29 @@
 
 ### Конфиг
 
-- [ ] `packages/shared/src/config/schema.ts`:
+- [x] `packages/shared/src/config/schema.ts`:
   - запись палитры — `z.discriminatedUnion("type", …)`: `solid` (`params: {}`), `animated` (`frames: hex[2..8]`, `periodMs: 400..10000`), `gradient` (`stops: hex[2..6]`, `scale: 4..256`, `angle: 0..359`, `speed: 0..1`); общие поля `id`, `base`, `unlock`, `price?`, `name?`;
   - новая секция `chat` с `.default(...)`: `enabled` (true), `maxLength` (200, 1..500), `cooldownMs` (3000), `historySize` (100, 10..500), `retentionDays` (30, 1..365). Старые версии конфига без секции проходят схему;
   - кастомные проверки получают код: `ctx.addIssue({ ..., params: { code: "duplicate_palette_id", id } })` и т. п. (`shop_color_needs_price`, `base_color_missing`, `unknown_timezone`).
-- [ ] Тип `ConfigIssue = { path: string; code: string; params?: Record<string, unknown> }` в `@rave/shared`. Сервер строит его из zod-ошибок (`custom` → `params.code`, иначе `zod_<code>` с `minimum`/`maximum`/`expected`) и из `configChangeIssues` (`canvas_shrink {current}`, `color_in_use_removed {id, used}`, `color_in_use_type_changed {id}`). Русские строки с сервера уходят.
-- [ ] `config:defaults`: 8 эффектных цветов (40–47, `unlock: "shop"`), названия у платных цветов 32–47.
-- [ ] Клиент (минимально): `config-draft.ts` — функция `issueText(issue)` с русскими текстами по кодам и запасным «Некорректное значение»; секция `chat` в списке секций редактора.
-- [ ] Тесты: схема (старая версия без `chat` проходит, эффекты по типам, коды кастомных проверок), `configChangeIssues` с кодами, `issueText` покрывает все коды.
+- [x] Тип `ConfigIssue = { path: string; code: string; params?: Record<string, unknown> }` в `@rave/shared`. Сервер строит его из zod-ошибок (`custom` → `params.code`, иначе `zod_<code>` с `minimum`/`maximum`/`expected`) и из `configChangeIssues` (`canvas_shrink {current}`, `color_in_use_removed {id, used}`, `color_in_use_type_changed {id}`). Русские строки с сервера уходят.
+- [x] `config:defaults`: 8 эффектных цветов (40–47, `unlock: "shop"`), названия у платных цветов 32–47.
+- [x] Клиент (минимально): `config-draft.ts` — функция `issueText(issue)` с русскими текстами по кодам и запасным «Некорректное значение»; секция `chat` в списке секций редактора.
+- [x] Тесты: схема (старая версия без `chat` проходит, эффекты по типам, коды кастомных проверок), `configChangeIssues` с кодами, `issueText` покрывает все коды.
 
 ### Язык игрока
 
-- [ ] Миграция: `users.locale text null` (выбор игрока), `users.discord_locale text null` (обновляется при каждом входе через Discord).
-- [ ] `auth/discord.ts`: читать `locale` из `/users/@me`, сохранять в `discord_locale`.
-- [ ] `me` возвращает `locale: "ru" | "en" | null` = выбор игрока, иначе язык Discord (`ru*` → `ru`, `en*` → `en`, остальное → `null`).
-- [ ] `settings.setLocale({ locale: "ru" | "en" | null })` — мутация для вошедшего (`me` — запрос, в него мутацию не вложить).
-- [ ] Тесты: маппинг языка Discord, приоритет, мутация.
+- [x] Миграция: `users.locale text null` (выбор игрока), `users.discord_locale text null` (обновляется при каждом входе через Discord).
+- [x] `auth/discord.ts`: читать `locale` из `/users/@me`, сохранять в `discord_locale`.
+- [x] `me` возвращает `locale: "ru" | "en" | null` = выбор игрока, иначе язык Discord (`ru*` → `ru`, `en*` → `en`, остальное → `null`).
+- [x] `settings.setLocale({ locale: "ru" | "en" | null })` — мутация для вошедшего (`me` — запрос, в него мутацию не вложить).
+- [x] Тесты: маппинг языка Discord, приоритет, мутация.
 
 ### Метрики
 
-- [ ] `net/metrics.ts`: счётчики и гистограммы без зависимостей, вывод в формате Prometheus.
-- [ ] Инструменты: сокеты и игроки онлайн, действия по типам (`place`, `detect`, `defuse`, `buy`, `daily`), отказы по кодам, разрывы по лимиту, длительность и размер коммита (`RuntimeOptions.onCommitTiming`), длительность рассылки, память.
-- [ ] `GET /metrics`. Наружу не выходит: Caddy проксирует на сервер только перечисленные пути.
-- [ ] Тесты: формат вывода, подсчёт в Hub и рантайме.
+- [x] `net/metrics.ts`: счётчики и гистограммы без зависимостей, вывод в формате Prometheus.
+- [x] Инструменты: сокеты и игроки онлайн, действия по типам (`place`, `detect`, `defuse`, `buy`, `daily`), отказы по кодам, разрывы по лимиту, длительность и размер коммита (`RuntimeOptions.onCommitTiming`), длительность рассылки, память.
+- [x] `GET /metrics`. Наружу не выходит: Caddy проксирует на сервер только перечисленные пути.
+- [x] Тесты: формат вывода, подсчёт в Hub и рантайме.
 
 ## 8b. Чат
 

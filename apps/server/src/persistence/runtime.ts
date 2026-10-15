@@ -19,6 +19,8 @@ export interface RuntimeOptions {
   onFatal?: (error: unknown) => void;
   /** Called after each successful commit with its events, before the commands resolve. */
   onCommit?: (events: EngineEvent[]) => void;
+  /** Called after each successful database write with its duration and event count (metrics). */
+  onCommitTiming?: (durationMs: number, events: number) => void;
 }
 
 interface Waiter {
@@ -50,6 +52,7 @@ export class GameRuntime {
   private readonly now: () => number;
   private readonly onFatal: (error: unknown) => void;
   private readonly onCommit: ((events: EngineEvent[]) => void) | undefined;
+  private readonly onCommitTiming: ((durationMs: number, events: number) => void) | undefined;
 
   constructor(
     readonly engine: GameEngine,
@@ -62,6 +65,7 @@ export class GameRuntime {
     this.now = options.now ?? Date.now;
     this.onFatal = options.onFatal ?? exitProcess;
     this.onCommit = options.onCommit;
+    this.onCommitTiming = options.onCommitTiming;
     this.lastSnapshotAt = this.now();
     this.dirtyChunks = new Set(options.dirtyChunks);
   }
@@ -162,7 +166,9 @@ export class GameRuntime {
       const batch = this.takeBatch(forceSnapshot);
       if (batch) {
         events = batch.events;
+        const started = performance.now();
         await this.db.transaction((tx) => writeBatch(tx, batch));
+        this.onCommitTiming?.(performance.now() - started, events.length);
       }
     } catch (error) {
       this.failed = true;

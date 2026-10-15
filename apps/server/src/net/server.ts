@@ -43,6 +43,7 @@ async function route(
   const ip = clientIp(req, server.requestIP(req)?.address, deps.config.trustProxy);
   if (url.pathname === "/ws") return upgrade(req, server, deps, ip);
   if (req.method === "GET" && url.pathname === "/health") return new Response("ok");
+  if (req.method === "GET" && url.pathname === "/metrics") return metrics(req, deps);
   const chunk = req.method === "GET" ? CHUNK_PATH.exec(url.pathname) : null;
   const isOverview = req.method === "GET" && url.pathname === "/overview";
   if ((chunk || isOverview) && !staticLimiter.take(ip)) return new Response("Too many requests", { status: 429 });
@@ -58,6 +59,15 @@ async function route(
     return trpc(req, deps, limiter);
   }
   return new Response("Not found", { status: 404 });
+}
+
+/**
+ * Only for scrapers inside the Docker network: Caddy does not route /metrics, and a request that
+ * came through a proxy (X-Forwarded-For) is refused even if a proxy were misconfigured to pass it.
+ */
+function metrics(req: Request, deps: AppDeps): Response {
+  if (!deps.metrics || req.headers.has("x-forwarded-for")) return new Response("Not found", { status: 404 });
+  return new Response(deps.metrics.render(), { headers: { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" } });
 }
 
 function originAllowed(req: Request, deps: AppDeps): boolean {

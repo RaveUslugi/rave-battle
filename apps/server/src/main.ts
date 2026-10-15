@@ -9,6 +9,7 @@ import { runMigrations } from "./db/migrate";
 import { acquireWriterLock } from "./db/writer-lock";
 import { loadEnv } from "./net/env";
 import { Hub } from "./net/hub";
+import { Metrics } from "./net/metrics";
 import { startServer } from "./net/server";
 import { UserDirectory } from "./net/user-directory";
 import { bootGame } from "./persistence/boot";
@@ -30,7 +31,14 @@ async function main(): Promise<void> {
 
   const users = await UserDirectory.load(db);
   let hub: Hub | undefined;
-  const runtime = await bootGame(db, { onCommit: (events) => hub?.handleCommit(events) });
+  const metrics = new Metrics();
+  const runtime = await bootGame(db, {
+    onCommit: (events) => hub?.handleCommit(events),
+    onCommitTiming: (ms, events) => {
+      metrics.commitMs.observe(ms);
+      metrics.commitEvents.observe(events);
+    },
+  });
   if (config.devLogin) await restoreDevAdmin(db, runtime.engine);
   const accessQueue = new AccessQueue();
   hub = new Hub({
@@ -38,10 +46,11 @@ async function main(): Promise<void> {
     users,
     isAdmin: (u) => isAdmin(u.discordId, config),
     ensurePlayer: (u) => ensurePlayer({ db, runtime, accessQueue }, u),
+    metrics,
   });
   const stats = new StatsService(db, runtime, users);
   const admin = new AdminService({ db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
-  const server = startServer({ db, runtime, hub, users, config, stats, admin, accessQueue });
+  const server = startServer({ db, runtime, hub, users, config, stats, admin, accessQueue, metrics });
   console.log(`Rave Battle server listening on :${server.port}`);
 
   let shuttingDown = false;

@@ -13,6 +13,7 @@ import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import type { SessionUser } from "../auth/session";
 import type { EngineEvent } from "../engine/types";
 import type { GameRuntime } from "../persistence/runtime";
+import type { Metrics } from "./metrics";
 import { TokenBucket } from "./rate-limit";
 import type { UserDirectory } from "./user-directory";
 import { buildChunkDeltas, buildFeed, ChunkVersions, toPlaceResultView, toPlayerView } from "./views";
@@ -46,6 +47,7 @@ export interface HubOptions {
   isAdmin?: (user: SessionUser) => boolean;
   /** Puts the user's player into the engine on connect; without it, players must already be there. */
   ensurePlayer?: (user: SessionUser) => Promise<void>;
+  metrics?: Metrics;
 }
 
 type Socket = ServerWebSocket<SocketData>;
@@ -73,6 +75,15 @@ export class Hub {
     this.messageRate = options.messageRate ?? { capacity: 40, perSecond: 20 };
     this.maxConnectionsPerIp = options.maxConnectionsPerIp ?? 10;
     this.onlineDebounceMs = options.onlineDebounceMs ?? 1000;
+    options.metrics?.gauge("rave_sockets", "Open WebSocket connections", () => this.sockets.size);
+    options.metrics?.gauge("rave_players_online", "Distinct logged-in users with an open socket", () => this.onlineUserIds().size);
+  }
+
+  /** Users with at least one ready socket. */
+  onlineUserIds(): Set<number> {
+    const ids = new Set<number>();
+    for (const ws of this.sockets) if (ws.data.ready && ws.data.user) ids.add(ws.data.user.id);
+    return ids;
   }
 
   attach(server: Server<SocketData>): void {
@@ -118,6 +129,12 @@ export class Hub {
   handleCommit(events: EngineEvent[]): void {
     const server = this.server;
     if (!server) return;
+    const started = performance.now();
+    this.publishCommit(server, events);
+    this.options.metrics?.broadcastMs.observe(performance.now() - started);
+  }
+
+  private publishCommit(server: Server<SocketData>, events: EngineEvent[]): void {
     for (const delta of buildChunkDeltas(events, this.versions)) {
       server.publish(chunkTopic(`${delta.cx}:${delta.cy}`), encodeChunkDelta(delta));
     }
@@ -193,6 +210,7 @@ export class Hub {
 
   private async message(ws: Socket, message: string | Buffer): Promise<void> {
     if (!ws.data.bucket.take(this.now())) {
+      this.options.metrics?.rateLimited.inc();
       ws.close(1008, "rate limited");
       return;
     }
@@ -243,6 +261,7 @@ export class Hub {
       const result = await this.options.runtime.run((engine, now) =>
         engine.placePixel(user.id, { x: msg.x, y: msg.y, colorId: msg.colorId, withBomb: msg.withBomb }, now),
       );
+      this.options.metrics?.track("place", result);
       send(ws, { type: "placed", reqId: msg.reqId, result: toPlaceResultView(result, this.options.users) });
     } catch {
       send(ws, { type: "placed", reqId: msg.reqId, result: { ok: false, code: "unavailable" } });

@@ -5,11 +5,19 @@ import { z } from "zod";
 import { isAdmin } from "../auth/admin";
 import { users } from "../db/schema";
 import { MOD_ACTIONS } from "../engine/types";
+import type { AppDeps } from "../net/deps";
 import { toPlayerView } from "../net/views";
 import { BOARDS, PERIODS } from "../stats/leaderboards";
 import { adminProcedure, playerProcedure, publicProcedure, router, userProcedure } from "./init";
 
 const TOP = 50;
+
+/** Counts the action in the metrics once the engine answered. */
+async function tracked<T extends { ok: boolean; code?: string }>(deps: AppDeps, type: string, result: Promise<T>): Promise<T> {
+  const value = await result;
+  deps.metrics?.track(type, value);
+  return value;
+}
 
 const userId = z.number().int().positive().max(2_147_483_647);
 const note = z.string().trim().min(1).max(200);
@@ -112,22 +120,54 @@ export const appRouter = router({
   }),
 
   shop: router({
-    buyItem: playerProcedure
-      .input(z.object({ item: itemKeySchema }))
-      .mutation(({ ctx, input }) => ctx.deps.runtime.run((engine, now) => engine.buyItem(ctx.user.id, input.item, now))),
-    buyChargeBoost: playerProcedure.mutation(({ ctx }) => ctx.deps.runtime.run((engine, now) => engine.buyChargeBoost(ctx.user.id, now))),
-    buyColor: playerProcedure
-      .input(z.object({ colorId: z.number().int().min(0).max(255) }))
-      .mutation(({ ctx, input }) => ctx.deps.runtime.run((engine, now) => engine.buyColor(ctx.user.id, input.colorId, now))),
+    buyItem: playerProcedure.input(z.object({ item: itemKeySchema })).mutation(({ ctx, input }) =>
+      tracked(
+        ctx.deps,
+        "buy",
+        ctx.deps.runtime.run((engine, now) => engine.buyItem(ctx.user.id, input.item, now)),
+      ),
+    ),
+    buyChargeBoost: playerProcedure.mutation(({ ctx }) =>
+      tracked(
+        ctx.deps,
+        "buy",
+        ctx.deps.runtime.run((engine, now) => engine.buyChargeBoost(ctx.user.id, now)),
+      ),
+    ),
+    buyColor: playerProcedure.input(z.object({ colorId: z.number().int().min(0).max(255) })).mutation(({ ctx, input }) =>
+      tracked(
+        ctx.deps,
+        "buy",
+        ctx.deps.runtime.run((engine, now) => engine.buyColor(ctx.user.id, input.colorId, now)),
+      ),
+    ),
   }),
 
   daily: router({
-    claim: playerProcedure.mutation(({ ctx }) => ctx.deps.runtime.run((engine, now) => engine.claimDaily(ctx.user.id, now))),
+    claim: playerProcedure.mutation(({ ctx }) =>
+      tracked(
+        ctx.deps,
+        "daily",
+        ctx.deps.runtime.run((engine, now) => engine.claimDaily(ctx.user.id, now)),
+      ),
+    ),
   }),
 
   tools: router({
-    detect: playerProcedure.input(cell).mutation(({ ctx, input }) => ctx.deps.runtime.run((engine, now) => engine.detect(ctx.user.id, input, now))),
-    defuse: playerProcedure.input(cell).mutation(({ ctx, input }) => ctx.deps.runtime.run((engine, now) => engine.defuse(ctx.user.id, input, now))),
+    detect: playerProcedure.input(cell).mutation(({ ctx, input }) =>
+      tracked(
+        ctx.deps,
+        "detect",
+        ctx.deps.runtime.run((engine, now) => engine.detect(ctx.user.id, input, now)),
+      ),
+    ),
+    defuse: playerProcedure.input(cell).mutation(({ ctx, input }) =>
+      tracked(
+        ctx.deps,
+        "defuse",
+        ctx.deps.runtime.run((engine, now) => engine.defuse(ctx.user.id, input, now)),
+      ),
+    ),
   }),
 
   stats: router({
