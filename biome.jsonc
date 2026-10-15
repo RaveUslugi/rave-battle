@@ -21,6 +21,18 @@
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "off" } } },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // Deliberate: with noUncheckedIndexedAccess, `!` marks indexes the code has already bounds-checked.
+        "noNonNullAssertion": "off"
+      },
+      "complexity": {
+        // `!x || x.a !== b` narrows the type more clearly than `x?.a !== b`.
+        "useOptionalChain": "off",
+        // !important only overrides animations for reduced motion and one admin table cell.
+        "noImportantStyles": "off"
+      }
+    }
   }
 }
