@@ -24,9 +24,7 @@ describe("loadGame", () => {
     const { seasonId } = await loadGame(t.db, T0);
     const { addPlayer } = makeEngine();
     const pa = addPlayer(a);
-    await t.db.transaction((tx) =>
-      writeBatch(tx, { seasonId, events: [], players: [], newPlayers: [{ player: snapshotPlayer(pa), at: T0 }], chunks: [] }),
-    );
+    await t.db.transaction((tx) => writeBatch(tx, { seasonId, events: [], players: [], newPlayers: [{ player: snapshotPlayer(pa), at: T0 }], chunks: [] }));
     await t.db.update(users).set({ guildMember: false }).where(sql`${users.id} = ${a}`);
     expect((await loadGame(t.db, T0)).engine.players.get(a).guildMember).toBe(false);
   });
@@ -72,7 +70,10 @@ describe("loadGame", () => {
         seasonId,
         events: engine.drainEvents(),
         players: [snapshotPlayer(pa), snapshotPlayer(pb)],
-        newPlayers: [{ player: snapshotPlayer(pa), at: T0 }, { player: snapshotPlayer(pb), at: T0 }],
+        newPlayers: [
+          { player: snapshotPlayer(pa), at: T0 },
+          { player: snapshotPlayer(pb), at: T0 },
+        ],
         chunks: [],
       }),
     );

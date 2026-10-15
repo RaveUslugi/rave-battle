@@ -12,9 +12,7 @@ export function stateCookieName(secure: boolean): string {
 
 export function stateCookie(value: string, maxAge: number, secure: boolean): string {
   const path = secure ? "/" : "/auth/discord";
-  return [`${stateCookieName(secure)}=${value}`, `Path=${path}`, "HttpOnly", "SameSite=Lax", `Max-Age=${maxAge}`]
-    .concat(secure ? ["Secure"] : [])
-    .join("; ");
+  return [`${stateCookieName(secure)}=${value}`, `Path=${path}`, "HttpOnly", "SameSite=Lax", `Max-Age=${maxAge}`].concat(secure ? ["Secure"] : []).join("; ");
 }
 
 export function startDiscordLogin(deps: AppDeps): Response {
@@ -64,6 +62,7 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
     username: profile.username,
     avatar: profile.avatar,
     discordCreatedAt: profile.createdAt,
+    discordLocale: profile.locale,
     guildMember,
   });
   deps.users.set(id, profile.username);

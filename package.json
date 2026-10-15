@@ -1,9 +1,15 @@
 {
   "name": "rave-battle",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "test": "bun test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check:fix": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json && tsc -p e2e/tsconfig.json",
     "dev:web": "bun run --cwd apps/web dev",
     "build:web": "bun run --cwd apps/web build",
@@ -12,9 +18,11 @@
     "db:up": "docker compose -f compose.dev.yml up -d --wait",
     "db:down": "docker compose -f compose.dev.yml down",
     "config:defaults": "bun apps/server/src/scripts/push-default-config.ts",
-    "e2e": "sh scripts/e2e.sh"
+    "e2e": "sh scripts/e2e.sh",
+    "e2e:visual": "playwright test -c e2e/visual.config.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@playwright/test": "^1.64.0",
     "@types/bun": "^1.4.2",
     "@types/pngjs": "^6.0.5",

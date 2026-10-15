@@ -1,17 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  CHUNK_SIZE,
-  decodeChunkBody,
-  decodeChunkDelta,
-  decodeOverview,
-  encodePlace,
-  encodeSubscribe,
-  type ChunkDelta,
-  type ServerMessage,
-} from "@rave/shared";
+import { CHUNK_SIZE, decodeChunkBody, decodeChunkDelta, decodeOverview, encodePlace, encodeSubscribe, type ChunkDelta, type ServerMessage } from "@rave/shared";
 import type { Server } from "bun";
 import { eq } from "drizzle-orm";
 import { isAdmin } from "../auth/admin";
+import type { SessionUser } from "../auth/session";
 import type { DiscordConfig, FetchFn } from "../auth/discord";
 import { users as usersTable } from "../db/schema";
 import { createTestDb } from "../db/test-db";
@@ -24,6 +16,8 @@ import { AdminService } from "../admin/service";
 import { StatsService } from "../stats/service";
 import type { ServerConfig } from "./env";
 import { Hub, type HubOptions, type SocketData } from "./hub";
+import { ChatService } from "../chat/service";
+import { Metrics } from "./metrics";
 import { KeyedRateLimiter } from "./rate-limit";
 import { startServer } from "./server";
 import { UserDirectory } from "./user-directory";
@@ -35,10 +29,21 @@ let runtime: GameRuntime;
 let hub: Hub;
 let server: Server<SocketData>;
 let base = "";
+let metrics: Metrics;
+let chat: ChatService;
 const sockets: WebSocket[] = [];
 
 async function start(
-  options: { devLogin?: boolean; hub?: Partial<HubOptions>; discord?: DiscordConfig | null; fetch?: FetchFn; keepDb?: boolean; ipLimiter?: KeyedRateLimiter<string>; staticLimiter?: KeyedRateLimiter<string>; trustProxy?: boolean } = {},
+  options: {
+    devLogin?: boolean;
+    hub?: Partial<HubOptions>;
+    discord?: DiscordConfig | null;
+    fetch?: FetchFn;
+    keepDb?: boolean;
+    ipLimiter?: KeyedRateLimiter<string>;
+    staticLimiter?: KeyedRateLimiter<string>;
+    trustProxy?: boolean;
+  } = {},
 ) {
   if (!options.keepDb) await t.reset();
   const users = await UserDirectory.load(t.db);
@@ -57,18 +62,36 @@ async function start(
     trustProxy: options.trustProxy ?? false,
   };
   const accessQueue = new AccessQueue();
+  metrics = new Metrics();
   hub = new Hub({
     runtime,
     users,
+    metrics,
+    chatMute: (id) => chat.muteOf(id),
     onlineDebounceMs: 10,
     isAdmin: (u) => isAdmin(u.discordId, config),
     ensurePlayer: (u) => ensurePlayer({ db: t.db, runtime, accessQueue }, u),
     ...options.hub,
   });
   hubRef = hub;
+  chat = await ChatService.load({ db: t.db, runtime, hub, users, isAdmin: (id) => isAdmin(id, config) });
   const stats = new StatsService(t.db, runtime, users);
   const admin = new AdminService({ db: t.db, runtime, users, stats, accessQueue, isAdmin: (id) => isAdmin(id, config) });
-  server = startServer({ db: t.db, runtime, hub, users, config, stats, admin, accessQueue, fetch: options.fetch, ipLimiter: options.ipLimiter, staticLimiter: options.staticLimiter });
+  server = startServer({
+    db: t.db,
+    runtime,
+    hub,
+    users,
+    config,
+    stats,
+    admin,
+    accessQueue,
+    metrics,
+    chat,
+    fetch: options.fetch,
+    ipLimiter: options.ipLimiter,
+    staticLimiter: options.staticLimiter,
+  });
   base = `http://localhost:${server.port}`;
 }
 
@@ -164,6 +187,22 @@ describe("http", () => {
     expect(await (await fetch(`${base}/health`)).text()).toBe("ok");
   });
 
+  test("metrics count placements and are refused through a proxy", async () => {
+    const alice = await connect(await login("alice"));
+    alice.ws.send(encodePlace({ reqId: 1, x: 1, y: 1, colorId: 3, withBomb: false }));
+    await placed(alice, 1);
+    alice.ws.send(encodePlace({ reqId: 2, x: 2, y: 1, colorId: 250, withBomb: false }));
+    await placed(alice, 2);
+    const res = await fetch(`${base}/metrics`);
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const text = await res.text();
+    expect(text).toContain('rave_actions_total{type="place"} 2');
+    expect(text).toContain('rave_rejects_total{code="invalid_color",type="place"} 1');
+    expect(text).toContain("rave_sockets 1");
+    expect(text).toContain("rave_players_online 1");
+    expect((await fetch(`${base}/metrics`, { headers: { "X-Forwarded-For": "1.2.3.4" } })).status).toBe(404);
+  });
+
   test("chunk endpoint returns version and colors; out-of-range is 404", async () => {
     const alice = await connect(await login("alice"));
     alice.ws.send(encodePlace({ reqId: 1, x: 3, y: 4, colorId: 5, withBomb: false }));
@@ -183,7 +222,13 @@ describe("http", () => {
 
   test("websocket upgrades from foreign origins are refused", async () => {
     const res = await fetch(`${base}/ws`, {
-      headers: { Origin: "http://evil.test", Upgrade: "websocket", Connection: "Upgrade", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==", "Sec-WebSocket-Version": "13" },
+      headers: {
+        Origin: "http://evil.test",
+        Upgrade: "websocket",
+        Connection: "Upgrade",
+        "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+        "Sec-WebSocket-Version": "13",
+      },
     });
     expect(res.status).toBe(403);
   });
@@ -330,14 +375,15 @@ describe("websocket", () => {
     await waitFor(() => bob.json.find((m) => m.type === "feed"));
 
     const late = await connect();
-    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
     expect(late.json[0]?.type).toBe("hello");
     expect(history.entries).toHaveLength(1);
     expect(history.entries[0]).toMatchObject({ type: "feed", kind: "exploded", actor: { name: "bob" }, owner: { name: "alice" } });
     expect(Object.keys(history.entries[0]!).sort()).toEqual(["actor", "at", "kind", "owner", "type"]);
   });
 
-  test("the feed history keeps the latest 20 entries", async () => {
+  test("the timeline keeps the latest chat.historySize entries", async () => {
+    runtime.engine.config.chat.historySize = 20;
     const owner = await connect(await login("owner"));
     const victim = await connect(await login("victim"));
     for (let i = 0; i < 22; i++) {
@@ -362,7 +408,7 @@ describe("websocket", () => {
     });
     expect(new Set(live.map((m) => m.at)).size).toBe(22);
     const late = await connect();
-    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "feed_history" }> => m.type === "feed_history"));
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
     expect(history.entries).toHaveLength(20);
     expect(history.entries).toEqual(live.slice(-20));
   });
@@ -377,7 +423,12 @@ describe("websocket", () => {
     alice.ws.send(encodePlace({ reqId: 1, x: 3, y: 4, colorId: 5, withBomb: false }));
     await placed(alice, 1);
     alice.ws.send(encodeSubscribe([]));
-    alice.ws.send(encodeSubscribe([{ cx: 0, cy: 0 }, { cx: 0, cy: 0 }]));
+    alice.ws.send(
+      encodeSubscribe([
+        { cx: 0, cy: 0 },
+        { cx: 0, cy: 0 },
+      ]),
+    );
     expect((await waitFor(() => acks(alice)[1])).chunks).toEqual([{ cx: 0, cy: 0, version: 1 }]);
     await Bun.sleep(20);
     expect(acks(alice)).toHaveLength(2);
@@ -494,7 +545,17 @@ describe("websocket", () => {
     const a = await connect();
     await connect();
     const online = await waitFor(() => a.json.find((m) => m.type === "online" && m.count === 2));
-    expect(online).toEqual({ type: "online", count: 2 });
+    expect(online).toEqual({ type: "online", count: 2, sample: [] });
+  });
+
+  test("the online message names the latest logged-in players, newest first, each once", async () => {
+    const watcher = await connect();
+    const alice = await login("alice");
+    await connect(alice);
+    await connect(await login("bob"));
+    await connect(alice);
+    const online = await waitFor(() => watcher.json.find((m) => m.type === "online" && m.count === 4));
+    expect(online.type === "online" ? online.sample?.map((u) => u.name) : null).toEqual(["alice", "bob"]);
   });
 });
 
@@ -617,6 +678,7 @@ describe("trpc over http", () => {
     fetch(`${base}/trpc/${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
 
   // Response.json() is `unknown` under this TS version.
+  // biome-ignore lint/suspicious/noExplicitAny: test helper; each test reads the fields it expects
   const data = async (res: Response) => ((await res.json()) as { result: { data: any } }).result.data;
 
   test("queries work with the session cookie", async () => {
@@ -690,5 +752,42 @@ describe("trpc over http", () => {
     expect(await data(res)).toEqual({ ok: true, found: true, reward: 20 });
     const feed = await waitFor(() => viewer.json.find((m) => m.type === "feed"));
     expect(feed).toMatchObject({ kind: "defused", actor: { name: "alice" }, owner: { name: "bob" } });
+  });
+
+  test("chat: a message reaches everyone, joins the timeline, and a deletion is broadcast", async () => {
+    const aliceCookie = await login("alice");
+    await connect(aliceCookie);
+    const viewer = await connect();
+    expect(await data(await post("chat.send", { text: "hello\nworld" }, { Cookie: aliceCookie, Origin: ORIGIN }))).toMatchObject({ ok: true });
+    const live = await waitFor(() => viewer.json.find((m): m is Extract<ServerMessage, { type: "chat" }> => m.type === "chat"));
+    expect(live).toMatchObject({ author: { name: "alice" }, text: "hello world" });
+    expect(Object.keys(live).sort()).toEqual(["at", "author", "id", "text", "type"]);
+
+    const late = await connect();
+    const history = await waitFor(() => late.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
+    expect(history.entries).toEqual([live]);
+
+    // The service is what admin.chat.delete calls; the HTTP route is covered by the router tests.
+    const mod: SessionUser = {
+      id: live.author.id,
+      username: "mod",
+      discordCreatedAt: 0,
+      bannedUntil: null,
+      guildMember: true,
+      discordId: "mod",
+      banReason: null,
+      locale: null,
+      sessionId: "x",
+    };
+    await chat.deleteMessage(mod, live.id);
+    expect(await waitFor(() => viewer.json.find((m) => m.type === "chat_deleted"))).toEqual({ type: "chat_deleted", ids: [live.id] });
+    const later = await connect();
+    const after = await waitFor(() => later.json.find((m): m is Extract<ServerMessage, { type: "timeline_history" }> => m.type === "timeline_history"));
+    expect(after.entries).toEqual([]);
+  });
+
+  test("chat: guests cannot send", async () => {
+    const res = await post("chat.send", { text: "hi" }, { Origin: ORIGIN });
+    expect(res.status).toBe(401);
   });
 });

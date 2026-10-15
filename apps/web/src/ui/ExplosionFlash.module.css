@@ -1,9 +1,11 @@
+/* A short stepped red flash over the whole screen: pixel style, no gradient. */
 .flash {
   position: absolute;
   inset: 0;
+  z-index: 30;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 122, 43, 0.55), rgba(255, 43, 214, 0.25) 60%, transparent 80%);
-  animation: boom 700ms ease-out forwards;
+  background: rgba(255, 77, 94, 0.35);
+  animation: boom 480ms steps(4) forwards;
 }
 
 @keyframes boom {
@@ -19,7 +21,7 @@
 @media (prefers-reduced-motion: reduce) {
   .flash {
     animation-name: fade;
-    animation-duration: 700ms !important;
+    animation-duration: 480ms !important;
   }
 }
 

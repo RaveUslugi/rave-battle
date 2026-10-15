@@ -52,7 +52,11 @@ describe("Leaderboards", () => {
       [ids.ann, 5, 3],
     ]);
     const week = await boards.ranking("artists", "week");
-    expect(week.map((r) => [r.userId, r.value])).toEqual([[ids.ann, 15], [ids.ben, 7], [ids.dan, 7]]);
+    expect(week.map((r) => [r.userId, r.value])).toEqual([
+      [ids.ann, 15],
+      [ids.ben, 7],
+      [ids.dan, 7],
+    ]);
     const all = await boards.ranking("artists", "all");
     expect(all[0]).toMatchObject({ userId: ids.cat, value: 50, rank: 1 });
     expect((await boards.ranking("sappers", "all")).map((r) => r.userId)).toEqual([ids.dan]);
@@ -91,7 +95,10 @@ describe("Leaderboards", () => {
   test("users.banned_until without the engine does not affect rankings", async () => {
     await runtime.addPlayer({ userId: ids.ben!, accountCreatedAt: Date.UTC(2020, 0, 1), guildMember: true });
     await stat("ben", 0, { pixels: 2 });
-    await t.db.update(users).set({ bannedUntil: new Date(NOW + DAY_MS) }).where(eq(users.id, ids.ben!));
+    await t.db
+      .update(users)
+      .set({ bannedUntil: new Date(NOW + DAY_MS) })
+      .where(eq(users.id, ids.ben!));
     const boards = new Leaderboards(t.db, runtime, () => NOW);
     expect((await boards.ranking("artists", "all")).map((r) => r.userId)).toEqual([ids.ben]);
   });
@@ -107,6 +114,9 @@ describe("Leaderboards", () => {
     });
     const boards = new Leaderboards(t.db, runtime, () => NOW);
     const ranking = await boards.ranking("territory", "day");
-    expect(ranking.map((r) => [r.userId, r.value])).toEqual([[ids.ann, 2], [ids.ben, 1]]);
+    expect(ranking.map((r) => [r.userId, r.value])).toEqual([
+      [ids.ann, 2],
+      [ids.ben, 1],
+    ]);
   });
 });

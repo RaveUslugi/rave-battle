@@ -47,6 +47,12 @@ bun run dev:web
 
 ## Проверки
 
+Линтер и форматтер — [Biome](https://biomejs.dev). `bun run lint` проверяет, `bun run check:fix` исправляет форматирование и безопасные замечания.
+
+```bash
+bun run lint
+```
+
 ```bash
 bun test
 ```
@@ -65,6 +71,8 @@ E2E-тесты (Playwright) поднимают отдельный прод-по�
 bun run e2e
 ```
 
+На каждый push и pull request GitHub Actions (`.github/workflows/ci.yml`) прогоняет lint, typecheck, тесты с Postgres, сборку клиента, а затем E2E.
+
 ## Деплой
 
 Прод-стек: Docker Compose, в нём Postgres, игровой сервер, Caddy с HTTPS и ночные бэкапы. Пошаговая инструкция — в [docs/deploy.md](docs/deploy.md).
@@ -72,4 +80,6 @@ bun run e2e
 ## Документация
 
 - [Спецификация](docs/superpowers/specs/2026-10-07-rave-battle-design.md): правила игры и архитектура
+- [Спецификация v1.1](docs/superpowers/specs/2026-10-15-rave-battle-v1.1-design.md): i18n, эффектные цвета, Biome и CI, нагрузочный тест, метрики
+- [Ревизия интерфейса и чат](docs/superpowers/specs/2026-10-15-rave-battle-ui-redesign.md): новый интерфейс игры и админки, чат
 - [Roadmap](docs/superpowers/plans/2026-10-07-00-roadmap.md): планы реализации и что осталось после v1

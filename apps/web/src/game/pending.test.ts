@@ -9,7 +9,10 @@ describe("PendingPlacements", () => {
     expect(a.reqId).not.toBe(b.reqId);
     expect(pending.size).toBe(2);
     expect(pending.bombs).toBe(1);
-    expect(pending.list().map((p) => [p.x, p.y, p.colorId])).toEqual([[1, 2, 5], [3, 4, 6]]);
+    expect(pending.list().map((p) => [p.x, p.y, p.colorId])).toEqual([
+      [1, 2, 5],
+      [3, 4, 6],
+    ]);
     expect(pending.resolve(a.reqId)).toEqual({ item: a, late: false });
     expect(pending.resolve(a.reqId)).toBeUndefined();
     expect(pending.size).toBe(1);

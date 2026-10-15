@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, DAY_MS, dateKey, defaultConfig, gameConfigSchema, type GameConfig } from "@rave/shared";
+import { CHUNK_SIZE, DAY_MS, dateKey, defaultConfig, gameConfigSchema, type GameConfig, upgradeStoredConfig } from "@rave/shared";
 import { and, asc, desc, eq, gt, gte, isNull } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { bombs, chunkSnapshots, gameConfig, inventory, pixelEvents, playerState, seasons, unlockedColors, users } from "../db/schema";
@@ -33,12 +33,7 @@ export async function loadGame(db: Db, now: number): Promise<LoadedGame> {
 }
 
 export async function ensureSeason(db: Db): Promise<number> {
-  const [open] = await db
-    .select({ id: seasons.id })
-    .from(seasons)
-    .where(isNull(seasons.endedAt))
-    .orderBy(desc(seasons.id))
-    .limit(1);
+  const [open] = await db.select({ id: seasons.id }).from(seasons).where(isNull(seasons.endedAt)).orderBy(desc(seasons.id)).limit(1);
   if (open) return open.id;
   const [created] = await db.insert(seasons).values({ name: "Season 1" }).returning({ id: seasons.id });
   return created!.id;
@@ -46,7 +41,7 @@ export async function ensureSeason(db: Db): Promise<number> {
 
 export async function loadConfig(db: Db): Promise<{ config: GameConfig; version: number }> {
   const [latest] = await db.select().from(gameConfig).orderBy(desc(gameConfig.version)).limit(1);
-  if (latest) return { config: gameConfigSchema.parse(latest.data), version: latest.version };
+  if (latest) return { config: gameConfigSchema.parse(upgradeStoredConfig(latest.data)), version: latest.version };
   const [seeded] = await db.insert(gameConfig).values({ data: defaultConfig, comment: "initial" }).returning({ version: gameConfig.version });
   return { config: gameConfigSchema.parse(defaultConfig), version: seeded!.version };
 }
@@ -87,7 +82,13 @@ async function loadCanvas(db: Db, seasonId: number, canvas: CanvasStore): Promis
 
 async function loadPlayers(db: Db, seasonId: number, registry: PlayerRegistry): Promise<void> {
   const rows = await db
-    .select({ state: playerState, discordCreatedAt: users.discordCreatedAt, bannedUntil: users.bannedUntil, banReason: users.banReason, guildMember: users.guildMember })
+    .select({
+      state: playerState,
+      discordCreatedAt: users.discordCreatedAt,
+      bannedUntil: users.bannedUntil,
+      banReason: users.banReason,
+      guildMember: users.guildMember,
+    })
     .from(playerState)
     .innerJoin(users, eq(users.id, playerState.userId))
     .where(eq(playerState.seasonId, seasonId));

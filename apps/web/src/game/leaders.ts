@@ -1,25 +1,20 @@
+import type { IconName } from "../ui/kit/icons";
+
 export type Board = "artists" | "bombers" | "sappers" | "kamikaze" | "territory";
 export type Period = "day" | "week" | "all";
 
-export const BOARD_TABS: Array<{ board: Board; icon: string; title: string; hint: string }> = [
-  { board: "artists", icon: "🎨", title: "Художники", hint: "поставленные пиксели" },
-  { board: "bombers", icon: "💣", title: "Бомберы", hint: "подрывы на ваших бомбах" },
-  { board: "sappers", icon: "🧯", title: "Сапёры", hint: "обезвреженные чужие бомбы" },
-  { board: "kamikaze", icon: "💥", title: "Камикадзе", hint: "подрывы на чужих бомбах" },
-  { board: "territory", icon: "🗺", title: "Территория", hint: "клеток на холсте сейчас" },
+/** Board titles and hints are the i18n keys `leaders.<board>` and `leaders.<board>Hint`. */
+export const BOARDS: Array<{ board: Board; icon: IconName }> = [
+  { board: "artists", icon: "brush" },
+  { board: "bombers", icon: "bomb" },
+  { board: "sappers", icon: "defuser" },
+  { board: "kamikaze", icon: "boom" },
+  { board: "territory", icon: "map" },
 ];
 
-const PERIODS: Array<{ period: Period; title: string }> = [
-  { period: "day", title: "День" },
-  { period: "week", title: "7 дней" },
-  { period: "all", title: "Всё время" },
-];
+export const PERIODS: Period[] = ["day", "week", "all"];
 
-export function periodsFor(board: Board): typeof PERIODS {
+/** Territory is "now" only: no period choice. */
+export function periodsFor(board: Board): Period[] {
   return board === "territory" ? [] : PERIODS;
-}
-
-/** Plain spaces between thousands: ru-RU grouping uses a no-break space, normalised here. */
-export function formatValue(n: number): string {
-  return n.toLocaleString("ru-RU").replace(/\s/g, " ");
 }

@@ -16,9 +16,7 @@ describe("applyConfig", () => {
     expect(engine.config).toBe(next);
     expect(engine.configVersion).toBe(2);
     const events = engine.drainEvents();
-    expect(eventsOf(events, "config_changed")).toEqual([
-      { type: "config_changed", version: 2, config: next, createdBy: admin, comment: "tweak", at: T0 },
-    ]);
+    expect(eventsOf(events, "config_changed")).toEqual([{ type: "config_changed", version: 2, config: next, createdBy: admin, comment: "tweak", at: T0 }]);
     expect(eventsOf(events, "mod_log")).toEqual([
       { type: "mod_log", adminId: admin, action: "config_save", targetUserId: null, params: { version: 2, comment: "tweak" }, at: T0 },
     ]);
@@ -51,7 +49,7 @@ describe("applyConfig", () => {
     const next = structuredClone(cfg);
     next.canvas.width = 256;
     const res = engine.applyConfig(next, change(1), T0);
-    expect(res).toMatchObject({ ok: false, code: "invalid" });
+    expect(res).toEqual({ ok: false, code: "invalid", issues: [{ path: "canvas.width", code: "canvas_shrink", params: { current: 512 } }] });
     expect(engine.configVersion).toBe(1);
     expect(engine.drainEvents()).toEqual([]);
   });

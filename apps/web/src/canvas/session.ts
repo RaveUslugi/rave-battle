@@ -1,11 +1,12 @@
-import { encodePlace, normalizeRect, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
+import { encodePlace, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
+import { applyLocale, i18n } from "../i18n";
 import { onProtocolMismatch, waitForNewBundle } from "../net/version";
 import { uiStore } from "../state/ui-store";
-import { feedStore } from "../state/feed-store";
 import { gameStore } from "../state/game-store";
 import { readingsStore } from "../state/readings-store";
+import { timelineStore } from "../state/timeline-store";
 import { applyConfigMessage } from "./config-message";
 import { fetchChunk } from "./chunk-loader";
 import { CanvasController } from "./controller";
@@ -68,6 +69,7 @@ export class CanvasSession implements CanvasPort {
   private unsubscribeReadings: (() => void) | null = null;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
   private unsubscribeJump: (() => void) | null = null;
+  private unsubscribeGhost: Array<() => void> = [];
 
   constructor(
     private readonly host: HTMLElement,
@@ -101,6 +103,7 @@ export class CanvasSession implements CanvasPort {
     if (this.viewFrame !== null) cancelAnimationFrame(this.viewFrame);
     this.unsubscribeReadings?.();
     this.unsubscribeJump?.();
+    for (const off of this.unsubscribeGhost) off();
     if (this.fadeTimer) clearInterval(this.fadeTimer);
     // No-op while init is still pending; start() destroys it once init resolves.
     this.renderer.destroy();
@@ -124,6 +127,14 @@ export class CanvasSession implements CanvasPort {
 
   flash(cell: { x: number; y: number }): void {
     this.renderer.flash(cell);
+  }
+
+  /** Zooms around the centre of the screen (zoom buttons). */
+  zoomBy(factor: number): void {
+    if (!this.camera || !this.canvas) return;
+    const screen = this.renderer.screenSize();
+    this.camera = zoomAt(this.camera, screen, screen.w / 2, screen.h / 2, factor, this.zoomLimits(this.canvas));
+    this.applyCamera();
   }
 
   private async start(): Promise<void> {
@@ -163,6 +174,8 @@ export class CanvasSession implements CanvasPort {
       readingsStore.getState().prune();
       this.renderer.setReadings(readingsStore.getState().readings);
     }, 30_000);
+    const ghost = () => this.renderer.setGhost(ghostCell());
+    this.unsubscribeGhost = [gameStore.subscribe(ghost), uiStore.subscribe(ghost)];
     this.attachPointerHandlers(this.renderer.canvasElement);
     this.resizeObserver.observe(this.host);
     this.socket.connect();
@@ -171,7 +184,7 @@ export class CanvasSession implements CanvasPort {
   private onOutdated(): void {
     if (this.waitingForBundle) return;
     this.waitingForBundle = true;
-    uiStore.getState().pushToast("info", "Игра обновилась — перезагружаем…");
+    uiStore.getState().pushToast("info", i18n.t("status.reloading"));
     void this.reloadWhenBundleChanges();
   }
 
@@ -188,7 +201,14 @@ export class CanvasSession implements CanvasPort {
       sleep: (ms) =>
         new Promise<void>((resolve) => {
           const timer = setTimeout(resolve, ms);
-          signal.addEventListener("abort", () => (clearTimeout(timer), resolve()), { once: true });
+          signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            { once: true },
+          );
         }),
       signal,
     });
@@ -208,6 +228,9 @@ export class CanvasSession implements CanvasPort {
 
   private onHello(message: HelloMessage): void {
     gameStore.getState().applyHello(message);
+    timelineStore.getState().setLimit(message.config.chat.historySize);
+    // A logged-in player's language (their choice, else Discord's) wins over the guest default.
+    if (message.locale) applyLocale(message.locale);
     this.canvas = message.config.canvas;
     // Same boot (reconnect): the controller keeps its chunks, setVisible below sees no change and sends
     // nothing; GameSocket re-sends the stored subscription after this handler. New boot: the controller
@@ -221,16 +244,20 @@ export class CanvasSession implements CanvasPort {
     if (message.type === "player") store.setPlayer(message.player);
     else if (message.type === "config") {
       applyConfigMessage(message.config, {
-        setConfig: store.setConfig,
+        setConfig: (config) => {
+          store.setConfig(config);
+          timelineStore.getState().setLimit(config.chat.historySize);
+        },
         setCanvas: (canvas) => (this.canvas = canvas),
         controller: this.controller,
         applyCamera: (force) => this.applyCamera(force),
       });
-    } else if (message.type === "online") store.setOnline(message.count);
+    } else if (message.type === "online") store.setOnline(message.count, message.sample);
     else if (message.type === "subscribed") this.controller?.onAck(message.chunks);
     else if (message.type === "placed") this.callbacks.onPlaced?.(message);
-    else if (message.type === "feed") feedStore.getState().push(message);
-    else if (message.type === "feed_history") feedStore.getState().replace(message.entries);
+    else if (message.type === "feed" || message.type === "chat") timelineStore.getState().push(message, store.user?.id ?? null);
+    else if (message.type === "chat_deleted") timelineStore.getState().remove(message.ids);
+    else if (message.type === "timeline_history") timelineStore.getState().replace(message.entries);
   }
 
   private zoomLimits(canvas: CanvasSize): ZoomLimits {
@@ -294,7 +321,9 @@ export class CanvasSession implements CanvasPort {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  private updateHover(point: Point): void {
+  /** Only a mouse hovers: a finger's position means nothing between taps. */
+  private updateHover(point: Point, pointerType: string): void {
+    if (pointerType !== "mouse") return;
     if (!this.camera || !this.canvas) return;
     const cell = cellAt(this.camera, this.renderer.screenSize(), point.x, point.y, this.canvas);
     const current = gameStore.getState().hover;
@@ -334,7 +363,7 @@ export class CanvasSession implements CanvasPort {
 
     element.addEventListener("pointermove", (event) => {
       const point = this.local(event);
-      this.updateHover(point);
+      this.updateHover(point, event.pointerType);
       const previous = this.pointers.get(event.pointerId);
       if (!previous || !this.camera) return;
 
@@ -401,11 +430,18 @@ export class CanvasSession implements CanvasPort {
         const factor = wheelZoomFactor(event.deltaY, event.deltaMode, this.renderer.screenSize().h);
         this.camera = zoomAt(this.camera, this.renderer.screenSize(), point.x, point.y, factor, this.zoomLimits(this.canvas));
         this.applyCamera();
-        this.updateHover(point);
+        this.updateHover(point, "mouse");
       },
       { passive: false },
     );
   }
+}
+
+/** What a click on the hovered cell would paint: only for a logged-in player holding the brush. */
+function ghostCell(): { x: number; y: number; colorId: number } | null {
+  const { hover, user } = gameStore.getState();
+  const { tool, selectedColor } = uiStore.getState();
+  return hover && user && tool === "paint" ? { ...hover, colorId: selectedColor } : null;
 }
 
 const midpoint = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });

@@ -1,73 +1,96 @@
 import { useQuery } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
+import { useTranslation } from "../i18n";
 import { useTRPC } from "../net/trpc";
+import { Button, Icon, type IconName } from "../ui/kit";
 import styles from "./admin.module.css";
-import { ConfigSection } from "./ConfigSection";
-import { ModLogSection } from "./ModLogSection";
-import { PlayersSection } from "./PlayersSection";
-import { useSearchParam } from "./useSearchParam";
+import { ConfigPage } from "./config/ConfigPage";
+import { DashboardPage } from "./DashboardPage";
+import { LogPage } from "./LogPage";
+import { PlayersPage } from "./players/PlayersPage";
+import { useSearchParams } from "./useSearchParam";
 
-const TABS = [
-  { id: "players", label: "Игроки" },
-  { id: "config", label: "Конфиг" },
-  { id: "log", label: "Журнал" },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
+// The canvas page pulls in the renderer: load it only when opened.
+const CanvasPage = lazy(() => import("./canvas/CanvasPage"));
 
-export default function AdminApp() {
+const PAGES: Array<{ id: Page; icon: IconName }> = [
+  { id: "dashboard", icon: "chart" },
+  { id: "players", icon: "users" },
+  { id: "canvas", icon: "area" },
+  { id: "config", icon: "sliders" },
+  { id: "log", icon: "list" },
+];
+type Page = "dashboard" | "players" | "canvas" | "config" | "log";
+
+function Gate({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const whoami = useQuery(trpc.admin.whoami.queryOptions());
-  const [tabParam, setTab] = useSearchParam("tab");
-  const tab: TabId = TABS.find((t) => t.id === tabParam)?.id ?? "players";
+  if (whoami.isPending) return <p className={styles.center}>{t("admin.access.checking")}</p>;
+  if (whoami.isError)
+    return (
+      <div className={styles.center}>
+        <h1 className={styles.h1}>{t("admin.access.failed")}</h1>
+        <Button onClick={() => void whoami.refetch()}>{t("common.retry")}</Button>
+      </div>
+    );
+  if (!whoami.data.admin)
+    return (
+      <div className={styles.center}>
+        <h1 className={styles.h1}>{t("admin.access.denied")}</h1>
+        <p className={styles.muted}>{t("admin.access.deniedHint")}</p>
+        <a className={styles.link} href="/">
+          {t("admin.nav.back")}
+        </a>
+      </div>
+    );
+  return <>{children}</>;
+}
 
-  if (whoami.isPending) {
-    return (
-      <div className={styles.root}>
-        <p className={styles.message}>Загрузка…</p>
-      </div>
-    );
-  }
-  if (whoami.isError) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.page}>
-          <h1 className={styles.title}>Не удалось проверить доступ</h1>
-          <button type="button" className={styles.button} onClick={() => void whoami.refetch()}>
-            Повторить
-          </button>
-        </div>
-      </div>
-    );
-  }
-  if (!whoami.data.admin) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.page}>
-          <h1 className={styles.title}>Нет доступа</h1>
-          <p className={styles.message}>Если вы администратор, сначала войдите на главной странице.</p>
-          <a className={styles.link} href="/">← К холсту</a>
-        </div>
-      </div>
-    );
-  }
-
+export default function AdminApp() {
+  const { t } = useTranslation();
+  const [params, setParams] = useSearchParams();
+  const page: Page = PAGES.find((p) => p.id === params.get("tab"))?.id ?? "dashboard";
   return (
     <div className={styles.root}>
-      <div className={styles.page}>
-        <header className={styles.header}>
-          <h1 className={styles.title}>Rave Battle · админка</h1>
-          <a className={styles.link} href="/">← К холсту</a>
-        </header>
-        <nav className={styles.tabs}>
-          {TABS.map((t) => (
-            <button key={t.id} type="button" className={styles.tab} aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
+      <Gate>
+        <nav className={styles.nav} aria-label={t("admin.nav.label")}>
+          <div className={styles.logo} aria-hidden="true">
+            <span className={styles.pink}>RAVE</span>
+            <span className={styles.cyan}>BATTLE</span>
+          </div>
+          {PAGES.map((p) => (
+            <a
+              key={p.id}
+              href={`?tab=${p.id}`}
+              className={styles.navItem}
+              aria-current={page === p.id ? "page" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                setParams({ tab: p.id }, true);
+              }}
+            >
+              <Icon name={p.icon} size={20} />
+              {t(`admin.nav.${p.id}`)}
+            </a>
           ))}
+          <a className={styles.navBack} href="/">
+            <Icon name="back" size={20} />
+            {t("admin.nav.back")}
+          </a>
         </nav>
-        {tab === "players" && <PlayersSection />}
-        {tab === "config" && <ConfigSection />}
-        {tab === "log" && <ModLogSection />}
-      </div>
+        <main className={page === "canvas" ? styles.mainCanvas : styles.main}>
+          {page === "dashboard" && <DashboardPage />}
+          {page === "players" && <PlayersPage />}
+          {page === "canvas" && (
+            <Suspense fallback={<p className={styles.muted}>{t("common.loading")}</p>}>
+              <CanvasPage />
+            </Suspense>
+          )}
+          {page === "config" && <ConfigPage />}
+          {page === "log" && <LogPage />}
+        </main>
+      </Gate>
     </div>
   );
 }

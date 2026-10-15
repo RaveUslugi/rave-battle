@@ -1,3 +1,4 @@
+import { formatNumber, i18n } from "../i18n";
 import { dateKey, type GameConfig, type PlayerView, type Reward } from "@rave/shared/client";
 
 /** Whether today's reward is taken and which reward is next. `now` must be server time. */
@@ -19,7 +20,8 @@ export function claimBlocked(s: { claimedToday: boolean; pending: boolean; watch
 }
 
 export function rewardText(r: Reward): string {
-  if (r.item === "coins") return `${r.amount} 🪙`;
-  if (r.item === "bomb") return `💣 ×${r.amount}`;
-  return `${r.item === "detector" ? "🔍" : "🧯"} +${r.amount}`;
+  const n = formatNumber(r.amount);
+  if (r.item === "coins") return i18n.t("daily.coins", { count: r.amount, n });
+  if (r.item === "bomb") return i18n.t("daily.bomb", { count: r.amount, n });
+  return i18n.t(r.item === "detector" ? "daily.detector" : "daily.defuser", { n });
 }

@@ -1,7 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/src/trpc/router";
+
+/** What each procedure returns, for typing components that receive query data. */
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 // The server rejects batches over 10 calls (`maxBatchSize`).
 export const trpcClient = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: "/trpc", maxItems: 10 })] });

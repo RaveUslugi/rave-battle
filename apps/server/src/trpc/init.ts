@@ -14,10 +14,7 @@ export interface TrpcContext {
 const isDev = process.env.NODE_ENV !== "production";
 
 /** Internal errors may carry DB/driver details; outside dev the client only sees a generic message. */
-export function formatError(
-  { shape, error }: { shape: TRPCDefaultErrorShape; error: TRPCError },
-  dev: boolean,
-): TRPCDefaultErrorShape {
+export function formatError({ shape, error }: { shape: TRPCDefaultErrorShape; error: TRPCError }, dev: boolean): TRPCDefaultErrorShape {
   if (dev || error.code !== "INTERNAL_SERVER_ERROR") return shape;
   return { ...shape, message: "Internal server error" };
 }
@@ -38,6 +35,14 @@ export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
   if (!ctx.limiter.take(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
   await ensurePlayer(ctx.deps, user);
+  return next({ ctx: { ...ctx, user } });
+});
+
+/** Logged-in and rate-limited, without creating a player: settings that do not touch the game. Mutations only, like playerProcedure. */
+export const userProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const user = ctx.user;
+  if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!ctx.limiter.take(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
   return next({ ctx: { ...ctx, user } });
 });
 

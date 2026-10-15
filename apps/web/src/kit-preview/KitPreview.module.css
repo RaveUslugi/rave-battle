@@ -1,0 +1,69 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1080px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 24px 16px 120px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.logo {
+  flex: 1;
+  margin: 0;
+  font: 700 28px / 1 var(--font-display);
+  letter-spacing: 1px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 20px;
+}
+.icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.iconCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  background: var(--card);
+  clip-path: var(--px2);
+  color: var(--text-soft);
+}
+.iconCell small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}

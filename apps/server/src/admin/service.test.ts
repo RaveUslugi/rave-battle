@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { defaultConfig } from "@rave/shared";
+import { CHAT_DEFAULTS, defaultConfig } from "@rave/shared";
 import { eq } from "drizzle-orm";
 import { createSession, resolveSession, type SessionUser } from "../auth/session";
 import { gameConfig, ledger, modLog, users } from "../db/schema";
@@ -23,6 +23,7 @@ let ann: number;
 let bob: number;
 
 const sessionUser = (id: number, name: string): SessionUser => ({
+  locale: null,
   id,
   username: name,
   discordCreatedAt: Date.UTC(2020, 0, 1),
@@ -106,7 +107,14 @@ describe("ban", () => {
     const other = sessionUser(ann, "ann");
     const adminTarget = await insertUser(t.db, "admin2");
     // discord-admin2 is not an admin; make the target one through the predicate.
-    const strict = new AdminService({ db: t.db, runtime, users: await UserDirectory.load(t.db), stats: stats, accessQueue, isAdmin: (d) => d === "discord-admin2" });
+    const strict = new AdminService({
+      db: t.db,
+      runtime,
+      users: await UserDirectory.load(t.db),
+      stats: stats,
+      accessQueue,
+      isAdmin: (d) => d === "discord-admin2",
+    });
     expect(await strict.ban(other, { userId: adminTarget, until: "permanent", reason: "x" })).toEqual({ ok: false, code: "target_is_admin" });
     expect(await service.ban(admin, { userId: ann, until: Date.now() - 1000, reason: "x" })).toEqual({ ok: false, code: "bad_until" });
     expect(await service.ban(admin, { userId: 9999, until: "permanent", reason: "x" })).toEqual({ ok: false, code: "not_found" });
@@ -144,7 +152,10 @@ describe("unban", () => {
   });
 
   test("an already expired ban is not_banned", async () => {
-    await t.db.update(users).set({ bannedUntil: new Date(Date.now() - 60_000), banReason: "old" }).where(eq(users.id, bob));
+    await t.db
+      .update(users)
+      .set({ bannedUntil: new Date(Date.now() - 60_000), banReason: "old" })
+      .where(eq(users.id, bob));
     expect(await service.unban(admin, { userId: bob, reason: "x" })).toEqual({ ok: false, code: "not_banned" });
     expect(await logRows()).toHaveLength(0);
   });
@@ -161,12 +172,12 @@ describe("unban", () => {
     for (let i = 0; i < 20; i++) {
       const id = await insertUser(t.db, `racer${i}`);
       // The ban landed after the session was resolved: the session says "not banned", the DB says banned.
-      await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, id));
+      await t.db
+        .update(users)
+        .set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" })
+        .where(eq(users.id, id));
       const stale = sessionUser(id, `racer${i}`);
-      await Promise.all([
-        ensurePlayer({ db: t.db, runtime, accessQueue }, stale),
-        service.unban(admin, { userId: id, reason: "x" }),
-      ]);
+      await Promise.all([ensurePlayer({ db: t.db, runtime, accessQueue }, stale), service.unban(admin, { userId: id, reason: "x" })]);
       const [row] = await t.db.select().from(users).where(eq(users.id, id));
       expect(row!.bannedUntil).toBeNull();
       expect(runtime.engine.players.get(id).bannedUntil).toBeNull();
@@ -179,7 +190,10 @@ describe("unban", () => {
       const ban = () => service.ban(admin, { userId: bob, until: "permanent", reason: "r" });
       const unban = () => service.unban(admin, { userId: bob, reason: "r" });
       // unban needs an active ban to be accepted
-      await t.db.update(users).set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" }).where(eq(users.id, bob));
+      await t.db
+        .update(users)
+        .set({ bannedUntil: new Date(Date.now() + 3_600_000), banReason: "seed" })
+        .where(eq(users.id, bob));
       await Promise.all(order === "ban-first" ? [ban(), unban()] : [unban(), ban()]);
       const [row] = await t.db.select().from(users).where(eq(users.id, bob));
       const inDb = banFromDate(row!.bannedUntil);
@@ -229,7 +243,16 @@ describe("config", () => {
     bad.charges.max = -1;
     const result = await service.saveConfig(admin, { baseVersion: 1, config: bad, comment: "x" });
     expect(result).toMatchObject({ ok: false, code: "invalid" });
-    if (!result.ok && result.code === "invalid") expect(result.issues.map((i) => i.path)).toContain("charges.max");
+    if (!result.ok && result.code === "invalid") {
+      expect(result.issues).toContainEqual({ path: "charges.max", code: "zod_too_small", params: { minimum: 0, inclusive: false, origin: "number" } });
+    }
+  });
+
+  test("a version saved before the chat section existed parses with chat defaults", async () => {
+    const { chat: _chat, ...old } = draft();
+    await t.db.insert(gameConfig).values({ version: 2, data: old, comment: "pre-chat" });
+    const got = await service.configVersion(2);
+    expect(got.ok && got.config.chat).toEqual(CHAT_DEFAULTS);
   });
 
   test("saveConfig rejects a stale base version", async () => {
@@ -271,7 +294,12 @@ describe("config", () => {
 describe("modLog", () => {
   test("pages by cursor and filters by action and target", async () => {
     await t.db.insert(modLog).values(
-      Array.from({ length: 60 }, (_, i) => ({ adminId: admin.id, action: i % 2 === 0 ? ("ban" as const) : ("unban" as const), targetUserId: i < 10 ? ann : bob, params: {} })),
+      Array.from({ length: 60 }, (_, i) => ({
+        adminId: admin.id,
+        action: i % 2 === 0 ? ("ban" as const) : ("unban" as const),
+        targetUserId: i < 10 ? ann : bob,
+        params: {},
+      })),
     );
     const first = await service.modLog({});
     expect(first.entries).toHaveLength(50);
@@ -334,7 +362,10 @@ describe("canvas inspector and moderation", () => {
   });
 
   test("apply reports plan errors", async () => {
-    expect(await service.applyModeration(admin, { kind: "clear_area", area: { x1: 0, y1: 0, x2: 9999, y2: 0 }, mode: "fill" })).toEqual({ ok: false, code: "bad_area" });
+    expect(await service.applyModeration(admin, { kind: "clear_area", area: { x1: 0, y1: 0, x2: 9999, y2: 0 }, mode: "fill" })).toEqual({
+      ok: false,
+      code: "bad_area",
+    });
     expect(await service.previewModeration({ kind: "remove_bombs", userId: 99999 })).toEqual({ ok: false, code: "not_found" });
   });
 

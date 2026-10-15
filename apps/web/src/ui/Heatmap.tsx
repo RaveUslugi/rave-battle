@@ -4,12 +4,13 @@ import { minimapLayout } from "../canvas/minimap-math";
 import { buildPaletteLut, paintRgba } from "../canvas/palette";
 import { heatColor, heatRects, type HeatmapData } from "../game/heatmap";
 import { useGame } from "../state/game-store";
-import styles from "./Tabs.module.css";
+import { useTranslation } from "../i18n";
 
 const BOX = 240;
 
 /** Where the player has painted, over a dimmed picture of the canvas. Pixels only — never bombs. */
-export function Heatmap({ data }: { data: HeatmapData }) {
+export function Heatmap({ data, className }: { data: HeatmapData; className?: string }) {
+  const { t } = useTranslation();
   const config = useGame((s) => s.config);
   const ref = useRef<HTMLCanvasElement>(null);
   const layout = useMemo(() => (config ? minimapLayout(config.canvas, BOX) : null), [config]);
@@ -59,5 +60,5 @@ export function Heatmap({ data }: { data: HeatmapData }) {
   }, [data, layout, config]);
 
   if (!layout) return null;
-  return <canvas ref={ref} className={styles.heatmap} style={{ width: layout.width, height: layout.height }} role="img" aria-label="Тепловая карта поставленных пикселей" />;
+  return <canvas ref={ref} className={className} style={{ width: layout.width, height: layout.height }} role="img" aria-label={t("profile.heatmapLabel")} />;
 }

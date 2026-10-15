@@ -15,6 +15,11 @@ export class BombStore {
   private byCell = new Map<string, Bomb>();
   private perOwner = new Map<UserId, number>();
 
+  /** Active bombs on the whole canvas. */
+  get size(): number {
+    return this.byCell.size;
+  }
+
   get(x: number, y: number): Bomb | undefined {
     return this.byCell.get(cellKey(x, y));
   }

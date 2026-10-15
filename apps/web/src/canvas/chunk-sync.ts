@@ -5,9 +5,7 @@ export type SyncAction =
   | { type: "replace"; cx: number; cy: number; colors: Uint8Array }
   | { type: "apply"; cx: number; cy: number; cells: ChunkDelta["cells"] };
 
-type Entry =
-  | { status: "loading"; requestId: number; buffered: ChunkDelta[]; minVersion: number }
-  | { status: "ready"; version: number };
+type Entry = { status: "loading"; requestId: number; buffered: ChunkDelta[]; minVersion: number } | { status: "ready"; version: number };
 
 const key = (cx: number, cy: number) => `${cx}:${cy}`;
 

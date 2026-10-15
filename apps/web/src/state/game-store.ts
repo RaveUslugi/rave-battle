@@ -13,6 +13,8 @@ export interface GameState {
   /** The server says this user may open the admin panel. */
   admin: boolean;
   online: number;
+  /** A few players online right now, newest first: avatars next to the count. */
+  onlineSample: UserRef[];
   /** Canvas cell under the pointer, for the status bar. */
   hover: { x: number; y: number } | null;
   /** Server clock minus local clock, from the last player view. */
@@ -25,7 +27,7 @@ export interface GameState {
   setPlayer(player: PlayerView): void;
   setConfig(config: GameConfig): void;
   setStatus(status: ConnectionStatus): void;
-  setOnline(count: number): void;
+  setOnline(count: number, sample?: UserRef[]): void;
   setHover(cell: { x: number; y: number } | null): void;
   setView(view: { camera: Camera; screen: ScreenSize }): void;
   jumpTo(x: number, y: number): void;
@@ -46,6 +48,7 @@ export function createGameStore(clock: () => number = Date.now) {
     config: null,
     admin: false,
     online: 0,
+    onlineSample: [],
     hover: null,
     clockOffset: 0,
     view: null,
@@ -55,9 +58,8 @@ export function createGameStore(clock: () => number = Date.now) {
     setConfig: (config) => set({ config }),
     // The count belongs to a connection: drop it when the connection goes away.
     // "outdated" is final: the tab needs a reload, so late socket statuses must not hide it.
-    setStatus: (status) =>
-      set((s) => (s.status === "outdated" ? {} : status === "open" ? { status } : { status, online: 0 })),
-    setOnline: (online) => set({ online }),
+    setStatus: (status) => set((s) => (s.status === "outdated" ? {} : status === "open" ? { status } : { status, online: 0, onlineSample: [] })),
+    setOnline: (online, sample) => set({ online, onlineSample: sample ?? [] }),
     setHover: (hover) => set({ hover }),
     setView: (view) => set({ view }),
     jumpTo: (x, y) => set({ jump: { x, y } }),

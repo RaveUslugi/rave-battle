@@ -1,5 +1,17 @@
 /** Moderation log actions. Shared so the admin UI never imports server source. */
-export const MOD_ACTIONS = ["ban", "unban", "player_edit", "config_save", "config_rollback", "rollback_player", "clear_area", "remove_bombs"] as const;
+export const MOD_ACTIONS = [
+  "ban",
+  "unban",
+  "player_edit",
+  "config_save",
+  "config_rollback",
+  "rollback_player",
+  "clear_area",
+  "remove_bombs",
+  "chat_mute",
+  "chat_unmute",
+  "chat_delete",
+] as const;
 export type ModAction = (typeof MOD_ACTIONS)[number];
 
 /** Inclusive canvas rectangle. */

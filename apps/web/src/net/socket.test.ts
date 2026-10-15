@@ -7,7 +7,12 @@ function harness() {
   const factory: TransportFactory = (_url, handlers) => {
     const transport = { handlers, sent: [] as Uint8Array[], closed: false };
     transports.push(transport);
-    return { send: (data) => transport.sent.push(data), close: () => void (transport.closed = true) };
+    return {
+      send: (data) => transport.sent.push(data),
+      close: () => {
+        transport.closed = true;
+      },
+    };
   };
   const timers: Array<{ fn: () => void; ms: number }> = [];
   const fakeTimers: Timers = {

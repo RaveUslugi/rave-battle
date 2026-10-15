@@ -1,4 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { users } from "../db/schema";
 import { createTestDb } from "../db/test-db";
 import { T0 } from "../engine/test-utils";
 import {
@@ -61,8 +63,20 @@ describe("sessions", () => {
       guildMember: true,
       discordId: expect.any(String),
       banReason: null,
+      locale: null,
       sessionId: expect.any(String),
     });
+  });
+
+  test("locale: the player's choice wins over Discord's language", async () => {
+    const id = await alice();
+    const { token } = await createSession(t.db, id, DAY, T0);
+    await t.db.update(users).set({ discordLocale: "en-GB" }).where(eq(users.id, id));
+    expect((await resolveSession(t.db, token, T0))?.locale).toBe("en");
+    await t.db.update(users).set({ locale: "ru" }).where(eq(users.id, id));
+    expect((await resolveSession(t.db, token, T0))?.locale).toBe("ru");
+    await t.db.update(users).set({ locale: null, discordLocale: "uk" }).where(eq(users.id, id));
+    expect((await resolveSession(t.db, token, T0))?.locale).toBeNull();
   });
 
   test("expired, unknown and deleted tokens resolve to null", async () => {

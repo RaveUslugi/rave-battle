@@ -52,7 +52,10 @@ describe("GameRuntime", () => {
       runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now)),
       runtime.run((engine, now) => engine.placePixel(a, pixel(-1, 1), now)),
     ]);
-    expect(results).toEqual([{ ok: true, outcome: "placed" }, { ok: false, code: "out_of_bounds" }]);
+    expect(results).toEqual([
+      { ok: true, outcome: "placed" },
+      { ok: false, code: "out_of_bounds" },
+    ]);
     expect(await t.db.select().from(pixelEvents)).toHaveLength(1);
     const [state] = await t.db.select().from(playerState);
     expect(state?.coins).toBe(101);
@@ -136,7 +139,7 @@ describe("GameRuntime", () => {
 });
 
 describe("GameRuntime hooks and lifecycle", () => {
-  async function bootWith(options: { onCommit?: (events: EngineEvent[]) => void } = {}) {
+  async function bootWith(options: { onCommit?: (events: EngineEvent[]) => void; onCommitTiming?: (ms: number, events: number) => void } = {}) {
     const { engine, seasonId, replayedChunks } = await loadGame(t.db, clock);
     return new GameRuntime(engine, t.db, {
       seasonId,
@@ -147,8 +150,7 @@ describe("GameRuntime hooks and lifecycle", () => {
       ...options,
     });
   }
-  const join = (runtime: GameRuntime) =>
-    runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
+  const join = (runtime: GameRuntime) => runtime.addPlayer({ userId: a, accountCreatedAt: T0 - 365 * DAY_MS, guildMember: true });
 
   test("onCommit sees committed events before the command resolves", async () => {
     const seen: string[] = [];
@@ -157,6 +159,16 @@ describe("GameRuntime hooks and lifecycle", () => {
     const result = await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
     expect(result).toEqual({ ok: true, outcome: "placed" });
     expect(seen).toContain("pixel");
+  });
+
+  test("onCommitTiming reports each written batch", async () => {
+    const timings: Array<{ ms: number; events: number }> = [];
+    const runtime = await bootWith({ onCommitTiming: (ms, events) => timings.push({ ms, events }) });
+    await join(runtime);
+    await runtime.run((engine, now) => engine.placePixel(a, pixel(1, 1), now));
+    expect(timings.length).toBeGreaterThanOrEqual(2);
+    expect(timings.at(-1)!.events).toBeGreaterThan(0);
+    expect(timings.every((t) => t.ms >= 0)).toBe(true);
   });
 
   test("a throwing onCommit does not break commands", async () => {

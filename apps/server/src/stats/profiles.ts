@@ -44,11 +44,7 @@ export class Profiles {
   ) {}
 
   async profile(userId: number): Promise<Profile | null> {
-    const [user] = await this.db
-      .select({ createdAt: users.createdAt, bannedUntil: users.bannedUntil })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    const [user] = await this.db.select({ createdAt: users.createdAt, bannedUntil: users.bannedUntil }).from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return null;
     const season = this.runtime.season;
     const [totals] = await this.db

@@ -13,9 +13,7 @@ describe("placePixel: plain pixels", () => {
     expect(a.coins).toBe(101);
 
     const events = engine.drainEvents();
-    expect(eventsOf(events, "pixel")).toEqual([
-      { type: "pixel", kind: "place", x: 10, y: 20, userId: 1, colorId: 3, prevColorId: 0, prevUserId: 0, at: T0 },
-    ]);
+    expect(eventsOf(events, "pixel")).toEqual([{ type: "pixel", kind: "place", x: 10, y: 20, userId: 1, colorId: 3, prevColorId: 0, prevUserId: 0, at: T0 }]);
     expect(eventsOf(events, "stat").map((e) => [e.stat, e.delta, e.day])).toEqual([
       ["pixels", 1, "2026-10-07"],
       ["coinsFromPixels", 1, "2026-10-07"],
@@ -33,12 +31,12 @@ describe("placePixel: plain pixels", () => {
 
   test("rejects locked colors until unlocked", () => {
     const { engine, addPlayer } = makeEngine((cfg) => {
-      cfg.palette.push({ id: 40, type: "animated", base: "#FF00FF", params: {}, unlock: "shop", price: 200 });
+      cfg.palette.push({ id: 60, type: "animated", base: "#FF00FF", params: { frames: ["#FF00FF", "#000000"], periodMs: 1000 }, unlock: "shop", price: 200 });
     });
     const a = addPlayer(1);
-    expect(engine.placePixel(1, place(0, 0, 40), T0)).toEqual({ ok: false, code: "color_locked" });
-    a.unlockedColors.add(40);
-    expect(engine.placePixel(1, place(0, 0, 40), T0)).toEqual({ ok: true, outcome: "placed" });
+    expect(engine.placePixel(1, place(0, 0, 60), T0)).toEqual({ ok: false, code: "color_locked" });
+    a.unlockedColors.add(60);
+    expect(engine.placePixel(1, place(0, 0, 60), T0)).toEqual({ ok: true, outcome: "placed" });
   });
 
   test("rejects when out of charges and accepts again after regen", () => {
@@ -84,9 +82,7 @@ describe("placePixel: bombs", () => {
     expect(bombs.get(5, 5)?.ownerId).toBe(1);
     const events = engine.drainEvents();
     expect(eventsOf(events, "bomb_added")).toEqual([{ type: "bomb_added", x: 5, y: 5, ownerId: 1, at: T0 }]);
-    expect(eventsOf(events, "ledger")).toEqual([
-      { type: "ledger", userId: 1, item: "bomb", delta: -1, balanceAfter: 2, reason: "use", ref: {}, at: T0 },
-    ]);
+    expect(eventsOf(events, "ledger")).toEqual([{ type: "ledger", userId: 1, item: "bomb", delta: -1, balanceAfter: 2, reason: "use", ref: {}, at: T0 }]);
   });
 
   test("rejects when the player has no bombs or hit the active-bomb limit", () => {
@@ -118,9 +114,7 @@ describe("placePixel: bombs", () => {
 
     const events = engine.drainEvents();
     expect(eventsOf(events, "pixel")).toEqual([]);
-    expect(eventsOf(events, "bomb_removed")).toEqual([
-      { type: "bomb_removed", x: 5, y: 5, ownerId: 1, reason: "exploded", removedBy: 2, at: T0 + 1000 },
-    ]);
+    expect(eventsOf(events, "bomb_removed")).toEqual([{ type: "bomb_removed", x: 5, y: 5, ownerId: 1, reason: "exploded", removedBy: 2, at: T0 + 1000 }]);
     expect(eventsOf(events, "stat").map((e) => [e.userId, e.stat])).toEqual([
       [2, "explosionsSuffered"],
       [1, "bombsTriggered"],

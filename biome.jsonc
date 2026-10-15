@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!**/drizzle/meta", "!**/*.dc.html"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 160
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "off" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // Deliberate: with noUncheckedIndexedAccess, `!` marks indexes the code has already bounds-checked.
+        "noNonNullAssertion": "off"
+      },
+      "complexity": {
+        // `!x || x.a !== b` narrows the type more clearly than `x?.a !== b`.
+        "useOptionalChain": "off",
+        // !important only overrides animations for reduced motion and one admin table cell.
+        "noImportantStyles": "off"
+      }
+    }
+  }
+}

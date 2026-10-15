@@ -1,5 +1,6 @@
 import { defaultConfig, type PlayerView, type Rect, type ServerMessage } from "@rave/shared";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { applyLocale } from "../i18n";
 import type { Timers } from "../net/socket";
 import { createGameStore } from "../state/game-store";
 import { bindReadings, createReadingsStore } from "../state/readings-store";
@@ -21,9 +22,12 @@ const player = (overrides: Partial<PlayerView> = {}): PlayerView => ({
   dailyStep: 0,
   dailyLastClaim: null,
   bannedUntil: null,
-  blocks: [], banReason: null,
+  blocks: [],
+  banReason: null,
   playableAt: null,
   unlimited: false,
+  chatMutedUntil: null,
+  chatMuteReason: null,
   serverNow: NOW,
   ...overrides,
 });
@@ -55,13 +59,35 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   bindReadings(game, readings);
   const toolCalls: string[] = [];
   const tools: ToolsApi = {
-    detect: async (c) => (toolCalls.push(`detect ${c.x},${c.y}`), options.detect ?? { ok: true, count: 1 }),
-    defuse: async (c) => (toolCalls.push(`defuse ${c.x},${c.y}`), { ok: true, found: false, reward: 0 }),
+    detect: async (c) => {
+      toolCalls.push(`detect ${c.x},${c.y}`);
+      return options.detect ?? { ok: true, count: 1 };
+    },
+    defuse: async (c) => {
+      toolCalls.push(`defuse ${c.x},${c.y}`);
+      return { ok: true, found: false, reward: 0 };
+    },
   };
   const client = new GameClient({ game, ui, readings, tools, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
   game.setState({ status: "open", user: { id: 1, name: "me" }, player: player(), config: defaultConfig });
-  return { game, ui, readings, toolCalls, client, sent, pendingCalls, selections, flashes, areas, timeouts, cleared, advance: (ms: number) => void (now += ms) };
+  return {
+    game,
+    ui,
+    readings,
+    toolCalls,
+    client,
+    sent,
+    pendingCalls,
+    selections,
+    flashes,
+    areas,
+    timeouts,
+    cleared,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 const placed = (reqId: number, result: Placed["result"]): Placed => ({ type: "placed", reqId, result });
@@ -70,6 +96,7 @@ const toastTexts = (ui: ReturnType<typeof createUiStore>) => ui.getState().toast
 describe("GameClient", () => {
   let t: ReturnType<typeof setup>;
   beforeEach(() => {
+    applyLocale("ru");
     t = setup();
     t.ui.getState().selectColor(7);
   });
@@ -92,11 +119,11 @@ describe("GameClient", () => {
     expect(t.selections.at(-1)).toBeNull();
   });
 
-  test("the inspect tool opens the moderation panel on any pointer without selecting or sending", () => {
+  test("the inspect tool picks the cell on any pointer without selecting or sending", () => {
     t.ui.getState().setTool("inspect");
     t.client.onCellTap({ x: 4, y: 5 }, "touch");
     expect(t.ui.getState().selection).toBeNull();
-    expect(t.ui.getState()).toMatchObject({ panel: "moderation", moderation: { cell: { x: 4, y: 5 } } });
+    expect(t.ui.getState()).toMatchObject({ moderation: { cell: { x: 4, y: 5 } } });
     t.client.onCellTap({ x: 6, y: 7 }, "mouse");
     expect(t.ui.getState().moderation.cell).toEqual({ x: 6, y: 7 });
     expect(t.sent).toHaveLength(0);
@@ -181,7 +208,7 @@ describe("GameClient", () => {
   test("an explosion without a freeze does not mention one", () => {
     t.client.onCellTap({ x: 9, y: 8 }, "mouse");
     t.client.onPlaced(placed(1, { ok: true, outcome: "exploded", self: false, frozenUntil: 0, coinsLost: 0, bombOwner: { id: 2, name: "neko" } }));
-    expect(toastTexts(t.ui)[0]).toBe("💥 Бомба игрока neko! −0 монет");
+    expect(toastTexts(t.ui)[0]).toBe("Бомба игрока neko! −0 монет");
   });
 
   test("answers for unknown requests are ignored", () => {
@@ -300,7 +327,13 @@ describe("GameClient", () => {
     });
     t.client.detach();
     const pendingSizes: number[] = [];
-    c.attach({ sendPlace: () => true, setPending: (cells) => void pendingSizes.push(cells.length), setSelection: () => {}, setArea: () => {}, flash: () => {} });
+    c.attach({
+      sendPlace: () => true,
+      setPending: (cells) => void pendingSizes.push(cells.length),
+      setSelection: () => {},
+      setArea: () => {},
+      flash: () => {},
+    });
     c.onCellTap({ x: 1, y: 1 }, "mouse");
     wall -= 3_600_000; // the wall clock jumps back an hour
     mono += 10_001;

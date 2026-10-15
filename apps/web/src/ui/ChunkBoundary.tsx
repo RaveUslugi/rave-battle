@@ -1,5 +1,7 @@
 import { Component, type ReactNode } from "react";
+import { i18n } from "../i18n";
 import styles from "./ChunkBoundary.module.css";
+import { Button } from "./kit";
 
 interface Props {
   children: ReactNode;
@@ -27,10 +29,10 @@ export class ChunkBoundary extends Component<Props, { failed: boolean }> {
     if (this.props.fallback === null) return null;
     return (
       <div className={styles.reload} role="alert">
-        <p>Не удалось загрузить холст. Обновите страницу — возможно, игра обновилась.</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          Обновить страницу
-        </button>
+        <p>{i18n.t("status.canvasFailed")}</p>
+        <Button variant="primary" onClick={() => window.location.reload()}>
+          {i18n.t("status.reload")}
+        </Button>
       </div>
     );
   }

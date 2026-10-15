@@ -5,7 +5,8 @@ import { AccessQueue } from "../admin/access-queue";
 import { AdminService } from "../admin/service";
 import { isAdmin } from "../auth/admin";
 import type { SessionUser } from "../auth/session";
-import { statsDaily } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { statsDaily, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import type { AppDeps } from "../net/deps";
 import type { ServerConfig } from "../net/env";
@@ -40,6 +41,7 @@ let bob: SessionUser;
 let admin: SessionUser;
 
 const sessionUser = (id: number, username: string): SessionUser => ({
+  locale: null,
   id,
   username,
   discordCreatedAt: Date.UTC(2020, 0, 1),
@@ -74,6 +76,32 @@ describe("appRouter", () => {
     const me = await as(alice).me();
     expect(me?.user).toEqual({ id: alice.id, name: "alice" });
     expect(me?.player?.coins).toBe(130);
+    expect(me?.locale).toBeNull();
+  });
+
+  test("settings.setLocale stores the choice for the logged-in user", async () => {
+    await expect(as(null).settings.setLocale({ locale: "en" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await as(alice).settings.setLocale({ locale: "en" })).toEqual({ ok: true });
+    const [row] = await t.db.select({ locale: users.locale }).from(users).where(eq(users.id, alice.id));
+    expect(row?.locale).toBe("en");
+    await as(alice).settings.setLocale({ locale: null });
+    const [cleared] = await t.db.select({ locale: users.locale }).from(users).where(eq(users.id, alice.id));
+    expect(cleared?.locale).toBeNull();
+    await expect(as(alice).settings.setLocale({ locale: "de" as "en" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  test("chat procedures: admin ones need an admin, all need the chat service", async () => {
+    await expect(as(alice).admin.chat.delete({ id: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.chat.mute({ userId: bob.id, until: "permanent", reason: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    // These tests build deps without a ChatService.
+    await expect(as(alice).chat.send({ text: "hi" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+
+  test("dashboard and the player table are for admins", async () => {
+    await expect(as(alice).admin.dashboard({ period: "24h" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(as(alice).admin.players.list({})).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const admin = sessionUser(99, "admin");
+    await expect(as(admin).admin.dashboard({ period: "24h" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
   test("admin.whoami reports admin rights from the server config", async () => {
@@ -169,15 +197,15 @@ describe("appRouter", () => {
     const me = await as(bob).me();
     expect(me?.player?.blocks).toEqual(["banned"]);
     expect(me?.player?.banReason).toBe("spam");
-    expect(await as(admin).admin.players.search({ q: "bob" })).toEqual([
-      { id: bob.id, name: "bob", discordId: "discord-bob", banned: true },
-    ]);
+    expect(await as(admin).admin.players.search({ q: "bob" })).toEqual([{ id: bob.id, name: "bob", discordId: "discord-bob", banned: true }]);
     await expect(as(admin).admin.players.get({ userId: 99999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("moderation actions with mixed variant fields are rejected", async () => {
     const area = { x1: 0, y1: 0, x2: 1, y2: 1 };
-    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: bob.id, area } as never })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 
   test("admin inputs are validated: integer deltas, ban reason, user id", async () => {
@@ -206,6 +234,11 @@ describe("appRouter", () => {
     const wide = { kind: "clear_area", area: { x1: 0, y1: 0, x2: 256, y2: 255 }, mode: "fill" } as const;
     expect(await as(admin).admin.moderation.preview({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
     expect(await as(admin).admin.moderation.execute({ action: wide })).toEqual({ ok: false, code: "area_too_large" });
-    expect(await as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: alice.id } })).toEqual({ ok: true, cells: 0, bombs: 0, bbox: null });
+    expect(await as(admin).admin.moderation.preview({ action: { kind: "remove_bombs", userId: alice.id } })).toEqual({
+      ok: true,
+      cells: 0,
+      bombs: 0,
+      bbox: null,
+    });
   });
 });

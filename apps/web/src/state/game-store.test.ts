@@ -22,25 +22,42 @@ test("status, online count and hover are stored", () => {
 test("the online count is cleared when the connection is lost", () => {
   const { setStatus, setOnline } = gameStore.getState();
   setStatus("open");
-  setOnline(7);
+  setOnline(7, [{ id: 1, name: "a" }]);
+  expect(gameStore.getState().onlineSample).toEqual([{ id: 1, name: "a" }]);
   setStatus("reconnecting");
-  expect(gameStore.getState().online).toBe(0);
+  expect(gameStore.getState()).toMatchObject({ online: 0, onlineSample: [] });
   setStatus("open");
   expect(gameStore.getState().online).toBe(0);
 });
 
 const view = (serverNow: number) =>
   ({
-    coins: 0, charges: 0, chargesUpdatedAt: 0, chargeCap: 10, frozenUntil: 0,
-    inventory: { bomb: 0, detector: 0, defuser: 0 }, unlockedColors: [], dailyStep: 0,
-    dailyLastClaim: null, bannedUntil: null, blocks: [], banReason: null, playableAt: null, unlimited: false, serverNow,
+    coins: 0,
+    charges: 0,
+    chargesUpdatedAt: 0,
+    chargeCap: 10,
+    frozenUntil: 0,
+    inventory: { bomb: 0, detector: 0, defuser: 0 },
+    unlockedColors: [],
+    dailyStep: 0,
+    dailyLastClaim: null,
+    bannedUntil: null,
+    blocks: [],
+    banReason: null,
+    playableAt: null,
+    unlimited: false,
+    chatMutedUntil: null,
+    chatMuteReason: null,
+    serverNow,
   }) satisfies PlayerView;
 
 test("player views set the clock offset; serverTime applies it", () => {
   let local = 1_000;
   const store = createGameStore(() => local);
   expect(store.getState().clockOffset).toBe(0);
-  store.getState().applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000), admin: false });
+  store
+    .getState()
+    .applyHello({ type: "hello", protocol: 1, bootId: "b", user: { id: 1, name: "a" }, config: defaultConfig, player: view(6_000), admin: false });
   expect(store.getState().clockOffset).toBe(5_000);
   local = 2_000;
   store.getState().setPlayer(view(1_500));

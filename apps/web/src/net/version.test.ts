@@ -32,7 +32,12 @@ test("entryScript returns null without a module script", () => {
 
 function clock() {
   let t = 0;
-  return { now: () => t, sleep: async (ms: number) => void (t += ms) };
+  return {
+    now: () => t,
+    sleep: async (ms: number) => {
+      t += ms;
+    },
+  };
 }
 
 test("waitForNewBundle resolves changed as soon as the entry script differs", async () => {

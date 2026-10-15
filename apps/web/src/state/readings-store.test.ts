@@ -3,7 +3,6 @@ import { createGameStore } from "./game-store";
 import {
   bindReadings,
   createReadingsStore,
-  formatAge,
   MAX_READINGS,
   READING_FADE_MS,
   READING_TTL_MS,
@@ -17,7 +16,9 @@ function memoryStorage(initial: Record<string, string> = {}): ReadingsStorage & 
   return {
     data,
     getItem: (k) => data[k] ?? null,
-    setItem: (k, v) => void (data[k] = v),
+    setItem: (k, v) => {
+      data[k] = v;
+    },
     removeItem: (k) => void delete data[k],
     key: (i) => Object.keys(data)[i] ?? null,
     get length() {
@@ -48,11 +49,7 @@ describe("readings store", () => {
   test("expired and malformed entries are dropped on load and prune", () => {
     let now = READING_TTL_MS + 10;
     const storage = memoryStorage({
-      "rb:readings:1": JSON.stringify([
-        { x: 0, y: 0, count: 1, at: 5 },
-        { x: 1, y: 0, count: 1, at: READING_TTL_MS },
-        { x: "bad" },
-      ]),
+      "rb:readings:1": JSON.stringify([{ x: 0, y: 0, count: 1, at: 5 }, { x: 1, y: 0, count: 1, at: READING_TTL_MS }, { x: "bad" }]),
     });
     const store = createReadingsStore(storage, () => now);
     store.getState().setUser(1);
@@ -68,10 +65,18 @@ describe("readings store", () => {
     store.getState().setUser(1);
     expect(store.getState().readings).toEqual([]);
     const throwing: ReadingsStorage = {
-      getItem: () => { throw new Error("blocked"); },
-      setItem: () => { throw new Error("blocked"); },
-      removeItem: () => { throw new Error("blocked"); },
-      key: () => { throw new Error("blocked"); },
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+      key: () => {
+        throw new Error("blocked");
+      },
       length: 0,
     };
     const other = createReadingsStore(throwing, () => 0);
@@ -131,12 +136,6 @@ describe("reading helpers", () => {
     expect(readingAlpha(READING_FADE_MS / 2)).toBeCloseTo(0.65);
     expect(readingAlpha(READING_FADE_MS * 5)).toBeCloseTo(0.3);
     expect(readingAlpha(-1000)).toBe(1);
-  });
-
-  test("ages read naturally", () => {
-    expect(formatAge(30_000)).toBe("только что");
-    expect(formatAge(12 * 60_000)).toBe("12 мин назад");
-    expect(formatAge(3 * 3_600_000 + 5)).toBe("3 ч назад");
   });
 
   test("readingAt finds the reading of a cell", () => {

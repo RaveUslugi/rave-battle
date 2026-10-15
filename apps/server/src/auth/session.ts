@@ -2,6 +2,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { sessions, users } from "../db/schema";
 import { banFromDate } from "../persistence/codec";
+import { type Locale, localeFromDiscord } from "@rave/shared";
 
 /** The `__Host-` prefix makes browsers require Secure, Path=/ and no Domain, so sibling subdomains cannot plant it. */
 export const sessionCookieName = (secure: boolean) => (secure ? "__Host-rb_session" : "rb_session");
@@ -15,6 +16,8 @@ export interface SessionUser {
   guildMember: boolean;
   discordId: string;
   banReason: string | null;
+  /** Interface language: the player's choice, otherwise Discord's; null = let the browser decide. */
+  locale: Locale | null;
   /** Hash of the session token; identifies the session without exposing the token. */
   sessionId: string;
 }
@@ -22,12 +25,7 @@ export interface SessionUser {
 /** Sessions are stored and identified by the SHA-256 of their token. */
 export const sessionIdOf = (token: string) => new Bun.CryptoHasher("sha256").update(token).digest("hex");
 
-export async function createSession(
-  db: Db,
-  userId: number,
-  ttlMs: number,
-  now: number,
-): Promise<{ token: string; expiresAt: Date }> {
+export async function createSession(db: Db, userId: number, ttlMs: number, now: number): Promise<{ token: string; expiresAt: Date }> {
   const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const expiresAt = new Date(now + ttlMs);
   await db.insert(sessions).values({ id: sessionIdOf(token), userId, expiresAt });
@@ -44,6 +42,8 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
       guildMember: users.guildMember,
       discordId: users.discordId,
       banReason: users.banReason,
+      locale: users.locale,
+      discordLocale: users.discordLocale,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -58,6 +58,7 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
     guildMember: row.guildMember,
     discordId: row.discordId,
     banReason: row.banReason,
+    locale: row.locale ?? localeFromDiscord(row.discordLocale),
     sessionId: sessionIdOf(token),
   };
 }
@@ -68,7 +69,10 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
 
 /** Returns how many sessions were removed. */
 export async function deleteExpiredSessions(db: Db, now: number): Promise<number> {
-  const removed = await db.delete(sessions).where(lt(sessions.expiresAt, new Date(now))).returning({ id: sessions.id });
+  const removed = await db
+    .delete(sessions)
+    .where(lt(sessions.expiresAt, new Date(now)))
+    .returning({ id: sessions.id });
   return removed.length;
 }
 
@@ -93,7 +97,5 @@ export function sessionCookie(token: string, expiresAt: Date, secure: boolean): 
 }
 
 export function clearSessionCookie(secure: boolean): string {
-  return [`${sessionCookieName(secure)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"]
-    .concat(secure ? ["Secure"] : [])
-    .join("; ");
+  return [`${sessionCookieName(secure)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"].concat(secure ? ["Secure"] : []).join("; ");
 }

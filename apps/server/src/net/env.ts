@@ -11,7 +11,11 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /** `KEY=` in .env means "not set". */
 const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
 
-const splitList = (value: string) => value.split(",").map((s) => s.trim()).filter(Boolean);
+const splitList = (value: string) =>
+  value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 const envSchema = z
   .object({
@@ -79,7 +83,10 @@ function normaliseOrigin(entry: string): string {
 export function loadEnv(source: Record<string, string | undefined> = process.env): ServerConfig {
   const env = envSchema.parse(source);
   const publicUrl = new URL(env.PUBLIC_URL);
-  const extra = env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean).map(normaliseOrigin);
+  const extra = env.ALLOWED_ORIGINS.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+    .map(normaliseOrigin);
   return {
     databaseUrl: env.DATABASE_URL,
     port: env.PORT,

@@ -1,0 +1,361 @@
+/* Top bar: one row of boxes over the canvas. */
+
+.topBar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.topBar > * {
+  pointer-events: auto;
+}
+.center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.center > * {
+  pointer-events: auto;
+}
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px4);
+  color: var(--text);
+  border: 0;
+}
+.box[data-compact] {
+  gap: 8px;
+  height: 48px;
+  padding: 0 10px;
+}
+.box[data-grow] {
+  flex: 1;
+  min-width: 0;
+}
+button.box {
+  padding: 0 12px 0 8px;
+  gap: 10px;
+  cursor: pointer;
+}
+button.box:hover {
+  background: var(--card);
+}
+
+.logo {
+  font: 700 22px / 1 var(--font-display);
+  letter-spacing: 1px;
+}
+.pink {
+  color: var(--pink);
+}
+.cyan {
+  color: var(--cyan);
+}
+.muted {
+  color: var(--muted);
+}
+.dim {
+  color: var(--dim);
+}
+.sep {
+  width: 2px;
+  height: 24px;
+  background: var(--line);
+}
+
+.online {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.faces {
+  display: flex;
+}
+.faces > * + * {
+  margin-left: -4px;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  background: var(--dim);
+}
+.status[data-state="open"] .dot {
+  background: var(--lime);
+}
+.status[data-state="reconnecting"] .dot,
+.status[data-state="connecting"] .dot {
+  background: var(--gold);
+  animation: blink 0.8s steps(2) infinite;
+}
+.status[data-state="closed"] .dot,
+.status[data-state="outdated"] .dot {
+  background: var(--red);
+}
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Charges */
+.segments {
+  display: flex;
+  gap: 3px;
+}
+.segment {
+  width: 10px;
+  height: 20px;
+  background: #24203a;
+}
+.segment[data-state="full"] {
+  background: var(--cyan);
+  box-shadow: inset 0 -3px 0 #1fa9bd;
+}
+.segment[data-state="next"] {
+  background: #1d5560;
+}
+[data-compact] .segments {
+  gap: 2px;
+}
+[data-compact] .segment {
+  width: 7px;
+  height: 16px;
+}
+.bar {
+  width: 96px;
+  height: 6px;
+  background: #24203a;
+}
+[data-compact] .bar {
+  flex: 1;
+  min-width: 32px;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+.chargeText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.bigNumber {
+  font: 400 20px / 1 var(--font-display);
+}
+[data-compact] .bigNumber {
+  font-size: 15px;
+}
+.next {
+  font-size: 12px;
+  color: var(--muted);
+}
+.timer {
+  font-family: var(--font-display);
+  color: var(--cyan);
+}
+[data-compact] .timer {
+  font-size: 11px;
+}
+
+/* Coins */
+.coins {
+  font: 400 20px / 1 var(--font-display);
+  color: var(--gold);
+  transition: color 120ms steps(2);
+}
+[data-compact] .coins {
+  font-size: 16px;
+}
+.coins[data-tone="up"] {
+  color: var(--lime);
+}
+.coins[data-tone="down"] {
+  color: var(--red);
+}
+.delta {
+  position: absolute;
+  right: 6px;
+  bottom: -18px;
+  padding: 1px 4px;
+  background: var(--bg);
+  font: 400 13px / 1 var(--font-display);
+  animation: rise 1.5s steps(6) forwards;
+}
+.delta[data-tone="up"] {
+  color: var(--lime);
+}
+.delta[data-tone="down"] {
+  color: var(--red);
+}
+@keyframes rise {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+/* Account */
+.account {
+  position: relative;
+}
+.name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 15px;
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+  padding: 8px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+  clip-path: var(--px4);
+}
+.menu > button {
+  justify-content: flex-start;
+}
+.menuLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+}
+.menuLink:hover {
+  background: var(--card);
+  color: var(--text);
+}
+.language {
+  margin: 4px 8px;
+}
+
+.login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--pink);
+  color: var(--bg);
+  box-shadow: var(--bevel);
+  clip-path: var(--px4);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.login:hover {
+  background: #ff5cbb;
+}
+.login[data-wide] {
+  width: 100%;
+  height: 52px;
+}
+
+.dev {
+  display: flex;
+  gap: 6px;
+}
+.dev input {
+  width: 110px;
+  height: 44px;
+  padding: 0 8px;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Phone */
+.mobileTop {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+}
+.mobileTop .status {
+  flex-basis: 100%;
+  justify-content: center;
+  height: 32px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px2);
+  color: var(--text);
+}
+.mobileTop .dev input {
+  width: 90px;
+}
+.mobileTop .login {
+  flex: 1;
+}
+.spacer {
+  flex: 1;
+}
+.avatarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  clip-path: var(--px4);
+  cursor: pointer;
+}

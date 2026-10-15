@@ -51,9 +51,7 @@ function boundingBox(cells: Iterable<{ x: number; y: number }>): Rect | null {
 
 const ts = (ms: number) => sql`${new Date(ms).toISOString()}::timestamptz`;
 const inArea = (area: Rect | null, alias: string): SQL =>
-  area
-    ? sql`and ${sql.raw(alias)}.x between ${area.x1} and ${area.x2} and ${sql.raw(alias)}.y between ${area.y1} and ${area.y2}`
-    : sql``;
+  area ? sql`and ${sql.raw(alias)}.x between ${area.x1} and ${area.x2} and ${sql.raw(alias)}.y between ${area.y1} and ${area.y2}` : sql``;
 
 type WriteRow = {
   x: number;
@@ -102,7 +100,10 @@ export class ModerationPlanner {
       case "remove_bombs": {
         if ("userId" in action) {
           if (!(await this.userExists(action.userId))) return { ok: false, code: "not_found" };
-          return { ok: true, planned: this.removeBombs(this.bombCells(this.deps.runtime.engine.bombs.ownedBy(action.userId)), action.userId, { userId: action.userId }) };
+          return {
+            ok: true,
+            planned: this.removeBombs(this.bombCells(this.deps.runtime.engine.bombs.ownedBy(action.userId)), action.userId, { userId: action.userId }),
+          };
         }
         return { ok: true, planned: this.removeBombs(this.bombCells(this.deps.runtime.engine.bombs.inRect(action.area)), null, { area: action.area }) };
       }
@@ -219,9 +220,7 @@ export class ModerationPlanner {
       from last l left join restore r on r.x = l.x and r.y = l.y
       order by l.y, l.x
     `);
-    const writes = rows
-      .map((r) => this.write(r))
-      .filter((w) => w.expect.colorId !== w.colorId || w.expect.ownerId !== w.ownerId);
+    const writes = rows.map((r) => this.write(r)).filter((w) => w.expect.colorId !== w.colorId || w.expect.ownerId !== w.ownerId);
     return this.planned("mod_rollback", writes, [], { action: "clear_area", targetUserId: null, params: { area, mode: "to_time", at } });
   }
 

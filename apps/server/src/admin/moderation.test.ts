@@ -128,7 +128,10 @@ describe("rollback_player", () => {
     await place(target, 40, 40, 7, t2, true);
     await place(ann, 12, 12, 5, t2, true);
     const all = await plan(rollback(null, true));
-    expect(all.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([{ x: 10, y: 10 }, { x: 40, y: 40 }]);
+    expect(all.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([
+      { x: 10, y: 10 },
+      { x: 40, y: 40 },
+    ]);
     expect(all.bbox).toEqual({ x1: 10, y1: 10, x2: 40, y2: 40 });
     const inArea = await plan(rollback({ x1: 0, y1: 0, x2: 20, y2: 20 }, true));
     expect(inArea.plan.bombs).toEqual([{ x: 10, y: 10 }]);
@@ -223,12 +226,18 @@ describe("remove_bombs", () => {
     await place(ann, 12, 12, 5, t2, true);
     const byOwner = await plan({ kind: "remove_bombs", userId: target });
     expect(byOwner.plan.writes).toEqual([]);
-    expect(byOwner.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([{ x: 10, y: 10 }, { x: 40, y: 40 }]);
+    expect(byOwner.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([
+      { x: 10, y: 10 },
+      { x: 40, y: 40 },
+    ]);
     expect(byOwner.meta).toEqual({ action: "remove_bombs", targetUserId: target, params: { userId: target } });
 
     const area = { x1: 0, y1: 0, x2: 20, y2: 20 };
     const byArea = await plan({ kind: "remove_bombs", area });
-    expect(byArea.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([{ x: 10, y: 10 }, { x: 12, y: 12 }]);
+    expect(byArea.plan.bombs.sort((a, b) => a.x - b.x)).toEqual([
+      { x: 10, y: 10 },
+      { x: 12, y: 12 },
+    ]);
     expect(byArea.meta).toEqual({ action: "remove_bombs", targetUserId: null, params: { area } });
     expect(summarize(byArea)).toEqual({ cells: 0, bombs: 2, bbox: null });
 
@@ -269,7 +278,10 @@ describe("rejections", () => {
     expect(await p.plan({ kind: "remove_bombs", area: { x1: 0, y1: height, x2: 1, y2: height } })).toEqual({ ok: false, code: "bad_area" });
     expect(await p.plan({ ...rollback(), from: t3, to: t1 } as ModerationAction)).toEqual({ ok: false, code: "bad_period" });
     expect(await p.plan({ ...rollback(), to: NOW + 2 * MIN } as ModerationAction)).toEqual({ ok: false, code: "bad_period" });
-    expect(await p.plan({ kind: "clear_area", area: { x1: 0, y1: 0, x2: 1, y2: 1 }, mode: "to_time", at: NOW + 2 * MIN })).toEqual({ ok: false, code: "bad_period" });
+    expect(await p.plan({ kind: "clear_area", area: { x1: 0, y1: 0, x2: 1, y2: 1 }, mode: "to_time", at: NOW + 2 * MIN })).toEqual({
+      ok: false,
+      code: "bad_period",
+    });
     expect(await p.plan({ ...rollback(), userId: 9999 } as ModerationAction)).toEqual({ ok: false, code: "not_found" });
     expect(await p.plan({ kind: "remove_bombs", userId: 9999 })).toEqual({ ok: false, code: "not_found" });
   });

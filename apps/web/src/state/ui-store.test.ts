@@ -3,7 +3,13 @@ import { createUiStore, DEFAULT_COLOR, type StorageLike } from "./ui-store";
 
 function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
   const data = { ...initial };
-  return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
+  return {
+    data,
+    getItem: (k) => data[k] ?? null,
+    setItem: (k, v) => {
+      data[k] = v;
+    },
+  };
 }
 
 describe("ui store", () => {
@@ -62,13 +68,34 @@ describe("ui store", () => {
     expect(store.getState().explosion).toBeNull();
   });
 
-  test("a repeated toast replaces the identical one with a fresh id", () => {
+  test("a repeated toast counts up, moves to the end and gets a fresh id", () => {
     const store = createUiStore(null);
     const first = store.getState().pushToast("error", "Нет зарядов");
-    store.getState().pushToast("info", "x");
+    store.getState().pushToast("info", "x", "detector");
     const second = store.getState().pushToast("error", "Нет зарядов");
     expect(second).not.toBe(first);
-    expect(store.getState().toasts.map((t) => [t.kind, t.text])).toEqual([["info", "x"], ["error", "Нет зарядов"]]);
+    expect(store.getState().toasts.map((t) => [t.tone, t.text, t.count, t.icon])).toEqual([
+      ["info", "x", 1, "detector"],
+      ["error", "Нет зарядов", 2, undefined],
+    ]);
+  });
+
+  test("recent colours: newest first, no repeats, eight at most, restored with the selected colour first", () => {
+    const storage = memoryStorage({ "rb:color": "3", "rb:recent-colors": '[7,3,"x",900,2]' });
+    const store = createUiStore(storage);
+    expect(store.getState().recentColors).toEqual([3, 7, 2]);
+    for (const id of [10, 11, 12, 13, 14, 15, 2]) store.getState().selectColor(id);
+    expect(store.getState().recentColors).toEqual([2, 15, 14, 13, 12, 11, 10, 3]);
+    expect(createUiStore(storage).getState().recentColors).toEqual([2, 15, 14, 13, 12, 11, 10, 3]);
+    expect(createUiStore(memoryStorage({ "rb:recent-colors": "{" })).getState().recentColors).toEqual([5]);
+  });
+
+  test("the shop opens on an offer; opening it from the menu drops the focus", () => {
+    const store = createUiStore(null);
+    store.getState().openShop("item:bomb");
+    expect(store.getState()).toMatchObject({ panel: "shop", shopFocus: "item:bomb" });
+    store.getState().openPanel("shop");
+    expect(store.getState().shopFocus).toBeNull();
   });
 
   test("switching tools clears the selection", () => {
@@ -112,20 +139,18 @@ describe("ui store", () => {
     store.getState().openPanel("leaders");
     expect(store.getState().panel).toBe("leaders");
   });
-  test("inspecting a cell opens the moderation panel and drops the area", () => {
+  test("inspecting a cell drops the area", () => {
     const store = createUiStore(null);
     store.getState().setArea({ x1: 1, y1: 1, x2: 2, y2: 2 });
     store.getState().inspectCell({ x: 3, y: 4 });
-    expect(store.getState().panel).toBe("moderation");
     expect(store.getState().moderation).toEqual({ cell: { x: 3, y: 4 }, area: null, corner: null });
   });
 
-  test("setting an area drops the cell and the corner and opens the panel", () => {
+  test("setting an area drops the cell and the corner", () => {
     const store = createUiStore(null);
     store.getState().inspectCell({ x: 3, y: 4 });
     store.getState().setCorner({ x: 5, y: 5 });
     store.getState().setArea({ x1: 1, y1: 1, x2: 2, y2: 2 });
-    expect(store.getState().panel).toBe("moderation");
     expect(store.getState().moderation).toEqual({ cell: null, area: { x1: 1, y1: 1, x2: 2, y2: 2 }, corner: null });
     store.getState().setArea(null);
     expect(store.getState().moderation.area).toBeNull();

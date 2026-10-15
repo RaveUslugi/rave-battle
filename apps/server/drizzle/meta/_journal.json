@@ -22,6 +22,27 @@
       "when": 1791711652362,
       "tag": "0002_rare_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792080131451,
+      "tag": "0003_user_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792080439911,
+      "tag": "0004_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792081336746,
+      "tag": "0005_stats_hourly",
+      "breakpoints": true
     }
   ]
 }

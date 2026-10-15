@@ -57,7 +57,10 @@ describe("CanvasController", () => {
   test("visible chunks are subscribed and loaded", async () => {
     const h = harness();
     h.controller.onHello(hello("b1"));
-    h.controller.setVisible([{ cx: 0, cy: 0 }, { cx: 1, cy: 0 }]);
+    h.controller.setVisible([
+      { cx: 0, cy: 0 },
+      { cx: 1, cy: 0 },
+    ]);
     expect(h.subscriptions).toEqual([["0:0", "1:0"]]);
     expect(h.loads.map((l) => `${l.cx}:${l.cy}`)).toEqual(["0:0", "1:0"]);
     h.loads[0]!.resolve({ version: 2, colors: new Uint8Array([7]) });
@@ -68,7 +71,10 @@ describe("CanvasController", () => {
   test("chunks leaving the view are dropped; an unchanged view does not resubscribe", () => {
     const h = harness();
     h.controller.onHello(hello("b1"));
-    h.controller.setVisible([{ cx: 0, cy: 0 }, { cx: 1, cy: 0 }]);
+    h.controller.setVisible([
+      { cx: 0, cy: 0 },
+      { cx: 1, cy: 0 },
+    ]);
     h.controller.setVisible([{ cx: 0, cy: 0 }]);
     expect(h.calls).toContain("drop:1:0");
     expect(h.subscriptions.at(-1)).toEqual(["0:0"]);

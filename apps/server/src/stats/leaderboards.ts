@@ -75,12 +75,7 @@ export class Leaderboards {
     const rows = await this.db
       .select({ userId: statsDaily.userId, value: total })
       .from(statsDaily)
-      .where(
-        and(
-          eq(statsDaily.seasonId, this.runtime.season),
-          from === null ? undefined : gte(statsDaily.date, from),
-        ),
-      )
+      .where(and(eq(statsDaily.seasonId, this.runtime.season), from === null ? undefined : gte(statsDaily.date, from)))
       .groupBy(statsDaily.userId)
       .having(sql`sum(${column}) > 0`)
       .orderBy(desc(total), asc(statsDaily.userId));

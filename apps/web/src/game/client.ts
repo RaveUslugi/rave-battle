@@ -4,6 +4,7 @@ import type { Timers } from "../net/socket";
 import type { GameState } from "../state/game-store";
 import type { ReadingsState } from "../state/readings-store";
 import type { UiState } from "../state/ui-store";
+import { formatNumber, i18n } from "../i18n";
 import { rejectText } from "./messages";
 import { PendingPlacements } from "./pending";
 import { tapCorner } from "./area";
@@ -67,9 +68,7 @@ export class GameClient {
     this.timers = deps.timers ?? defaultTimers;
     this.ttlMs = deps.pendingTtlMs ?? 10_000;
     this.sapper =
-      deps.tools && deps.readings
-        ? new SapperTools({ game: deps.game, ui: deps.ui, readings: deps.readings, api: deps.tools, now: this.now })
-        : null;
+      deps.tools && deps.readings ? new SapperTools({ game: deps.game, ui: deps.ui, readings: deps.readings, api: deps.tools, now: this.now }) : null;
   }
 
   attach(port: CanvasPort): void {
@@ -136,7 +135,7 @@ export class GameClient {
     // A mouse click while a touch selection is open acts on the click, not on the old selection.
     if (ui.selection) ui.select(null);
     if (ui.tool === "paint") this.place(cell);
-    else this.useTool(ui.tool, cell);
+    else this.applyTool(ui.tool, cell);
   };
 
   readonly confirmSelection = (): void => {
@@ -144,12 +143,12 @@ export class GameClient {
     const selection = ui.selection;
     if (!selection) return;
     if (ui.tool === "inspect" || ui.tool === "area") return;
-    const done = ui.tool === "paint" ? this.place(selection) : this.useTool(ui.tool, selection);
+    const done = ui.tool === "paint" ? this.place(selection) : this.applyTool(ui.tool, selection);
     if (done) this.deps.ui.getState().select(null);
   };
 
   /** True when the request was sent. The detector stays picked for scanning an area; the costly defuser hands back the brush. */
-  private useTool(tool: Tool, cell: Cell): boolean {
+  private applyTool(tool: Tool, cell: Cell): boolean {
     if (!this.sapper) {
       this.toast("unavailable");
       return false;
@@ -183,11 +182,9 @@ export class GameClient {
       bombOwner: result.bombOwner.name,
       at: this.now(),
     });
-    const freeze = result.frozenUntil > 0 ? ", заморозка" : "";
-    const text = result.self
-      ? `Вы подорвались на собственной бомбе! −${result.coinsLost} монет${freeze}`
-      : `💥 Бомба игрока ${result.bombOwner.name}! −${result.coinsLost} монет${freeze}`;
-    this.deps.ui.getState().pushToast("error", text);
+    const n = formatNumber(result.coinsLost);
+    const text = result.self ? i18n.t("toast.explodedSelf", { n }) : i18n.t("toast.exploded", { owner: result.bombOwner.name, n });
+    this.deps.ui.getState().pushToast("error", result.frozenUntil > 0 ? i18n.t("toast.explodedFreeze", { text }) : text, "boom");
   };
 
   /** True when the placement was sent. */

@@ -34,8 +34,14 @@ const MAX_COUNT = 9;
 function isReading(value: unknown): value is Reading {
   const r = value as Reading;
   return (
-    typeof r === "object" && r !== null &&
-    Number.isInteger(r.x) && Number.isInteger(r.y) && Number.isInteger(r.count) && r.count >= 0 && r.count <= MAX_COUNT && Number.isFinite(r.at)
+    typeof r === "object" &&
+    r !== null &&
+    Number.isInteger(r.x) &&
+    Number.isInteger(r.y) &&
+    Number.isInteger(r.count) &&
+    r.count >= 0 &&
+    r.count <= MAX_COUNT &&
+    Number.isFinite(r.at)
   );
 }
 
@@ -115,13 +121,6 @@ export function createReadingsStore(storage: ReadingsStorage | null, clock: () =
 /** 1 when fresh, fading linearly to 0.3 at READING_FADE_MS and staying there. */
 export function readingAlpha(ageMs: number): number {
   return 1 - 0.7 * Math.min(1, Math.max(0, ageMs) / READING_FADE_MS);
-}
-
-export function formatAge(ageMs: number): string {
-  const minutes = Math.floor(ageMs / 60_000);
-  if (minutes < 1) return "только что";
-  if (minutes < 60) return `${minutes} мин назад`;
-  return `${Math.floor(minutes / 60)} ч назад`;
 }
 
 export function readingAt(readings: Reading[], cell: { x: number; y: number }): Reading | null {

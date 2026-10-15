@@ -9,7 +9,12 @@ function armed(cells: Array<[number, number, number]>) {
 
 describe("detect", () => {
   test("returns the number of bombs in the 3x3 square and spends one use", () => {
-    const { engine, addPlayer } = armed([[4, 4, 9], [5, 6, 9], [6, 6, 9], [8, 8, 9]]);
+    const { engine, addPlayer } = armed([
+      [4, 4, 9],
+      [5, 6, 9],
+      [6, 6, 9],
+      [8, 8, 9],
+    ]);
     const a = addPlayer(1);
     expect(engine.detect(1, { x: 5, y: 5 }, T0)).toEqual({ ok: true, count: 3 });
     expect(a.inventory.detector).toBe(4);
@@ -19,7 +24,10 @@ describe("detect", () => {
   });
 
   test("works at the canvas corner", () => {
-    const { engine, addPlayer } = armed([[0, 0, 9], [1, 1, 9]]);
+    const { engine, addPlayer } = armed([
+      [0, 0, 9],
+      [1, 1, 9],
+    ]);
     addPlayer(1);
     expect(engine.detect(1, { x: 0, y: 0 }, T0)).toEqual({ ok: true, count: 2 });
   });
@@ -49,9 +57,7 @@ describe("defuse", () => {
     expect(a.coins).toBe(120);
 
     const events = engine.drainEvents();
-    expect(eventsOf(events, "bomb_removed")).toEqual([
-      { type: "bomb_removed", x: 5, y: 5, ownerId: 9, reason: "defused", removedBy: 1, at: T0 },
-    ]);
+    expect(eventsOf(events, "bomb_removed")).toEqual([{ type: "bomb_removed", x: 5, y: 5, ownerId: 9, reason: "defused", removedBy: 1, at: T0 }]);
     expect(eventsOf(events, "stat").map((e) => [e.userId, e.stat])).toEqual([[1, "defused"]]);
     expect(eventsOf(events, "ledger").map((e) => [e.item, e.delta, e.reason])).toEqual([
       ["defuser", -1, "use"],
