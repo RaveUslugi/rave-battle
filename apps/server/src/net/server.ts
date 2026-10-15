@@ -7,7 +7,7 @@ import { clearSessionCookie, createSession, deleteSession, readSessionToken, res
 import { upsertUser } from "../auth/users";
 import { appRouter } from "../trpc/router";
 import type { AppDeps } from "./deps";
-import type { Hub, SocketData } from "./hub";
+import type { SocketData } from "./hub";
 import { clientIp } from "./client-ip";
 import { OverviewCache } from "./overview";
 import { KeyedRateLimiter, UserRateLimiter } from "./rate-limit";

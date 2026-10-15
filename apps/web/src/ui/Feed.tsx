@@ -21,6 +21,7 @@ function FeedPanel({ entries }: { entries: FeedEntry[] }) {
   const now = useServerNow(1_000);
   const list = useRef<HTMLOListElement>(null);
   // Oldest first, so keep the newest entries in view when the list opens or grows.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useLayoutEffect(() => {
     if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [open, entries]);
@@ -40,6 +41,7 @@ function FeedPanel({ entries }: { entries: FeedEntry[] }) {
               typeof part === "string" ? (
                 part
               ) : (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
                 <button key={i} type="button" className={styles.name} onClick={() => uiStore.getState().openProfile(part.id)}>
                   {part.name}
                 </button>

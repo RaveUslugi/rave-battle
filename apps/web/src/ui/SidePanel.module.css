@@ -21,6 +21,7 @@
     left: 0;
     width: auto;
     max-height: 70vh;
+    /* biome-ignore lint/suspicious/noDuplicateProperties: 70vh above is the fallback for browsers without dvh */
     max-height: 70dvh;
     border-left: none;
     border-top: 1px solid var(--panel-border);

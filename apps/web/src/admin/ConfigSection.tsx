@@ -15,6 +15,7 @@ function IssueList({ issues }: { issues: string[] | undefined }) {
   return (
     <ul className={styles.issues}>
       {issues.map((m, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
         <li key={i} className={styles.error}>
           {m}
         </li>

@@ -3,7 +3,13 @@ import { createUiStore, DEFAULT_COLOR, type StorageLike } from "./ui-store";
 
 function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
   const data = { ...initial };
-  return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
+  return {
+    data,
+    getItem: (k) => data[k] ?? null,
+    setItem: (k, v) => {
+      data[k] = v;
+    },
+  };
 }
 
 describe("ui store", () => {

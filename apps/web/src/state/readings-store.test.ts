@@ -17,7 +17,9 @@ function memoryStorage(initial: Record<string, string> = {}): ReadingsStorage & 
   return {
     data,
     getItem: (k) => data[k] ?? null,
-    setItem: (k, v) => void (data[k] = v),
+    setItem: (k, v) => {
+      data[k] = v;
+    },
     removeItem: (k) => void delete data[k],
     key: (i) => Object.keys(data)[i] ?? null,
     get length() {

@@ -20,6 +20,7 @@ export function DailyTab() {
   // After a claim, until the new player version arrives over the WebSocket: until then the button would look claimable.
   const [waiting, setWaiting] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => setWaiting(false), [player]);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function DailyTab() {
           const today = claimedToday ? (step + config.daily.rewards.length - 1) % config.daily.rewards.length : step;
           const state = i === today ? (claimedToday ? styles.dayTaken : styles.dayNext) : styles.day;
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
             <li key={i} className={state} aria-current={i === today ? "date" : undefined}>
               <span className={styles.dayNumber}>День {i + 1}</span>
               <span>{rewardText(reward)}</span>

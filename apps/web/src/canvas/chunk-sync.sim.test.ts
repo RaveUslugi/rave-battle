@@ -92,7 +92,10 @@ function simulate(seed: number, writeGap: number): string[] {
       const added: Array<{ cx: number; version: number }> = [];
       for (const cx of want) if (!serverSubs.has(cx)) added.push({ cx, version: server[cx]!.version });
       serverSubs = want;
-      if (added.length) wsSend(() => added.forEach((a) => run(sync.onAck(a.cx, 0, a.version))));
+      if (added.length)
+        wsSend(() => {
+          for (const a of added) run(sync.onAck(a.cx, 0, a.version));
+        });
     });
   };
   const scheduleFlush = () => {

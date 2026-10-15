@@ -134,7 +134,7 @@ export class GameClient {
     // A mouse click while a touch selection is open acts on the click, not on the old selection.
     if (ui.selection) ui.select(null);
     if (ui.tool === "paint") this.place(cell);
-    else this.useTool(ui.tool, cell);
+    else this.applyTool(ui.tool, cell);
   };
 
   readonly confirmSelection = (): void => {
@@ -142,12 +142,12 @@ export class GameClient {
     const selection = ui.selection;
     if (!selection) return;
     if (ui.tool === "inspect" || ui.tool === "area") return;
-    const done = ui.tool === "paint" ? this.place(selection) : this.useTool(ui.tool, selection);
+    const done = ui.tool === "paint" ? this.place(selection) : this.applyTool(ui.tool, selection);
     if (done) this.deps.ui.getState().select(null);
   };
 
   /** True when the request was sent. The detector stays picked for scanning an area; the costly defuser hands back the brush. */
-  private useTool(tool: Tool, cell: Cell): boolean {
+  private applyTool(tool: Tool, cell: Cell): boolean {
     if (!this.sapper) {
       this.toast("unavailable");
       return false;

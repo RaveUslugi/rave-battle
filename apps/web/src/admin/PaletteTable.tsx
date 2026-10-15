@@ -23,9 +23,9 @@ function ParamsInput({ value, onChange }: { value: Record<string, unknown>; onCh
   const parsed = tryParse(text);
 
   // Follow external changes (reload of the current version) without fighting the typing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     if (JSON.stringify(parsed) !== JSON.stringify(value)) setText(JSON.stringify(value));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return (
@@ -71,6 +71,7 @@ export function PaletteTable({ value, onChange }: { value: PaletteEntry[]; onCha
           </thead>
           <tbody>
             {value.map((e, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
               <tr key={i}>
                 <td>
                   <input

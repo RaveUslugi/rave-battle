@@ -78,6 +78,7 @@ function Inspector({ cell }: { cell: { x: number; y: number } }) {
       ) : (
         <ul className={styles.list}>
           {d.history.map((h, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
             <li key={`${h.at}-${i}`} className={styles.row}>
               <span className={styles.hint}>{fmt(h.at)}</span>
               <span className={styles.name}>{h.user ? playerLink(h.user) : "—"}</span>
@@ -110,6 +111,7 @@ function AreaTools({ area }: { area: Rect }) {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   // Selecting on the canvas replaces the typed values and any preview made for the old area.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     setFields(toFields(area));
     requestToken.current++;
@@ -120,10 +122,12 @@ function AreaTools({ area }: { area: Rect }) {
   /** Bumped by every request and by every change of its inputs; a late answer with an older token is dropped. */
   const requestToken = useRef(0);
   // A preview describes one exact action: any change to what it depends on invalidates it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     requestToken.current++;
     setStaged(null);
   }, [clearMode, clearAt, owner, period, customFrom, customTo, removeBombs]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     setMessage(null);
   }, [clearMode, clearAt, period, customFrom, customTo, removeBombs]);
@@ -134,6 +138,7 @@ function AreaTools({ area }: { area: Rect }) {
   const owners = useQuery({ ...trpc.admin.canvas.areaOwners.queryOptions({ area }), enabled: !blocked });
   const ownerList = owners.data?.ok ? owners.data.owners : [];
   // The chosen player may vanish from the list (area change, refetch after an apply).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     if (owner !== null && owners.data && !ownerList.some((o) => o.user.id === owner)) setOwner(null);
   }, [owners.data, owner]);
@@ -268,6 +273,7 @@ function AreaTools({ area }: { area: Rect }) {
       ) : ownerList.length === 0 ? (
         <p className={styles.hint}>В области нет пикселей игроков</p>
       ) : (
+        // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: a list of radio buttons; the radios inside are real buttons
         <ul className={styles.list} role="radiogroup" aria-label="Игрок">
           {ownerList.map((o) => (
             <li key={o.user.id}>
@@ -288,6 +294,7 @@ function AreaTools({ area }: { area: Rect }) {
           ))}
         </ul>
       )}
+      {/* biome-ignore lint/a11y/useSemanticElements: a styled group of buttons, not a form fieldset */}
       <div className={styles.segments} role="group" aria-label="Период">
         {PERIOD_PRESETS.map((p) => (
           <button

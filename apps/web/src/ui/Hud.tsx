@@ -23,6 +23,7 @@ export function Hud() {
           <>
             <div className={styles.pips} aria-hidden="true">
               {Array.from({ length: player.chargeCap }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
                 <span key={i} className={i < charges ? styles.pipOn : styles.pip} />
               ))}
             </div>

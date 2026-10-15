@@ -56,8 +56,14 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
   bindReadings(game, readings);
   const toolCalls: string[] = [];
   const tools: ToolsApi = {
-    detect: async (c) => (toolCalls.push(`detect ${c.x},${c.y}`), options.detect ?? { ok: true, count: 1 }),
-    defuse: async (c) => (toolCalls.push(`defuse ${c.x},${c.y}`), { ok: true, found: false, reward: 0 }),
+    detect: async (c) => {
+      toolCalls.push(`detect ${c.x},${c.y}`);
+      return options.detect ?? { ok: true, count: 1 };
+    },
+    defuse: async (c) => {
+      toolCalls.push(`defuse ${c.x},${c.y}`);
+      return { ok: true, found: false, reward: 0 };
+    },
   };
   const client = new GameClient({ game, ui, readings, tools, now: () => now, monotonic: () => now, timers, pendingTtlMs: 10_000 });
   client.attach(port);
@@ -75,7 +81,9 @@ function setup(options: { sendResult?: boolean; throwOnSend?: boolean; detect?: 
     areas,
     timeouts,
     cleared,
-    advance: (ms: number) => void (now += ms),
+    advance: (ms: number) => {
+      now += ms;
+    },
   };
 }
 

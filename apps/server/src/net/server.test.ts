@@ -640,6 +640,7 @@ describe("trpc over http", () => {
     fetch(`${base}/trpc/${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
 
   // Response.json() is `unknown` under this TS version.
+  // biome-ignore lint/suspicious/noExplicitAny: test helper; each test reads the fields it expects
   const data = async (res: Response) => ((await res.json()) as { result: { data: any } }).result.data;
 
   test("queries work with the session cookie", async () => {

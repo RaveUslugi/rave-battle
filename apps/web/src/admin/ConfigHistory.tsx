@@ -173,6 +173,7 @@ export function ConfigHistory({ current, baseVersion, dirty, onAnswer, onRefresh
           {problems.length > 0 && (
             <ul className={styles.issues} role="alert">
               {problems.map((m, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static list, items never reorder
                 <li key={i} className={styles.error}>
                   {m}
                 </li>

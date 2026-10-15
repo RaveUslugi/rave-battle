@@ -262,6 +262,7 @@ function PixelRollback({ userId, name }: { userId: number; name: string }) {
   /** Bumped by every request and by every change of its inputs; a late answer with an older token is dropped. */
   const requestToken = useRef(0);
   // A preview describes one exact action: any change to what it depends on invalidates it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => {
     requestToken.current++;
     setStaged(null);

@@ -57,6 +57,7 @@ export function PaletteBar() {
 
   return (
     <div className={styles.bar}>
+      {/* biome-ignore lint/a11y/useSemanticElements: a styled group of buttons, not a form fieldset */}
       <div className={styles.tools} role="group" aria-label="Инструменты">
         <button
           type="button"
@@ -121,6 +122,7 @@ export function PaletteBar() {
           const locked = isLocked(entry);
           const checked = selected === entry.id;
           return (
+            // biome-ignore lint/a11y/useSemanticElements: a swatch button acting as a radio; a native input cannot show the color
             <button
               key={entry.id}
               type="button"

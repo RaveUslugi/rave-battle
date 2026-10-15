@@ -31,8 +31,13 @@ function addIssue(issues: Issues, path: ReadonlyArray<PropertyKey>, message: str
   const [head, ...rest] = path;
   const section = (ALL_SECTIONS.includes(String(head)) ? head : "general") as Section;
   const where = section === "palette" ? formatPath(path) : section === "general" ? formatPath(path) : formatPath(rest);
-  if (where === "palette") return void (issues.palette ??= []).push(message);
-  (issues[section] ??= []).push(where === "" ? message : `${where}: ${message}`);
+  if (where === "palette") {
+    issues.palette ??= [];
+    issues.palette.push(message);
+    return;
+  }
+  issues[section] ??= [];
+  issues[section].push(where === "" ? message : `${where}: ${message}`);
 }
 
 /** Server issues carry dot-joined paths ("palette.3.price"); numeric parts become indexes. */

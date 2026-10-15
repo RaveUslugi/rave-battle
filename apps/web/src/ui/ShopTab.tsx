@@ -28,6 +28,7 @@ export function ShopTab() {
   // After a purchase, until the new player version arrives over the WebSocket: a quick second click would see stale data.
   const [waiting, setWaiting] = useState<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the deps are the triggers; the effect resets state when they change
   useEffect(() => setWaiting(null), [player]);
 
   useEffect(() => {

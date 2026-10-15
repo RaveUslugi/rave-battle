@@ -1,4 +1,4 @@
-import { encodePlace, normalizeRect, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
+import { encodePlace, type PlaceMessage, type Rect, type ServerMessage } from "@rave/shared/client";
 import type { CanvasPort } from "../game/client";
 import { browserTransport, GameSocket, socketUrl, type HelloMessage, type Timers } from "../net/socket";
 import { onProtocolMismatch, waitForNewBundle } from "../net/version";
@@ -188,7 +188,14 @@ export class CanvasSession implements CanvasPort {
       sleep: (ms) =>
         new Promise<void>((resolve) => {
           const timer = setTimeout(resolve, ms);
-          signal.addEventListener("abort", () => (clearTimeout(timer), resolve()), { once: true });
+          signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            { once: true },
+          );
         }),
       signal,
     });

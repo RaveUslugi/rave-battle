@@ -22,6 +22,7 @@ export function LeadersTab() {
 
   return (
     <div className={styles.tab}>
+      {/* biome-ignore lint/a11y/useSemanticElements: a styled group of buttons, not a form fieldset */}
       <div className={styles.segments} role="group" aria-label="Рейтинг">
         {BOARD_TABS.map((b) => (
           <button
@@ -36,6 +37,7 @@ export function LeadersTab() {
         ))}
       </div>
       {periodsFor(board).length > 0 && (
+        // biome-ignore lint/a11y/useSemanticElements: a styled group of buttons, not a form fieldset
         <div className={styles.segments} role="group" aria-label="Период">
           {periodsFor(board).map((p) => (
             <button
@@ -56,6 +58,7 @@ export function LeadersTab() {
       {query.data && query.data.top.length === 0 && <p className={styles.hint}>Пока никого</p>}
       {query.data && query.data.top.length > 0 && (
         // While another board or period loads, the previous list stays on screen, dimmed.
+        // biome-ignore lint/a11y/noRedundantRoles: Safari drops list semantics from lists without markers
         <ol className={styles.ranking} role="list" aria-busy={query.isPlaceholderData || undefined}>
           {query.data.top.map((row) => (
             <li

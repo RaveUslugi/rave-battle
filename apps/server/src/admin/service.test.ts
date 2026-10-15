@@ -283,16 +283,14 @@ describe("config", () => {
 
 describe("modLog", () => {
   test("pages by cursor and filters by action and target", async () => {
-    await t.db
-      .insert(modLog)
-      .values(
-        Array.from({ length: 60 }, (_, i) => ({
-          adminId: admin.id,
-          action: i % 2 === 0 ? ("ban" as const) : ("unban" as const),
-          targetUserId: i < 10 ? ann : bob,
-          params: {},
-        })),
-      );
+    await t.db.insert(modLog).values(
+      Array.from({ length: 60 }, (_, i) => ({
+        adminId: admin.id,
+        action: i % 2 === 0 ? ("ban" as const) : ("unban" as const),
+        targetUserId: i < 10 ? ann : bob,
+        params: {},
+      })),
+    );
     const first = await service.modLog({});
     expect(first.entries).toHaveLength(50);
     expect(first.entries[0]!.id).toBe(60);

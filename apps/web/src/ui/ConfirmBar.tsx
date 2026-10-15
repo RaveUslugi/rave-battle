@@ -15,6 +15,7 @@ export function ConfirmBar({ client }: { client: GameClient }) {
   if (!selection || tool === "inspect" || tool === "area") return null;
   const left = player?.unlimited ? "∞" : (player?.inventory.defuser ?? 0);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a styled group of buttons, not a form fieldset
     <div className={styles.bar} role="group" aria-label="Подтверждение клетки">
       <span className={styles.cell}>
         {selection.x}, {selection.y}
