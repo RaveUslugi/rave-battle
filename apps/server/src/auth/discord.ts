@@ -22,6 +22,8 @@ export interface DiscordProfile {
   username: string;
   avatar: string | null;
   createdAt: Date;
+  /** Discord UI language tag, e.g. "ru" or "en-US". */
+  locale: string | null;
 }
 
 export class DiscordError extends Error {
@@ -43,6 +45,7 @@ const userSchema = z.object({
   username: z.string().min(1).max(32),
   global_name: z.string().max(32).nullish(),
   avatar: z.string().nullish(),
+  locale: z.string().max(16).nullish(),
 });
 const guildsSchema = z.array(z.object({ id: z.string() }));
 
@@ -105,6 +108,7 @@ export async function fetchProfile(fetchFn: FetchFn, accessToken: string): Promi
     username: user.global_name || user.username,
     avatar: user.avatar ?? null,
     createdAt: snowflakeCreatedAt(user.id),
+    locale: user.locale ?? null,
   };
 }
 

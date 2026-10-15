@@ -15,7 +15,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { ItemKey } from "@rave/shared";
+import type { ItemKey, Locale } from "@rave/shared";
 import type { LedgerItem, LedgerReason, ModAction } from "../engine/types";
 import { bytes } from "./bytes";
 
@@ -34,6 +34,10 @@ export const users = pgTable("users", {
   guildMember: boolean("guild_member").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
   lastSeenAt: ts("last_seen_at"),
+  /** Language the player picked ("ru" | "en"); null = follow Discord, then the browser. */
+  locale: text("locale").$type<Locale>(),
+  /** Discord's UI language tag ("ru", "en-US", …), refreshed on every Discord login. */
+  discordLocale: text("discord_locale"),
 });
 
 export const sessions = pgTable("sessions", {

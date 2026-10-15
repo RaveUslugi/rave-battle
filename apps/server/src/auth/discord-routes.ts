@@ -62,6 +62,7 @@ export async function finishDiscordLogin(req: Request, deps: AppDeps): Promise<R
     username: profile.username,
     avatar: profile.avatar,
     discordCreatedAt: profile.createdAt,
+    discordLocale: profile.locale,
     guildMember,
   });
   deps.users.set(id, profile.username);

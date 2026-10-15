@@ -1,11 +1,13 @@
-import { itemKeySchema } from "@rave/shared";
+import { itemKeySchema, LOCALES } from "@rave/shared";
 import { TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { isAdmin } from "../auth/admin";
+import { users } from "../db/schema";
 import { MOD_ACTIONS } from "../engine/types";
 import { toPlayerView } from "../net/views";
 import { BOARDS, PERIODS } from "../stats/leaderboards";
-import { adminProcedure, playerProcedure, publicProcedure, router } from "./init";
+import { adminProcedure, playerProcedure, publicProcedure, router, userProcedure } from "./init";
 
 const TOP = 50;
 
@@ -37,7 +39,15 @@ export const appRouter = router({
     const player = engine.players.has(ctx.user.id)
       ? toPlayerView(engine.players.get(ctx.user.id), engine.config, Date.now(), engine.isUnlimited(ctx.user.id))
       : null;
-    return { user: ctx.deps.users.ref(ctx.user.id), player };
+    return { user: ctx.deps.users.ref(ctx.user.id), player, locale: ctx.user.locale };
+  }),
+
+  settings: router({
+    /** null = follow Discord's language, then the browser's. */
+    setLocale: userProcedure.input(z.object({ locale: z.enum(LOCALES).nullable() })).mutation(async ({ ctx, input }) => {
+      await ctx.deps.db.update(users).set({ locale: input.locale }).where(eq(users.id, ctx.user.id));
+      return { ok: true as const };
+    }),
   }),
 
   admin: router({

@@ -38,6 +38,14 @@ export const playerProcedure = t.procedure.use(async ({ ctx, next }) => {
   return next({ ctx: { ...ctx, user } });
 });
 
+/** Logged-in and rate-limited, without creating a player: settings that do not touch the game. Mutations only, like playerProcedure. */
+export const userProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const user = ctx.user;
+  if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!ctx.limiter.take(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+  return next({ ctx: { ...ctx, user } });
+});
+
 /** Admins only. Queries go over GET like public ones (the browser's CORS keeps their answers same-origin); mutations get the Origin check. */
 export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
   const user = ctx.user;

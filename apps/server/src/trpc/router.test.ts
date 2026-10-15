@@ -5,7 +5,8 @@ import { AccessQueue } from "../admin/access-queue";
 import { AdminService } from "../admin/service";
 import { isAdmin } from "../auth/admin";
 import type { SessionUser } from "../auth/session";
-import { statsDaily } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { statsDaily, users } from "../db/schema";
 import { createTestDb, insertUser } from "../db/test-db";
 import type { AppDeps } from "../net/deps";
 import type { ServerConfig } from "../net/env";
@@ -40,6 +41,7 @@ let bob: SessionUser;
 let admin: SessionUser;
 
 const sessionUser = (id: number, username: string): SessionUser => ({
+  locale: null,
   id,
   username,
   discordCreatedAt: Date.UTC(2020, 0, 1),
@@ -74,6 +76,18 @@ describe("appRouter", () => {
     const me = await as(alice).me();
     expect(me?.user).toEqual({ id: alice.id, name: "alice" });
     expect(me?.player?.coins).toBe(130);
+    expect(me?.locale).toBeNull();
+  });
+
+  test("settings.setLocale stores the choice for the logged-in user", async () => {
+    await expect(as(null).settings.setLocale({ locale: "en" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await as(alice).settings.setLocale({ locale: "en" })).toEqual({ ok: true });
+    const [row] = await t.db.select({ locale: users.locale }).from(users).where(eq(users.id, alice.id));
+    expect(row?.locale).toBe("en");
+    await as(alice).settings.setLocale({ locale: null });
+    const [cleared] = await t.db.select({ locale: users.locale }).from(users).where(eq(users.id, alice.id));
+    expect(cleared?.locale).toBeNull();
+    await expect(as(alice).settings.setLocale({ locale: "de" as "en" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   test("admin.whoami reports admin rights from the server config", async () => {

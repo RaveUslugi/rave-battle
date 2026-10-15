@@ -23,6 +23,7 @@ let ann: number;
 let bob: number;
 
 const sessionUser = (id: number, name: string): SessionUser => ({
+  locale: null,
   id,
   username: name,
   discordCreatedAt: Date.UTC(2020, 0, 1),

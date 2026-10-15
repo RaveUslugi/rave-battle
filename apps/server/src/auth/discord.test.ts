@@ -64,9 +64,12 @@ describe("discord", () => {
       username: "Neko Raver",
       avatar: "abc",
       createdAt: new Date("2016-04-30T11:18:25.796Z"),
+      locale: null,
     });
     expect(calls[0]?.url).toBe("https://discord.com/api/v10/users/@me");
     expect(new Headers(calls[0]?.init?.headers).get("authorization")).toBe("Bearer tok");
+    const withLocale = fakeFetch(() => json({ id: "1", username: "neko", avatar: null, locale: "ru" }));
+    expect((await fetchProfile(withLocale.fn, "tok")).locale).toBe("ru");
     const plain = fakeFetch(() => json({ id: "1", username: "neko", global_name: null, avatar: null }));
     expect((await fetchProfile(plain.fn, "tok")).username).toBe("neko");
   });

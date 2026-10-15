@@ -30,7 +30,7 @@
 - [ ] Миграция: `users.locale text null` (выбор игрока), `users.discord_locale text null` (обновляется при каждом входе через Discord).
 - [ ] `auth/discord.ts`: читать `locale` из `/users/@me`, сохранять в `discord_locale`.
 - [ ] `me` возвращает `locale: "ru" | "en" | null` = выбор игрока, иначе язык Discord (`ru*` → `ru`, `en*` → `en`, остальное → `null`).
-- [ ] `me.setLocale({ locale: "ru" | "en" | null })` — мутация для вошедшего.
+- [ ] `settings.setLocale({ locale: "ru" | "en" | null })` — мутация для вошедшего (`me` — запрос, в него мутацию не вложить).
 - [ ] Тесты: маппинг языка Discord, приоритет, мутация.
 
 ### Метрики

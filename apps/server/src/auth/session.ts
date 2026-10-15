@@ -2,6 +2,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { sessions, users } from "../db/schema";
 import { banFromDate } from "../persistence/codec";
+import { type Locale, localeFromDiscord } from "@rave/shared";
 
 /** The `__Host-` prefix makes browsers require Secure, Path=/ and no Domain, so sibling subdomains cannot plant it. */
 export const sessionCookieName = (secure: boolean) => (secure ? "__Host-rb_session" : "rb_session");
@@ -15,6 +16,8 @@ export interface SessionUser {
   guildMember: boolean;
   discordId: string;
   banReason: string | null;
+  /** Interface language: the player's choice, otherwise Discord's; null = let the browser decide. */
+  locale: Locale | null;
   /** Hash of the session token; identifies the session without exposing the token. */
   sessionId: string;
 }
@@ -39,6 +42,8 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
       guildMember: users.guildMember,
       discordId: users.discordId,
       banReason: users.banReason,
+      locale: users.locale,
+      discordLocale: users.discordLocale,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -53,6 +58,7 @@ export async function resolveSession(db: Db, token: string, now: number): Promis
     guildMember: row.guildMember,
     discordId: row.discordId,
     banReason: row.banReason,
+    locale: row.locale ?? localeFromDiscord(row.discordLocale),
     sessionId: sessionIdOf(token),
   };
 }
