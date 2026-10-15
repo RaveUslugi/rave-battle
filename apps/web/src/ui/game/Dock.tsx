@@ -9,7 +9,6 @@ import { type ActiveTool, RECENT_COLORS, uiStore, useUi } from "../../state/ui-s
 import { Icon, type IconName, Swatch } from "../kit";
 import { nextIndex } from "../kit/keys";
 import styles from "./dock.module.css";
-import { LoginButton } from "./TopBar";
 import { useDailyReady, usePlayMode } from "./useGameState";
 
 type ToolId = "paint" | "detector" | "defuser";
@@ -272,22 +271,15 @@ export function DesktopDock({ client }: { client: GameClient }) {
   const config = useGame((s) => s.config);
   const mode = usePlayMode();
   usePaletteFallback();
-  if (!config) return null;
+  // Guests cannot draw: the login button in the top bar is all they need.
+  if (!config || mode === "guest") return null;
   const disabled = mode !== "play";
   return (
     <div className={styles.desktopArea}>
       <ConfirmRow client={client} floating />
       <div className={styles.dock}>
-        {mode === "guest" ? (
-          <div className={styles.guest}>
-            <LoginButton />
-          </div>
-        ) : (
-          <>
-            <Tools disabled={disabled} />
-            <BombToggle disabled={disabled} />
-          </>
-        )}
+        <Tools disabled={disabled} />
+        <BombToggle disabled={disabled} />
         <span className={styles.divider} aria-hidden="true" />
         <Palette entries={config.palette} label={t("dock.palette")} size={22} className={styles.grid} />
       </div>
@@ -325,7 +317,7 @@ export function MobileDock({ client }: { client: GameClient }) {
   const recentEntries = quickColors(config.palette, recent, (e) => e.unlock === "default" || open.has(e.id));
   return (
     <div className={styles.mobileArea}>
-      {paletteOpen && !selection && (
+      {paletteOpen && !selection && mode !== "guest" && (
         <div className={styles.allColors}>
           <div className={styles.allHead}>
             <span className={styles.allTitle}>{t("dock.allColors")}</span>
@@ -339,9 +331,7 @@ export function MobileDock({ client }: { client: GameClient }) {
       <div className={styles.mobileDock}>
         <div className={styles.mobileRow}>
           {mode === "guest" ? (
-            <div className={styles.guest}>
-              <LoginButton wide />
-            </div>
+            <p className={styles.guest}>{t("dock.guest")}</p>
           ) : (
             <>
               <Tools disabled={disabled} />
@@ -358,7 +348,7 @@ export function MobileDock({ client }: { client: GameClient }) {
             {dailyReady && <span className={styles.badge} aria-hidden="true" />}
           </button>
         </div>
-        {selection ? (
+        {mode === "guest" ? null : selection ? (
           <ConfirmRow client={client} />
         ) : (
           <div className={styles.mobileRow}>

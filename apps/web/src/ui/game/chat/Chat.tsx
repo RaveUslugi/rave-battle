@@ -9,7 +9,6 @@ import { useGame } from "../../../state/game-store";
 import { type TimelineItem, timelineStore, useTimeline } from "../../../state/timeline-store";
 import { uiStore, useUi } from "../../../state/ui-store";
 import { Avatar, Icon } from "../../kit";
-import { LoginButton } from "../TopBar";
 import styles from "./chat.module.css";
 import { feedIcon, feedParts, isAtBottom } from "./feed-text";
 
@@ -259,7 +258,6 @@ function GuestNote() {
   return (
     <div className={styles.guest}>
       <span>{t("chat.guest")}</span>
-      <LoginButton />
     </div>
   );
 }

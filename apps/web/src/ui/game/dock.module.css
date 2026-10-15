@@ -32,8 +32,9 @@
   background: var(--line);
 }
 .guest {
-  display: flex;
-  align-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .tools {
@@ -293,6 +294,7 @@
 }
 .mobileRow .guest {
   flex: 1;
+  align-self: center;
 }
 .sections {
   position: relative;

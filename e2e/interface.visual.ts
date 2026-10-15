@@ -8,7 +8,8 @@ const live = (page: Page) => [page.getByTestId("status"), page.locator("time")];
 
 test("game, guest, desktop", async ({ page }) => {
   await page.goto("/?x=64&y=64&z=4");
-  await expect(page.getByRole("radiogroup", { name: "Цвет", exact: true })).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
   await hideCanvases(page);
   await expect(page).toHaveScreenshot("game-desktop.png", { mask: live(page) });
 });
