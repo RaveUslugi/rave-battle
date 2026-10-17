@@ -1,3 +1,11 @@
+{
+	# HTTP/1.1 and HTTP/2 only. With HTTP/3 advertised, a browser whose UDP 443 is blocked
+	# anywhere on the way remembers it and fails with ERR_QUIC_PROTOCOL_ERROR.
+	servers {
+		protocols h1 h2
+	}
+}
+
 {$SITE_ADDRESS} {
 	encode zstd gzip
 	@api path /trpc/* /ws /chunk/* /overview /auth/* /health

@@ -8,7 +8,7 @@
                   статика /srv                 backup (pg_dump)
 ```
 
-Порты `server` и `postgres` наружу не опубликованы. Публичны только 80 и 443 (TCP) и 443/UDP (HTTP/3) у `caddy`.
+Порты `server` и `postgres` наружу не опубликованы. Публичны только 80 и 443 (TCP) у `caddy`. HTTP/3 выключен: если UDP 443 где-то по пути закрыт, браузер падает с `ERR_QUIC_PROTOCOL_ERROR`.
 
 ## 1. Что нужно
 
@@ -47,7 +47,6 @@ sudo systemctl restart ssh
 sudo ufw allow OpenSSH
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo ufw allow 443/udp
 sudo ufw enable
 ```
 
