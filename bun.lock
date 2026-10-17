@@ -32,7 +32,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@fontsource/golos-text": "5.3.0",
-        "@fontsource/pixelify-sans": "5.3.0",
+        "@fontsource/tiny5": "5.3.0",
         "@rave/shared": "workspace:*",
         "@tanstack/react-query": "5.103.2",
         "@trpc/client": "11.19.0",
@@ -148,7 +148,7 @@
 
     "@fontsource/golos-text": ["@fontsource/golos-text@5.3.0", "", {}, "sha512-R+gM4qOZSrge4TtEGps0zTpU8X4e7e32L+3yy0J/2LnVB/IERlidEpXPWSZVGzTaL5QnPRVmoebRXSuVtjUIVg=="],
 
-    "@fontsource/pixelify-sans": ["@fontsource/pixelify-sans@5.3.0", "", {}, "sha512-4RCe9nXbi7wUu5+H0FNX1sgPZ2kJ1MmY1uTkEfvQIzzqhoS8zGKJaJfdK8oreE0OU+5gM+NdurFi3H3FJRBvyw=="],
+    "@fontsource/tiny5": ["@fontsource/tiny5@5.3.0", "", {}, "sha512-29H01ByMRs6uiLeOoBnZLedf0dR3pF5A53cIBzhp1/Y6Bu5D0t5selTb4TWs3ENoc/OK71rOed5xAdvBywe4aQ=="],
 
     "@happy-dom/global-registrator": ["@happy-dom/global-registrator@20.14.5", "", { "dependencies": { "@types/node": ">=20.0.0", "happy-dom": "^20.14.5" } }, "sha512-B05ID9DhSwLs6mlm1fzlkAtTIvB3duCvjJjfr19LBrlTK7VZtRjDqoTRIVv13GuYuNdhByu8LSZgThwV3Rkj7g=="],
 

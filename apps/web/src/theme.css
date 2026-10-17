@@ -21,7 +21,7 @@
   --red-soft: #ff8a95;
   --red-deep: #2e1016;
   --ice: #9af3ff;
-  --font-display: "Pixelify Sans", ui-monospace, monospace;
+  --font-display: "Tiny5", ui-monospace, monospace;
   --font-text: "Golos Text", system-ui, sans-serif;
   /* Stepped "pixel" corners: clip-path polygons for 4 px and 2 px steps. */
   --px4: polygon(
@@ -67,6 +67,8 @@ body,
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-text);
+  /* Golos has real weights; the pixel font has one and must not be smeared into a fake bold. */
+  font-synthesis-weight: none;
   overflow: hidden;
   overscroll-behavior: none;
 }
