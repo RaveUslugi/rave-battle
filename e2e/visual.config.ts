@@ -19,7 +19,7 @@ export default defineConfig({
     launchOptions: { executablePath: process.env.CHROMIUM_PATH || undefined },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled", caret: "hide" } },
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" } },
   timeout: 30_000,
   workers: 1,
   reporter: "list",

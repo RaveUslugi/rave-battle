@@ -7,9 +7,7 @@ import "@fontsource/golos-text/400.css";
 import "@fontsource/golos-text/500.css";
 import "@fontsource/golos-text/600.css";
 import "@fontsource/golos-text/700.css";
-import "@fontsource/pixelify-sans/400.css";
-import "@fontsource/pixelify-sans/600.css";
-import "@fontsource/pixelify-sans/700.css";
+import "@fontsource/tiny5/400.css";
 import "./theme.css";
 import { applyLocale, currentLocale } from "./i18n";
 
