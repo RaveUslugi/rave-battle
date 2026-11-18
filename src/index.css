@@ -1,0 +1,141 @@
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/golos-text-cyrillic-400-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/golos-text-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/golos-text-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/golos-text-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/golos-text-cyrillic-500-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/golos-text-latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/golos-text-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/golos-text-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Tiny5";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/tiny5-cyrillic-400-normal.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Tiny5";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/tiny5-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --bg: #0b0a12;
+  --surface: #161322;
+  --card: #1f1b2e;
+  --line: #2f2a44;
+  --line-strong: #47406a;
+  --text: #f2eefa;
+  --text-soft: #c9c2e0;
+  --muted: #a9a2c2;
+  --pink: #ff3dae;
+  --cyan: #3de8ff;
+  --red: #ff4d5e;
+  --red-deep: #2e1016;
+  --font-display: "Tiny5", ui-monospace, monospace;
+  --font-text: "Golos Text", system-ui, sans-serif;
+  /* Stepped "pixel" corners. */
+  --px4: polygon(
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+  --bevel: inset 0 -3px 0 rgba(0, 0, 0, 0.3);
+
+  color-scheme: dark;
+  font: 400 16px / 1.5 var(--font-text);
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+body {
+  background: var(--bg);
+  overscroll-behavior: none;
+}
